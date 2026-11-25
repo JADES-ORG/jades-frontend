@@ -1,256 +1,242 @@
-import React from 'react';
-import { FileText, CreditCard, Calendar, Info } from 'lucide-react';
+import { useEffect, useState } from "react";
+import type { CronogramaResponse } from "../../types/finanzas";
+import type { PagoUnico } from "../../features/client-portal/types";
+import {
+  consultarCronograma,
+  consultarPagoUnico,
+  mensajeError,
+} from "../../features/client-portal/api";
+import { useCuentaCliente } from "../../features/client-portal/state";
+import {
+  capitalCompra,
+  codigo,
+  dinero,
+  fecha,
+  porcentaje,
+} from "../../features/client-portal/model";
+import { Aviso, Empty, FigmaIcon } from "../../features/client-portal/ui";
 
-interface CuotaCronograma {
-  numero: string;
-  vencimiento: string;
-  saldoInicial: string;
-  interes: string;
-  amortizacion: string;
-  cuota: string;
-  saldoFinal: string;
-}
-
-interface PlanPagosData {
-  codigo: string;
-  nombre: string;
-  montoFinanciado: string;
-  montoFinanciadoSub: string;
-  totalCuotas: string;
-  totalCuotasSub: string;
-  saldoCapital: string;
-  saldoCapitalSub: string;
-  tasaInfo: string;
-  cuotas: CuotaCronograma[];
-}
-
-const planesMock: Record<string, PlanPagosData> = {
-  'CR-001284': {
-    codigo: 'CR-001284',
-    nombre: 'Canasta familiar',
-    montoFinanciado: 'S/ 604.96',
-    montoFinanciadoSub: 'Gracia capitalizada S/ 4.96',
-    totalCuotas: 'S/ 635.46',
-    totalCuotasSub: '3 cuotas · método francés',
-    saldoCapital: 'S/ 408.26',
-    saldoCapitalSub: '1 de 3 cuotas pagadas',
-    tasaInfo: 'Importes en PEN · TEM 2.500000%',
-    cuotas: [
-      {
-        numero: '01',
-        vencimiento: '15 may 2025',
-        saldoInicial: 'S/ 604.96',
-        interes: 'S/ 15.12',
-        amortizacion: 'S/ 196.70',
-        cuota: 'S/ 211.82',
-        saldoFinal: 'S/ 408.26',
-      },
-      {
-        numero: '02',
-        vencimiento: '15 jun 2025',
-        saldoInicial: 'S/ 408.26',
-        interes: 'S/ 10.21',
-        amortizacion: 'S/ 201.61',
-        cuota: 'S/ 211.82',
-        saldoFinal: 'S/ 206.65',
-      },
-      {
-        numero: '03',
-        vencimiento: '15 jul 2025',
-        saldoInicial: 'S/ 206.65',
-        interes: 'S/ 5.17',
-        amortizacion: 'S/ 206.65',
-        cuota: 'S/ 211.82',
-        saldoFinal: 'S/ 0.00',
-      },
-    ],
-  },
-  'CR-001285': {
-    codigo: 'CR-001285',
-    nombre: 'Canasta y cuidado personal',
-    montoFinanciado: 'S/ 353.63',
-    montoFinanciadoSub: 'Gracia capitalizada S/ 8.63',
-    totalCuotas: 'S/ 371.46',
-    totalCuotasSub: '3 cuotas · método francés',
-    saldoCapital: 'S/ 353.63',
-    saldoCapitalSub: 'En gracia hasta 15 jul',
-    tasaInfo: 'Importes en PEN · TEM 2.500000%',
-    cuotas: [
-      {
-        numero: '01',
-        vencimiento: '15 ago 2025',
-        saldoInicial: 'S/ 353.63',
-        interes: 'S/ 8.84',
-        amortizacion: 'S/ 114.98',
-        cuota: 'S/ 123.82',
-        saldoFinal: 'S/ 238.65',
-      },
-      {
-        numero: '02',
-        vencimiento: '15 sep 2025',
-        saldoInicial: 'S/ 238.65',
-        interes: 'S/ 5.97',
-        amortizacion: 'S/ 117.85',
-        cuota: 'S/ 123.82',
-        saldoFinal: 'S/ 120.80',
-      },
-      {
-        numero: '03',
-        vencimiento: '15 oct 2025',
-        saldoInicial: 'S/ 120.80',
-        interes: 'S/ 3.02',
-        amortizacion: 'S/ 120.80',
-        cuota: 'S/ 123.82',
-        saldoFinal: 'S/ 0.00',
-      },
-    ],
-  },
-};
-
-interface ClientPlanPagosPageProps {
-  codigoCredito?: string;
+interface Props {
+  idVenta: number;
   onBackToCompras: () => void;
 }
-
-export const ClientPlanPagosPage: React.FC<ClientPlanPagosPageProps> = ({
-  codigoCredito = 'CR-001284',
-  onBackToCompras,
-}) => {
-  const plan = planesMock[codigoCredito] || planesMock['CR-001284'];
-
+export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
+  const { cuenta } = useCuentaCliente();
+  const compra = cuenta?.compras.find((c) => c.idVenta === idVenta);
+  const unico = compra?.modalidadPago === "UNICO";
+  const [plan, setPlan] = useState<CronogramaResponse | null>(null);
+  const [pagoUnico, setPagoUnico] = useState<PagoUnico | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!compra) return () => controller.abort();
+    const request = unico
+      ? consultarPagoUnico(idVenta, controller.signal).then((data) => {
+          if (!controller.signal.aborted) setPagoUnico(data);
+        })
+      : consultarCronograma(idVenta, controller.signal).then((data) => {
+          if (!controller.signal.aborted) setPlan(data);
+        });
+    request
+      .catch((e) => {
+        if (!controller.signal.aborted) setError(mensajeError(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [idVenta, unico, compra, revision]);
+  if (!compra || !cuenta)
+    return (
+      <Empty>
+        Esta compra no pertenece a tu cuenta.
+        <button className="client-button" onClick={onBackToCompras}>
+          Volver a mis compras
+        </button>
+      </Empty>
+    );
   return (
-    <div className="space-y-6 w-full">
-      {/* Encabezado */}
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Plan de pagos
-        </h2>
-        <p className="text-sm text-slate-500 mt-1 font-normal">
-          {plan.nombre} · {plan.codigo}
+    <div className="client-sections">
+      <div className="client-heading">
+        <h2>{unico ? "Detalle de pago único" : "Plan de pagos"}</h2>
+        <p>
+          Compra #{compra.idVenta} · {codigo(compra)} · {cuenta.comercio}
         </p>
       </div>
-
-      {/* 3 KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Monto financiado */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex items-start space-x-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ecfdf5] border border-[#d1fae5] flex items-center justify-center text-[#139a6c] shrink-0">
-            <FileText className="w-6 h-6 stroke-[1.8]" />
+      {loading ? (
+        <div className="client-panel client-empty" role="status">
+          <span className="client-spinner" />
+          Cargando el detalle de tu compra…
+        </div>
+      ) : error ? (
+        <div className="client-panel client-empty" role="alert">
+          <p>{error}</p>
+          <button
+            className="client-button"
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              setRevision((n) => n + 1);
+            }}
+          >
+            Volver a intentar
+          </button>
+        </div>
+      ) : plan ? (
+        <>
+          <div className="client-stat-grid">
+            <div className="client-stat">
+              <span className="client-stat-icon">
+                <FigmaIcon frame="14-277" name="imgIconoReceipt1" />
+              </span>
+              <div>
+                <p>Monto financiado</p>
+                <h3>{dinero(plan.capitalCapitalizado, plan.moneda)}</h3>
+                <small>
+                  Gracia capitalizada {dinero(plan.interesGracia, plan.moneda)}
+                </small>
+              </div>
+            </div>
+            <div className="client-stat">
+              <span className="client-stat-icon">
+                <FigmaIcon frame="14-277" name="imgIconoWallet1" />
+              </span>
+              <div>
+                <p>Total de cuotas</p>
+                <h3>{dinero(plan.totalFinanciamiento, plan.moneda)}</h3>
+                <small>{plan.numeroCuotas} cuotas · método francés</small>
+              </div>
+            </div>
+            <div className="client-stat">
+              <span className="client-stat-icon">
+                <FigmaIcon frame="14-277" name="imgIconoCalendar" />
+              </span>
+              <div>
+                <p>Saldo de capital</p>
+                <h3>{dinero(capitalCompra(cuenta, compra), compra.moneda)}</h3>
+                <small>
+                  {plan.fechaFinGracia
+                    ? `Fin de gracia: ${fecha(plan.fechaFinGracia)}`
+                    : "Según obligaciones registradas"}
+                </small>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-slate-500 font-medium">Monto financiado</p>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-              {plan.montoFinanciado}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 font-normal">
-              {plan.montoFinanciadoSub}
+          <section className="client-panel">
+            <div className="client-panel-heading">
+              <h3>Cronograma</h3>
+              <p>
+                Importes en {plan.moneda} · TEM{" "}
+                {porcentaje(plan.tasaEfectivaMensual)}
+              </p>
+            </div>
+            {plan.cuotas.length ? (
+              <div className="client-table-scroll">
+                <table className="client-table">
+                  <thead>
+                    <tr>
+                      <th>N.º</th>
+                      <th>Vencimiento</th>
+                      <th>Saldo inicial</th>
+                      <th>Interés</th>
+                      <th>Amortización</th>
+                      <th>Cuota</th>
+                      <th>Saldo final</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {plan.cuotas.map((c) => (
+                      <tr key={c.numeroCuota}>
+                        <td>{String(c.numeroCuota).padStart(2, "0")}</td>
+                        <td>{fecha(c.fechaVencimiento)}</td>
+                        <td>{dinero(c.saldoInicial, plan.moneda)}</td>
+                        <td>{dinero(c.interes, plan.moneda)}</td>
+                        <td>{dinero(c.amortizacion, plan.moneda)}</td>
+                        <td>{dinero(c.cuota, plan.moneda)}</td>
+                        <td>{dinero(c.saldoFinal, plan.moneda)}</td>
+                        <td>{c.estado}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty>El cronograma todavía no tiene cuotas registradas.</Empty>
+            )}
+          </section>
+        </>
+      ) : pagoUnico ? (
+        <>
+          <div className="client-stat-grid">
+            {[
+              ["Capital", dinero(pagoUnico.capital, pagoUnico.moneda)],
+              [
+                "Interés compensatorio",
+                dinero(pagoUnico.interesCompensatorio, pagoUnico.moneda),
+              ],
+              [
+                "Total sin mora",
+                dinero(pagoUnico.totalSinMora, pagoUnico.moneda),
+              ],
+            ].map(([label, value]) => (
+              <div className="client-stat" key={label}>
+                <div>
+                  <p>{label}</p>
+                  <h3>{value}</h3>
+                </div>
+              </div>
+            ))}
+          </div>
+          <section className="client-panel client-detail">
+            <h3>Condiciones de la obligación</h3>
+            <dl>
+              <div>
+                <dt>Fecha de compra</dt>
+                <dd>{fecha(pagoUnico.fechaVenta)}</dd>
+              </div>
+              <div>
+                <dt>Fecha de corte</dt>
+                <dd>{fecha(pagoUnico.fechaCorteAsignada)}</dd>
+              </div>
+              <div>
+                <dt>Fecha de pago</dt>
+                <dd>{fecha(pagoUnico.fechaPago)}</dd>
+              </div>
+              <div>
+                <dt>Días de financiamiento</dt>
+                <dd>{pagoUnico.diasFinanciamiento}</dd>
+              </div>
+              <div>
+                <dt>Tasa efectiva diaria</dt>
+                <dd>{porcentaje(pagoUnico.tasaEfectivaDiaria)}</dd>
+              </div>
+              <div>
+                <dt>Tasa efectiva del período</dt>
+                <dd>{porcentaje(pagoUnico.tasaEfectivaPeriodo)}</dd>
+              </div>
+              <div>
+                <dt>Estado</dt>
+                <dd>{pagoUnico.estadoCuota}</dd>
+              </div>
+            </dl>
+            <p>
+              Si existe atraso, consulta el importe actualizado en Mis pagos.
             </p>
-          </div>
-        </div>
-
-        {/* Card 2: Total de cuotas */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex items-start space-x-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ecfdf5] border border-[#d1fae5] flex items-center justify-center text-[#139a6c] shrink-0">
-            <CreditCard className="w-6 h-6 stroke-[1.8]" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 font-medium">Total de cuotas</p>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-              {plan.totalCuotas}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 font-normal">
-              {plan.totalCuotasSub}
-            </p>
-          </div>
-        </div>
-
-        {/* Card 3: Saldo de capital */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs flex items-start space-x-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#ecfdf5] border border-[#d1fae5] flex items-center justify-center text-[#139a6c] shrink-0">
-            <Calendar className="w-6 h-6 stroke-[1.8]" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 font-medium">Saldo de capital</p>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-              {plan.saldoCapital}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1 font-normal">
-              {plan.saldoCapitalSub}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Card Cronograma */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
-        <div className="mb-6">
-          <h3 className="text-base font-bold text-slate-900">Cronograma</h3>
-          <p className="text-xs text-slate-400 mt-0.5 font-normal">
-            {plan.tasaInfo}
-          </p>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-6">N.°</th>
-                <th className="py-3 px-4">VENCIMIENTO</th>
-                <th className="py-3 px-4">SALDO INICIAL</th>
-                <th className="py-3 px-4">INTERÉS</th>
-                <th className="py-3 px-4">AMORTIZACIÓN</th>
-                <th className="py-3 px-4">CUOTA</th>
-                <th className="py-3 px-6">SALDO FINAL</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {plan.cuotas.map((c) => (
-                <tr key={c.numero} className="hover:bg-slate-50/50 transition">
-                  <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
-                    {c.numero}
-                  </td>
-                  <td className="py-4 px-4 font-normal text-slate-600 whitespace-nowrap">
-                    {c.vencimiento}
-                  </td>
-                  <td className="py-4 px-4 font-medium text-slate-700 whitespace-nowrap">
-                    {c.saldoInicial}
-                  </td>
-                  <td className="py-4 px-4 font-medium text-slate-700 whitespace-nowrap">
-                    {c.interes}
-                  </td>
-                  <td className="py-4 px-4 font-medium text-slate-700 whitespace-nowrap">
-                    {c.amortizacion}
-                  </td>
-                  <td className="py-4 px-4 font-bold text-slate-900 whitespace-nowrap">
-                    {c.cuota}
-                  </td>
-                  <td className="py-4 px-6 font-medium text-slate-700 whitespace-nowrap">
-                    {c.saldoFinal}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Banner Informativo */}
-      <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-2xl p-4 flex items-center space-x-3 text-xs text-[#065f46]">
-        <Info className="w-4 h-4 text-[#059669] shrink-0" />
-        <span className="font-normal">
-          Solo consulta. Para efectuar un pago, comunicate con Bodega San Blas. No se aceptan pagos parciales.
-        </span>
-      </div>
-
-      {/* Botón de acción Volver a mis compras */}
-      <div className="flex justify-end pt-2">
-        <button
-          onClick={onBackToCompras}
-          className="bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-bold px-6 py-2.5 rounded-xl shadow-xs transition cursor-pointer active:scale-98"
-        >
+          </section>
+        </>
+      ) : null}
+      <Aviso>
+        Solo consulta. Para efectuar un pago, comunícate con {cuenta.comercio}.
+        No se aceptan pagos parciales.
+      </Aviso>
+      <div className="client-actions">
+        <button className="client-button" onClick={onBackToCompras}>
           Volver a mis compras
         </button>
       </div>
     </div>
   );
-};
+}

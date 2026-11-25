@@ -1,14 +1,14 @@
-import axios from 'axios';
+import axios from "axios";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -18,10 +18,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
+    if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes("/autenticacion/iniciar-sesion")
+    ) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      window.dispatchEvent(new Event("jades:session-expired"));
     }
     return Promise.reject(error);
-  }
+  },
 );
