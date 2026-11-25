@@ -14,3 +14,10 @@ Las tasas se envían como fracciones decimales (18% = 0.18). El campo graciaAdic
 El campo interesesTotales del cronograma corresponde a los intereses de las cuotas, sin incluir interesGracia.
 
 Pendientes: simulación previa de pago único, disponibilidad crediticia explícita, selección de tienda en la UI, eliminación del login ficticio y conexión de componentes. Los tipos MoraResponse y ListadoCorteResponse anteriores se mantienen para los mocks; los servicios reales usan CalculoMoraResponse y CorteResponse.
+
+## Segunda etapa: autenticación, tiendas y listado de clientes
+
+- El inicio de sesión usa el backend real, sin fallback ni cambio de roles de demostración. La recuperación de contraseña no se implementó en esta etapa.
+- El administrador de negocio entra a Clientes, selecciona una tienda activa autorizada y consulta sus clientes (incluidos inactivos). El buscador filtra por DNI parcial/completo o nombre en memoria y el filtro por estado es independiente.
+- Al cambiar de tienda se desmonta la lista anterior y se cancela su solicitud. El listado muestra solo datos devueltos por el backend. No se registran usuarios ni clientes desde esta nueva vista.
+- Las otras secciones aún conservan sus prototipos; no usar para operaciones reales. El inicio de sesión sigue siendo obligatorio al recargar la aplicación.
