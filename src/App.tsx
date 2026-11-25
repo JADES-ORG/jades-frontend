@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { VerifyCodePage } from './pages/auth/VerifyCodePage';
@@ -34,8 +34,9 @@ import { StoreAyudaPage } from './pages/store-admin/StoreAyudaPage';
 import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPage';
 import { CambiosGuardadosModal } from './components/store-admin/CambiosGuardadosModal';
 
-// Módulo 3: Portal Cliente
+// Módulo 3: Portal cliente conectado al backend.
 import { ClientPortal } from './features/client-portal/ClientPortal';
+import { sesionClienteGuardada } from './features/client-portal/session';
 
 import type { LoginResponse } from './types/finanzas';
 
@@ -120,10 +121,10 @@ function maskEmail(email: string): string {
 
 export function App() {
   // POR SEGURIDAD ESTRICTA: Siempre arranca en 'login'
-  const [currentView, setCurrentView] = useState<MainView>('login');
+  const [currentView, setCurrentView] = useState<MainView>(() => sesionClienteGuardada() ? 'client_portal' : 'login');
   const [userEmail, setUserEmail] = useState<string>('luis@ejemplo.com');
   const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
-  const [, setCurrentUser] = useState<LoginResponse | null>(null);
+  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => sesionClienteGuardada());
 
   // Estados del Administrador del Sistema
   const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
@@ -235,9 +236,9 @@ export function App() {
     setCurrentUser(user);
     setUserEmail(user.correo);
 
-    if (user.rol === 'CLIENTE' || user.correo.toLowerCase().includes('maria')) {
+    if (user.rol === 'CLIENTE') {
       setCurrentView('client_portal');
-    } else if (user.rol === 'ADMIN_SISTEMA' || user.correo.toLowerCase().includes('admin@jades')) {
+    } else if (user.rol === 'ADMIN_SISTEMA') {
       setCurrentView('admin_system');
       setAdminTab('resumen');
     } else {
@@ -278,6 +279,15 @@ export function App() {
     setCurrentView('login');
   };
 
+  useEffect(() => {
+    const cerrarSesionExpirada = () => {
+      setCurrentUser(null);
+      setCurrentView('login');
+    };
+    window.addEventListener('jades:session-expired', cerrarSesionExpirada);
+    return () => window.removeEventListener('jades:session-expired', cerrarSesionExpirada);
+  }, []);
+
   // --- Manejadores de Tiendas (Admin Sistema) ---
   const handleOpenEdit = (tienda: TiendaData) => {
     setEditingTienda(tienda);
@@ -296,7 +306,7 @@ export function App() {
   };
 
   // --- Renderizado Condicional de Vistas ---
-  const renderRoleDemoBar = (currentRoleLabel: string) => (
+  const renderRoleDemoBar = (currentRoleLabel: string) => import.meta.env.VITE_ENABLE_DEMO_CONTROLS !== 'true' ? null : (
     <div className="bg-slate-900 text-white text-xs px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-white/10">
       <div className="flex items-center space-x-2">
         <span className="text-slate-400 font-medium hidden sm:inline">Demostración académica JADES:</span>
@@ -630,13 +640,11 @@ export function App() {
   );
 }
 
-// VISTA: PORTAL CLIENTE
-return (
-  <>
-    {renderRoleDemoBar('Vista activa: Portal Cliente (María Quispe)')}
-    <ClientPortal onLogout={handleLogout} />
-  </>
-);
+// VISTA: PORTAL CLIENTE. Los permisos reales se validan también en la API.
+if (currentUser?.rol !== 'CLIENTE') {
+  return <div className="p-8"><p>Inicia sesión con una cuenta de cliente para consultar tus obligaciones.</p><button onClick={handleLogout}>Volver a iniciar sesión</button></div>;
+}
+return <ClientPortal key={currentUser.id} onLogout={handleLogout} />;
 }
 
 export default App;
