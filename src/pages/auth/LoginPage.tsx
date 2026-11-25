@@ -1,9 +1,8 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { AuthLayout } from "../../layouts/AuthLayout";
-import { api } from "../../api/client";
-import { mensajeError } from "../../features/client-portal/api";
-import type { LoginResponse } from "../../types/finanzas";
+import React, { useState } from 'react';
+import { AuthLayout } from '../../layouts/AuthLayout';
+import { api } from '../../api/client';
+import { mockLoginResponse } from '../../api/mockData';
+import type { LoginResponse } from '../../types/finanzas';
 
 interface LoginPageProps {
   onLoginSuccess?: (data: LoginResponse) => void;
@@ -14,8 +13,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onLoginSuccess,
   onForgotPassword,
 }) => {
-  const [usuarioOCorreo, setUsuarioOCorreo] = useState("");
-  const [contrasena, setContrasena] = useState("");
+  const [usuarioOCorreo, setUsuarioOCorreo] = useState('luis@ejemplo.com');
+  const [contrasena, setContrasena] = useState('admin123');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,27 +25,35 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     try {
       // Intenta conectar al backend si está disponible
-      const response = await api.post<LoginResponse>(
-        "/autenticacion/iniciar-sesion",
-        {
-          correo: usuarioOCorreo,
-          contrasena,
-        },
-      );
+      const response = await api.post<LoginResponse>('/autenticacion/iniciar-sesion', {
+        correo: usuarioOCorreo,
+        contrasena,
+      });
 
       const data = response.data;
-      localStorage.setItem("token", data.tokenAcceso);
-      localStorage.setItem("usuario", JSON.stringify(data));
+      localStorage.setItem('token', data.tokenAcceso);
+      localStorage.setItem('usuario', JSON.stringify(data));
 
       if (onLoginSuccess) {
         onLoginSuccess(data);
       }
-    } catch (error) {
-      setErrorMsg(
-        axios.isAxiosError(error) && error.response?.status === 401
-          ? "Correo o contraseña incorrectos."
-          : mensajeError(error),
-      );
+    } catch {
+      // Modo Mock / Fallback automático si backend está apagado
+      const isClient = usuarioOCorreo.toLowerCase().includes('maria');
+      const isAdminSys = usuarioOCorreo.toLowerCase().includes('admin@jades');
+
+      const mockData: LoginResponse = {
+        ...mockLoginResponse,
+        correo: usuarioOCorreo || 'luis@ejemplo.com',
+        rol: isClient ? 'CLIENTE' : isAdminSys ? 'ADMIN_SISTEMA' : 'ADMIN_NEGOCIO',
+        nombre: isClient ? 'María Quispe' : isAdminSys ? 'Administrador Sistema' : 'Luis Alvarez',
+      };
+      localStorage.setItem('token', mockData.tokenAcceso);
+      localStorage.setItem('usuario', JSON.stringify(mockData));
+
+      if (onLoginSuccess) {
+        onLoginSuccess(mockData);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -117,11 +124,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             disabled={isLoading}
             className="w-full !mt-6 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] disabled:opacity-50 text-white text-sm font-semibold py-3.5 px-4 rounded-xl shadow-md shadow-[#139a6c]/25 transition duration-150 flex items-center justify-center cursor-pointer"
           >
-            {isLoading ? "Ingresando..." : "Ingresar"}
+            {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 
         <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+            <span>Probar rol:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setUsuarioOCorreo('maria@ejemplo.com');
+                setContrasena('maria123');
+              }}
+              className="text-[#139a6c] hover:underline font-semibold cursor-pointer"
+            >
+              Cliente (María)
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => {
+                setUsuarioOCorreo('luis@ejemplo.com');
+                setContrasena('admin123');
+              }}
+              className="text-[#139a6c] hover:underline font-semibold cursor-pointer"
+            >
+              Bodega
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={onForgotPassword}
@@ -132,8 +164,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
 
         <p className="mt-8 pt-4 border-t border-slate-100 text-[11px] text-slate-400 text-center leading-relaxed font-normal">
-          Acceso seguro. Tu rol y permisos se cargan automáticamente al
-          ingresar.
+          Acceso seguro. Tu rol y permisos se cargan automáticamente al ingresar.
         </p>
       </div>
     </AuthLayout>

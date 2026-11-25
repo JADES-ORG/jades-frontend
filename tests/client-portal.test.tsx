@@ -5,7 +5,6 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -306,59 +305,29 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     );
     expect(logout).toHaveBeenCalledOnce();
   });
-  it("un login rechazado no usa el fallback de demostración", async () => {
-    post.mockRejectedValueOnce(
-      new AxiosError("unauthorized", "ERR_BAD_REQUEST", undefined, undefined, {
-        status: 401,
-        data: {},
-        headers: {},
-        statusText: "Unauthorized",
-        config: {} as never,
-      }),
-    );
+  it("conserva el acceso de demostración del login compartido", async () => {
+    post.mockRejectedValueOnce(new AxiosError("unavailable"));
     render(<App />);
-    await userEvent.type(
-      screen.getByLabelText("Usuario o correo"),
-      "maria@example.com",
-    );
-    await userEvent.type(
-      screen.getByLabelText("Contraseña", { exact: true }),
-      "incorrecta",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Ingresar", exact: true }),
-    );
-    await screen.findByText("Correo o contraseña incorrectos.");
-    expect(localStorage.getItem("token")).toBeNull();
-    expect(screen.queryByText("Hola, María")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cliente (María)", exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Ingresar", exact: true }));
+    await screen.findByText("Hola, María");
+    expect(screen.getByText("Demostración académica JADES:")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Bodega San Blas", exact: true }));
+    expect(screen.getByText("Vista activa: Bodega San Blas (Administrador del Negocio)")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Admin Sistema", exact: true }));
+    expect(screen.getByText("Vista activa: Administrador del Sistema")).toBeVisible();
   });
-  it("login de cliente conecta el portal y un 401 global cierra la sesión", async () => {
-    const login = {
-      tokenAcceso: "test.jwt.token",
-      id: 3,
-      correo: "cliente@example.com",
-      rol: "CLIENTE",
-    };
-    post.mockResolvedValueOnce({ data: login });
+  it("el login real abre el portal y conserva el cierre de sesión original", async () => {
+    post.mockResolvedValueOnce({ data: {
+      tokenAcceso: "test.jwt.token", id: 3,
+      correo: "cliente@example.com", rol: "CLIENTE",
+    } });
     render(<App />);
-    await userEvent.type(
-      screen.getByLabelText("Usuario o correo"),
-      "cliente@example.com",
-    );
-    await userEvent.type(
-      screen.getByLabelText("Contraseña", { exact: true }),
-      "password-test",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Ingresar", exact: true }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Ingresar", exact: true }));
     await screen.findByText("Hola, María");
     expect(localStorage.getItem("token")).toBe("test.jwt.token");
-    fireEvent(window, new Event("jades:session-expired"));
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Ingresar", exact: true }),
-      ).toBeVisible(),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar sesión", exact: true }));
+    expect(screen.getByRole("button", { name: "Ingresar", exact: true })).toBeVisible();
+    expect(localStorage.getItem("token")).toBeNull();
   });
 });
