@@ -50,6 +50,7 @@ export interface LoginResponse {
   id: number;
   correo: string;
   rol: 'ADMIN_SISTEMA' | 'ADMIN_NEGOCIO' | 'CLIENTE';
+  nombre?: string;
 }
 
 export interface MoraResponse {
