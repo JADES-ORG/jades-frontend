@@ -29,7 +29,6 @@ import { EditarCondicionesModal } from './components/store-admin/EditarCondicion
 import { StoreProductosListPage, initialProductos } from './pages/store-admin/StoreProductosListPage';
 import { ProductoModal, type ProductoData } from './components/store-admin/ProductoModal';
 import { StoreNuevaVentaPage } from './pages/store-admin/StoreNuevaVentaPage';
-import { CreditoRegistradoModal } from './components/store-admin/CreditoRegistradoModal';
 import { StorePagosPage, initialPagos } from './pages/store-admin/StorePagosPage';
 import { RegistrarPagoModal, type PagoItemData } from './components/store-admin/RegistrarPagoModal';
 import { PagoRegistradoModal } from './components/store-admin/PagoRegistradoModal';
@@ -195,8 +194,6 @@ export function App() {
   const [editingProducto, setEditingProducto] = useState<ProductoData | null>(null);
 
   // Estados de Nueva Venta a Crédito (Bodega San Blas)
-  const [isCreditoRegistradoModalOpen, setIsCreditoRegistradoModalOpen] = useState(false);
-  const [registeredCreditoCode, setRegisteredCreditoCode] = useState('CR-001285');
 
   const handleOpenNewProducto = () => {
     setProductoModalMode('nuevo');
@@ -338,7 +335,6 @@ export function App() {
     setIsRegisterClientModalOpen(false);
     setIsEditClientModalOpen(false);
     setIsEditConditionsModalOpen(false);
-    setIsCreditoRegistradoModalOpen(false);
     setIsRecoveringPassword(false);
     setCurrentView('login');
   };
@@ -475,7 +471,6 @@ export function App() {
           setIsRegisterClientModalOpen(false);
           setIsEditClientModalOpen(false);
           setIsEditConditionsModalOpen(false);
-          setIsCreditoRegistradoModalOpen(false);
         }}
         currentTab={storeTab}
         onSelectTab={(tab) => {
@@ -499,7 +494,7 @@ export function App() {
           <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas activas asignadas.</p>
         ) : (
           <>
-        {storeTab !== 'clientes' && storeTab !== 'ayuda' && (
+        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && (
           <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Vista de demostración: esta sección aún no está conectada completamente al backend.</p>
         )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
@@ -557,13 +552,9 @@ export function App() {
         {/* Pestaña: Nueva venta a crédito */}
         {storeTab === 'nueva_venta' && (
           <StoreNuevaVentaPage
-            productosCatalogo={productos}
-            onCancel={() => setStoreTab('inicio')}
-            onConfirmSale={(datosVenta) => {
-              console.log('Venta confirmada:', datosVenta);
-              setRegisteredCreditoCode('CR-001285');
-              setIsCreditoRegistradoModalOpen(true);
-            }}
+            key={idTiendaActiva}
+            idTienda={idTiendaActiva}
+            onCancel={() => { setStoreTab('clientes'); setStoreSubView('lista'); }}
           />
         )}
 
@@ -632,22 +623,6 @@ export function App() {
         initialData={editingProducto}
         onClose={() => setIsProductoModalOpen(false)}
         onSave={handleSaveProducto}
-      />
-
-      <CreditoRegistradoModal
-        isOpen={isCreditoRegistradoModalOpen}
-        operacionCodigo={registeredCreditoCode}
-        clienteNombre="María Quispe"
-        onClose={() => setIsCreditoRegistradoModalOpen(false)}
-        onGoToClientDetail={() => {
-          setIsCreditoRegistradoModalOpen(false);
-          setStoreTab('clientes');
-          setStoreSubView('lista');
-        }}
-        onGoToHome={() => {
-          setIsCreditoRegistradoModalOpen(false);
-          setStoreTab('inicio');
-        }}
       />
 
       <RegistrarPagoModal

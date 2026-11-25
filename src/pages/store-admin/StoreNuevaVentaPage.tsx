@@ -1,958 +1,312 @@
-import React, { useState } from 'react';
-import {
-  Search,
-  Info,
-  Calendar,
-  FileText,
-  Plus,
-  Minus,
-  Trash2,
-  ChevronDown,
-} from 'lucide-react';
-import type { ProductoData } from '../../components/store-admin/ProductoModal';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
+import { listarClientes, consultarCondicionCrediticia } from '../../api/clientes';
+import { listarProductos } from '../../api/productos';
+import { simularCronograma, consultarCronograma, consultarPagoUnico } from '../../api/finanzas';
+import { registrarVenta, crearClaveIdempotencia } from '../../api/ventas';
+import { obtenerMensajeError } from '../../api/errores';
+import type { ClienteResponse, CondicionCrediticiaResponse } from '../../types/clientes';
+import type { ProductoResponse } from '../../types/productos';
+import type { CronogramaResponse, PagoUnicoResponse, Moneda } from '../../types/finanzas';
+import type { ModalidadPago, RegistrarVentaRequest, VentaResponse } from '../../types/ventas';
 
 export interface VentaItem {
-  id: number;
-  nombre: string;
-  precioUnitario: number;
-  cantidad: number;
+  producto: ProductoResponse;
+  cantidad: string;
 }
 
 interface StoreNuevaVentaPageProps {
-  productosCatalogo: ProductoData[];
+  idTienda: number;
   onCancel: () => void;
-  onConfirmSale: (datosVenta: {
-    cliente: string;
-    dni: string;
-    modalidad: 'unico' | 'meses';
-    meses: number;
-    totalCapital: number;
-    totalEsperado: number;
-  }) => void;
 }
 
-export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({
-  productosCatalogo,
-  onCancel,
-  onConfirmSale,
-}) => {
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+const principal = 'px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed';
+const secundario = 'px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl disabled:opacity-50';
+const campo = 'w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c]';
+const panel = 'bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-5';
 
-  // Paso 1: Cliente seleccionado
-  const [clientSearch, setClientSearch] = useState('');
-  const [selectedClient] = useState({
-    nombre: 'María Quispe',
-    dni: '45892136',
-    estado: 'Activo',
-    creditoDisponible: 1591.74,
-    limiteCredito: 2000.00,
-    tasa: 'Efectiva · 2.500000% mensual',
-    plazoMaximo: '6 meses',
-    cortePago: 'Día 10 · 18:00 h / Día 15',
-    mora: 'TNM 1.200000% · cap. diaria',
-    convenciones: '360 días / meses de 30 días',
-    moneda: 'Soles (PEN)',
-  });
+function dinero(valor: number, moneda: Moneda | string) {
+  return new Intl.NumberFormat('es-PE', { style: 'currency', currency: moneda }).format(valor);
+}
 
-  // Paso 2: Productos agregados
-  const [itemsVenta, setItemsVenta] = useState<VentaItem[]>([
-    {
-      id: 1,
-      nombre: 'Canasta de abarrotes',
-      precioUnitario: 85.00,
-      cantidad: 3,
-    },
-    {
-      id: 2,
-      nombre: 'Pack cuidado personal',
-      precioUnitario: 45.00,
-      cantidad: 2,
-    },
-  ]);
-  const [productSearch, setProductSearch] = useState('');
-  const [showCatalogDropdown, setShowCatalogDropdown] = useState(false);
+function ahoraLima() {
+  const partes = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const p = (tipo: string) => partes.find(parte => parte.type === tipo)?.value ?? '';
+  return { fechaVenta: `${p('year')}-${p('month')}-${p('day')}`, horaVenta: `${p('hour')}:${p('minute')}:${p('second')}` };
+}
 
-  // Paso 3: Modalidad de pago
-  const [modalidadPago, setModalidadPago] = useState<'unico' | 'meses'>('unico');
-  const [cantidadMeses, setCantidadMeses] = useState<number>(3);
+function cantidadValida(item: VentaItem) {
+  const patron = item.producto.unidadMedida === 'KILOGRAMO'
+    ? /^\d{1,9}(\.\d{1,3})?$/ : /^\d{1,9}$/;
+  return patron.test(item.cantidad) && Number(item.cantidad) > 0;
+}
 
-  // Cálculos dinámicos
-  const capitalTotal = itemsVenta.reduce(
-    (acc, item) => acc + item.precioUnitario * item.cantidad,
-    0
-  );
+// Precio (dos decimales) por cantidad (hasta tres decimales), redondeado por línea.
+function subtotalCentavos(item: VentaItem): number {
+  const precio = Math.round(item.producto.precioCredito * 100);
+  const cantidad = Math.round(Number(item.cantidad) * 1000);
+  return Math.round(precio * cantidad / 1000);
+}
 
-  // Cálculos financieros (30 días base, TEM 2.5%)
-  const interesGracia = Number((capitalTotal * 0.025).toFixed(2)); // S/ 8.63 para 345
-  const capitalDespuesGracia = capitalTotal + interesGracia; // S/ 353.63
+function Datos({ datos }: { datos: [string, React.ReactNode][] }) {
+  return <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 border border-slate-200 rounded-2xl p-4 text-xs">
+    {datos.map(([label, valor]) => <div key={label}><dt className="text-slate-500 mb-1">{label}</dt><dd className="font-semibold text-slate-900 break-words">{valor}</dd></div>)}
+  </dl>;
+}
 
-  // Cuota francesa para 3 meses: P = 353.63, i = 0.025, n = 3
-  // Cuota = 353.63 * [0.025 * (1.025)^3] / [(1.025)^3 - 1] = S/ 123.82
-  const cuotaMensual = 123.82;
-  const totalEsperadoMeses = 371.46;
-  const totalInteresesMeses = 26.46;
-
-  const totalEsperadoUnico = Number((capitalTotal + interesGracia).toFixed(2)); // S/ 353.63
-
-  const creditoRestante = (selectedClient.creditoDisponible - capitalTotal).toFixed(2);
-
-  // Handlers de productos
-  const handleIncreaseQty = (id: number) => {
-    setItemsVenta((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, cantidad: it.cantidad + 1 } : it))
-    );
-  };
-
-  const handleDecreaseQty = (id: number) => {
-    setItemsVenta((prev) =>
-      prev
-        .map((it) => (it.id === id ? { ...it, cantidad: it.cantidad - 1 } : it))
-        .filter((it) => it.cantidad > 0)
-    );
-  };
-
-  const handleAddProduct = (prod: ProductoData) => {
-    const existing = itemsVenta.find((it) => it.nombre === prod.nombre);
-    if (existing) {
-      handleIncreaseQty(existing.id);
-    } else {
-      setItemsVenta((prev) => [
-        ...prev,
-        {
-          id: prod.id || Date.now(),
-          nombre: prod.nombre,
-          precioUnitario: prod.precioCredito,
-          cantidad: 1,
-        },
-      ]);
-    }
-    setProductSearch('');
-    setShowCatalogDropdown(false);
-  };
-
-  const handleRemoveProduct = (id: number) => {
-    setItemsVenta((prev) => prev.filter((it) => it.id !== id));
-  };
-
-  const handleConfirm = () => {
-    onConfirmSale({
-      cliente: selectedClient.nombre,
-      dni: selectedClient.dni,
-      modalidad: modalidadPago,
-      meses: cantidadMeses,
-      totalCapital: capitalTotal,
-      totalEsperado: modalidadPago === 'unico' ? totalEsperadoUnico : totalEsperadoMeses,
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Encabezado Principal */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-          Nueva venta a crédito
-        </h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Completa los datos para registrar el crédito.
-        </p>
-      </div>
-
-      {/* Stepper Wizard (4 Pasos) */}
-      <div className="flex items-center space-x-6 sm:space-x-12 py-2 text-xs font-semibold overflow-x-auto">
-        <div className="flex items-center space-x-2 shrink-0">
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-              currentStep === 1
-                ? 'bg-[#139a6c] text-white'
-                : currentStep > 1
-                ? 'bg-emerald-100 text-[#139a6c]'
-                : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            1
-          </span>
-          <span className={currentStep === 1 ? 'text-slate-900 font-bold' : 'text-slate-500'}>
-            Cliente
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-              currentStep === 2
-                ? 'bg-[#139a6c] text-white'
-                : currentStep > 2
-                ? 'bg-emerald-100 text-[#139a6c]'
-                : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            2
-          </span>
-          <span className={currentStep === 2 ? 'text-slate-900 font-bold' : 'text-slate-500'}>
-            Productos / servicios
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-              currentStep === 3
-                ? 'bg-[#139a6c] text-white'
-                : currentStep > 3
-                ? 'bg-emerald-100 text-[#139a6c]'
-                : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            3
-          </span>
-          <span className={currentStep === 3 ? 'text-slate-900 font-bold' : 'text-slate-500'}>
-            Modalidad de pago
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <span
-            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-              currentStep === 4
-                ? 'bg-[#139a6c] text-white'
-                : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            4
-          </span>
-          <span className={currentStep === 4 ? 'text-slate-900 font-bold' : 'text-slate-500'}>
-            Confirmación
-          </span>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          PASO 1: SELECCIONA EL CLIENTE
-          ========================================================================= */}
-      {currentStep === 1 && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              1. Selecciona el cliente
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Busca al cliente para consultar sus condiciones de crédito.
-            </p>
-          </div>
-
-          {/* Buscador de cliente */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o DNI"
-              value={clientSearch}
-              onChange={(e) => setClientSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
-            />
-          </div>
-
-          {/* Tarjeta de Cliente Seleccionado (Fondo verde suave) */}
-          <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center font-extrabold text-xs text-slate-700 shadow-xs border border-emerald-100">
-                MQ
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  {selectedClient.nombre}
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  DNI {selectedClient.dni} · Cliente activo
-                </p>
-              </div>
-            </div>
-
-            <div className="sm:text-right">
-              <p className="text-[11px] text-slate-500 font-medium">
-                Crédito disponible antes de esta venta
-              </p>
-              <p className="text-xl font-bold text-[#139a6c] mt-0.5">
-                S/ {selectedClient.creditoDisponible.toFixed(2)}
-              </p>
-            </div>
-          </div>
-
-          {/* Condiciones pactadas (Grid 2 filas x 4 columnas) */}
-          <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 text-xs">
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 p-4">
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Tasa de interés</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.tasa}</p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Límite de crédito</p>
-                <p className="font-semibold text-slate-800 mt-0.5">
-                  S/ {selectedClient.limiteCredito.toFixed(2)}
-                </p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Plazo máximo</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.plazoMaximo}</p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Corte / pago</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.cortePago}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 p-4">
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Tasa moratoria</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.mora}</p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Convenciones</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.convenciones}</p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Moneda</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.moneda}</p>
-              </div>
-              <div className="p-2 text-left">
-                <p className="text-[11px] text-slate-400">Estado</p>
-                <p className="font-semibold text-slate-800 mt-0.5">{selectedClient.estado}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Banner Informativo */}
-          <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-3 text-left flex items-center space-x-2.5">
-            <Info className="w-4 h-4 text-[#139a6c] shrink-0" />
-            <p className="text-xs text-slate-600">
-              Las condiciones mostradas son las pactadas con el cliente y se aplicarán al cálculo de esta venta.
-            </p>
-          </div>
-
-          {/* Botones de navegación */}
-          <div className="pt-4 flex items-center justify-end space-x-3">
-            <button
-              onClick={onCancel}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => setCurrentStep(2)}
-              className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          PASO 2: AGREGA PRODUCTOS O SERVICIOS
-          ========================================================================= */}
-      {currentStep === 2 && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              2 Agrega productos o servicios
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Se aplicará el precio de crédito y solo estarán disponibles las modalidades permitidas por los conceptos seleccionados.
-            </p>
-          </div>
-
-          {/* Buscador de productos con dropdown de catálogo */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar producto o servicio para agregar"
-              value={productSearch}
-              onFocus={() => setShowCatalogDropdown(true)}
-              onChange={(e) => {
-                setProductSearch(e.target.value);
-                setShowCatalogDropdown(true);
-              }}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
-            />
-
-            {showCatalogDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-56 overflow-y-auto">
-                {productosCatalogo
-                  .filter((p) =>
-                    p.nombre.toLowerCase().includes(productSearch.toLowerCase())
-                  )
-                  .map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => handleAddProduct(p)}
-                      className="px-4 py-2.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer border-b border-slate-100 last:border-none text-xs"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">{p.nombre}</p>
-                        <p className="text-[10px] text-slate-400">{p.tipo} · {p.marca}</p>
-                      </div>
-                      <span className="font-bold text-[#139a6c]">
-                        S/ {p.precioCredito.toFixed(2)} (crédito)
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-
-          {/* Tabla de Detalle de la Venta */}
-          <div>
-            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-              DETALLE DE LA VENTA
-            </h4>
-
-            <div className="border border-slate-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th className="py-3 px-6">PRODUCTO</th>
-                    <th className="py-3 px-4">PRECIO UNITARIO</th>
-                    <th className="py-3 px-4 text-center">CANTIDAD</th>
-                    <th className="py-3 px-6 text-right">SUBTOTAL</th>
-                    <th className="py-3 px-4 text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {itemsVenta.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="py-4 px-6 font-bold text-slate-900">
-                        {item.nombre}
-                      </td>
-                      <td className="py-4 px-4 font-normal text-slate-600">
-                        S/ {item.precioUnitario.toFixed(2)}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="inline-flex items-center space-x-2 border border-slate-200 rounded-lg px-2 py-1">
-                          <button
-                            onClick={() => handleDecreaseQty(item.id)}
-                            className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="font-bold text-slate-800 text-xs px-1">
-                            {item.cantidad}
-                          </span>
-                          <button
-                            onClick={() => handleIncreaseQty(item.id)}
-                            className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-right font-bold text-slate-900">
-                        S/ {(item.precioUnitario * item.cantidad).toFixed(2)}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <button
-                          onClick={() => handleRemoveProduct(item.id)}
-                          className="text-slate-300 hover:text-red-500 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Fila de Totales de Capital y Crédito */}
-              <div className="bg-slate-50/70 border-t border-slate-100 p-4 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs">
-                <div>
-                  <p className="text-[11px] text-slate-400 font-medium">Capital total</p>
-                  <p className="text-base font-bold text-slate-900 mt-0.5">
-                    S/ {capitalTotal.toFixed(2)}
-                  </p>
-                </div>
-                <div className="sm:text-right">
-                  <p className="text-[11px] text-slate-400 font-medium">Disponible</p>
-                  <p className="text-base font-bold text-slate-900 mt-0.5">
-                    S/ {selectedClient.creditoDisponible.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Botones de navegación */}
-          <div className="pt-4 flex items-center justify-end space-x-3">
-            <button
-              onClick={() => setCurrentStep(1)}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-            >
-              Atrás
-            </button>
-            <button
-              onClick={() => setCurrentStep(3)}
-              disabled={itemsVenta.length === 0}
-              className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] disabled:bg-slate-300 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          PASO 3: CONFIGURA LA MODALIDAD DE PAGO
-          ========================================================================= */}
-      {currentStep === 3 && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              3 Configura la modalidad de pago
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {modalidadPago === 'unico'
-                ? 'Un solo pago en el ciclo correspondiente.'
-                : 'Elige cómo pagará el cliente esta compra.'}
-            </p>
-          </div>
-
-          {/* Dos tarjetas de selección de modalidad */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Modalidad 1: Pago único */}
-            <div
-              onClick={() => setModalidadPago('unico')}
-              className={`p-5 rounded-2xl border-2 transition cursor-pointer flex items-center space-x-4 ${
-                modalidadPago === 'unico'
-                  ? 'border-[#139a6c] bg-[#f0fdf4]'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  modalidadPago === 'unico'
-                    ? 'bg-[#139a6c] text-white'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  Pago único del ciclo
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Un solo pago en la fecha del ciclo
-                </p>
-              </div>
-            </div>
-
-            {/* Modalidad 2: Pago en meses */}
-            <div
-              onClick={() => setModalidadPago('meses')}
-              className={`p-5 rounded-2xl border-2 transition cursor-pointer flex items-center space-x-4 ${
-                modalidadPago === 'meses'
-                  ? 'border-[#139a6c] bg-[#f0fdf4]'
-                  : 'border-slate-200 hover:border-slate-300 bg-white'
-              }`}
-            >
-              <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  modalidadPago === 'meses'
-                    ? 'bg-[#139a6c] text-white'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">
-                  Pago en meses
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Plan mensual con método francés vencido
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* DETALLES DE MODALIDAD A: PAGO ÚNICO DEL CICLO */}
-          {modalidadPago === 'unico' && (
-            <div className="space-y-4">
-              <div className="border border-slate-200 rounded-2xl p-6 space-y-5">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Aplicación del ciclo mensual
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Compra posterior al corte: pago en julio.
-                  </p>
-                </div>
-
-                {/* Grid 4 columnas x 2 filas */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-6 text-xs border-y border-slate-100 py-4">
-                  <div>
-                    <p className="text-[11px] text-slate-400">Fecha de compra</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">15 jun 2025 · 10:42 h</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Corte aplicable</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">10 jul 2025 · 18:00 h</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Fecha de pago</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">15 jul 2025</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Días comerciales</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">30 días</p>
-                  </div>
-
-                  <div>
-                    <p className="text-[11px] text-slate-400">Capital</p>
-                    <p className="font-bold text-slate-900 mt-0.5">S/ {capitalTotal.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Tasa efectiva mensual</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">2.500000%</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Interés compensatorio</p>
-                    <p className="font-bold text-slate-900 mt-0.5">S/ {interesGracia.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Total esperado</p>
-                    <p className="font-bold text-slate-900 mt-0.5">S/ {totalEsperadoUnico.toFixed(2)}</p>
-                  </div>
-                </div>
-
-                {/* Banner Informativo */}
-                <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-3 text-left flex items-start space-x-2.5">
-                  <Info className="w-4 h-4 text-[#139a6c] shrink-0 mt-0.5" />
-                  <p className="text-xs text-slate-600">
-                    Compra posterior al corte: la obligación pasa al ciclo de julio. El interés se calcula automáticamente desde la fecha de compra hasta la fecha de pago.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* DETALLES DE MODALIDAD B: PAGO EN MESES (MÉTODO FRANCÉS CON GRACIA) */}
-          {modalidadPago === 'meses' && (
-            <div className="space-y-6">
-              {/* Inputs de configuración */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Cantidad de meses
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={cantidadMeses}
-                      onChange={(e) => setCantidadMeses(Number(e.target.value))}
-                      className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] cursor-pointer"
-                    >
-                      <option value={1}>1 mes</option>
-                      <option value={2}>2 meses</option>
-                      <option value={3}>3 meses</option>
-                      <option value={4}>4 meses</option>
-                      <option value={5}>5 meses</option>
-                      <option value={6}>6 meses</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Máximo pactado: 6 meses.</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Periodo de gracia total
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value="30 días · hasta 15/07/2025"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Se capitaliza desde la compra hasta el pago del ciclo.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Primera fecha de pago
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value="15/08/2025"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Primera cuota mensual después de capitalizar la gracia.
-                  </p>
-                </div>
-              </div>
-
-              {/* Resumen del Financiamiento */}
-              <div className="border border-slate-200 rounded-2xl p-6 space-y-5">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Resumen del financiamiento
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Método francés vencido simple ordinario · TEM 2.500000% · Compra 15 jun 2025 · 10:42 h · Corte 10 jul 2025 · 18:00 h
-                  </p>
-                </div>
-
-                {/* 4 Métricas */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50/70 p-4 rounded-xl text-left">
-                  <div>
-                    <p className="text-[11px] text-slate-400">Capital inicial</p>
-                    <p className="text-base font-bold text-slate-900 mt-0.5">
-                      S/ {capitalTotal.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Interés de gracia</p>
-                    <p className="text-base font-bold text-slate-900 mt-0.5">
-                      S/ {interesGracia.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Capital después de gracia</p>
-                    <p className="text-base font-bold text-slate-900 mt-0.5">
-                      S/ {capitalDespuesGracia.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-slate-400">Cuota mensual</p>
-                    <p className="text-base font-bold text-[#139a6c] mt-0.5">
-                      S/ {cuotaMensual.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Cronograma preliminar */}
-                <div>
-                  <h5 className="text-xs font-bold text-slate-700 mb-2">Cronograma preliminar</h5>
-                  <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <tr>
-                          <th className="py-2.5 px-4">N.°</th>
-                          <th className="py-2.5 px-4">FECHA DE PAGO</th>
-                          <th className="py-2.5 px-4">SALDO INICIAL</th>
-                          <th className="py-2.5 px-4">INTERÉS</th>
-                          <th className="py-2.5 px-4">AMORTIZACIÓN</th>
-                          <th className="py-2.5 px-4">CUOTA</th>
-                          <th className="py-2.5 px-4">SALDO FINAL</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        <tr>
-                          <td className="py-3 px-4 font-bold text-slate-900">01</td>
-                          <td className="py-3 px-4">15 ago 2025</td>
-                          <td className="py-3 px-4">S/ 353.63</td>
-                          <td className="py-3 px-4">S/ 8.84</td>
-                          <td className="py-3 px-4">S/ 114.98</td>
-                          <td className="py-3 px-4 font-bold text-slate-900">S/ 123.82</td>
-                          <td className="py-3 px-4">S/ 238.65</td>
-                        </tr>
-                        <tr>
-                          <td className="py-3 px-4 font-bold text-slate-900">02</td>
-                          <td className="py-3 px-4">15 sep 2025</td>
-                          <td className="py-3 px-4">S/ 238.65</td>
-                          <td className="py-3 px-4">S/ 5.97</td>
-                          <td className="py-3 px-4">S/ 117.85</td>
-                          <td className="py-3 px-4 font-bold text-slate-900">S/ 123.82</td>
-                          <td className="py-3 px-4">S/ 120.80</td>
-                        </tr>
-                        <tr>
-                          <td className="py-3 px-4 font-bold text-slate-900">03</td>
-                          <td className="py-3 px-4">15 oct 2025</td>
-                          <td className="py-3 px-4">S/ 120.80</td>
-                          <td className="py-3 px-4">S/ 3.02</td>
-                          <td className="py-3 px-4">S/ 120.80</td>
-                          <td className="py-3 px-4 font-bold text-slate-900">S/ 123.82</td>
-                          <td className="py-3 px-4">S/ 0.00</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2">
-                    Total programado: S/ 371.46 · Intereses totales: S/ 26.46. El cronograma definitivo se genera al registrar el crédito.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Botones de navegación */}
-          <div className="pt-4 flex items-center justify-end space-x-3">
-            <button
-              onClick={() => setCurrentStep(2)}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-            >
-              Atrás
-            </button>
-            <button
-              onClick={() => setCurrentStep(4)}
-              className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Continuar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          PASO 4: CONFIRMACIÓN Y REVISIÓN
-          ========================================================================= */}
-      {currentStep === 4 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* Columna Izquierda: Revisa y confirma la venta */}
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Revisa y confirma la venta
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Verifica que los datos sean correctos.
-              </p>
-            </div>
-
-            {/* Cliente */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                CLIENTE
-              </p>
-              <p className="text-sm font-bold text-slate-900 mt-1">
-                {selectedClient.nombre} · DNI {selectedClient.dni}
-              </p>
-            </div>
-
-            {/* Productos */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                PRODUCTOS
-              </p>
-              <div className="space-y-2 text-xs">
-                {itemsVenta.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center text-slate-700">
-                    <span>
-                      {item.cantidad} × {item.nombre}
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      S/ {(item.precioUnitario * item.cantidad).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Plan de pagos */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                PLAN DE PAGOS
-              </p>
-              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 p-4">
-                  <div>
-                    <p className="text-[11px] text-slate-400">Modalidad</p>
-                    <p className="font-bold text-slate-800 mt-0.5">
-                      {modalidadPago === 'unico'
-                        ? 'Pago único del ciclo'
-                        : `${cantidadMeses} meses · método francés`}
-                    </p>
-                  </div>
-                  <div className="sm:pl-4">
-                    <p className="text-[11px] text-slate-400">Fecha de pago</p>
-                    <p className="font-bold text-slate-800 mt-0.5">
-                      {modalidadPago === 'unico' ? '15 jul 2025' : 'Primera: 15 ago 2025'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 p-4">
-                  <div>
-                    <p className="text-[11px] text-slate-400">Tasa pactada</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">
-                      Efectiva · 2.500000% mensual
-                    </p>
-                  </div>
-                  <div className="sm:pl-4">
-                    <p className="text-[11px] text-slate-400">Corte aplicable</p>
-                    <p className="font-semibold text-slate-800 mt-0.5">
-                      10 jul · 18:00 h
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Botones de navegación */}
-            <div className="pt-4 flex items-center justify-end space-x-3">
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-              >
-                Atrás
-              </button>
-              <button
-                onClick={handleConfirm}
-                className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-              >
-                Confirmar crédito
-              </button>
-            </div>
-          </div>
-
-          {/* Columna Derecha: Tarjeta Verde Oscuro (#0e3b2e) Resumen Financiero */}
-          <div className="bg-[#0e3b2e] text-white rounded-3xl p-6 shadow-md space-y-5">
-            <h4 className="text-sm font-bold text-white">Resumen</h4>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center text-emerald-100/70">
-                <span>Capital de la venta</span>
-                <span className="font-semibold text-white">S/ {capitalTotal.toFixed(2)}</span>
-              </div>
-
-              {modalidadPago === 'unico' ? (
-                <div className="flex justify-between items-center text-emerald-100/70">
-                  <span>Interés compensatorio</span>
-                  <span className="font-semibold text-white">S/ {interesGracia.toFixed(2)}</span>
-                </div>
-              ) : (
-                <div className="flex justify-between items-center text-emerald-100/70">
-                  <span>Intereses totales</span>
-                  <span className="font-semibold text-white">S/ {totalInteresesMeses.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-white/10 pt-4">
-              <p className="text-[11px] text-emerald-200/70">Total esperado</p>
-              <p className="text-3xl font-extrabold text-white mt-1">
-                S/ {modalidadPago === 'unico' ? totalEsperadoUnico.toFixed(2) : totalEsperadoMeses.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="pt-2 space-y-2">
-              <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-500/30">
-                Venta dentro del límite disponible
-              </span>
-
-              <p className="text-xs font-bold text-emerald-100">
-                Restarán S/ {creditoRestante} de crédito
-              </p>
-
-              <p className="text-[10px] text-emerald-200/50 leading-relaxed">
-                Disponible previo: S/ {selectedClient.creditoDisponible.toFixed(2)}. Para validar el límite se reserva el capital de la venta: S/ {capitalTotal.toFixed(2)}.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+function Cronograma({ plan, definitivo = false }: { plan: CronogramaResponse; definitivo?: boolean }) {
+  const m = (v: number) => dinero(v, plan.moneda);
+  return <section className="space-y-4">
+    <h4 className="text-sm font-bold text-slate-900">{definitivo ? 'Cronograma registrado' : 'Cronograma preliminar — método francés'}</h4>
+    <Datos datos={[
+      ['Fecha de venta', plan.fechaVenta], ['Fecha de corte', plan.fechaCorte],
+      ['Fin de gracia', plan.fechaFinGracia ?? '—'], ['Días de gracia', plan.diasGracia ?? '—'],
+      ['Capital inicial', m(plan.capitalVenta)], ['Interés de gracia', m(plan.interesGracia)],
+      ['Capital capitalizado', m(plan.capitalCapitalizado)], ['Cuota base', m(plan.cuotaBase)],
+      ['TEM', plan.tasaEfectivaMensual === null ? '—' : `${(plan.tasaEfectivaMensual * 100).toFixed(6)}%`],
+      ['Intereses de cuotas', m(plan.interesesTotales)], ['Interés total (incluye gracia)', m(plan.totalFinanciamiento - plan.capitalVenta)],
+      ['Total a pagar', m(plan.totalFinanciamiento)],
+    ]}/>
+    <div className="overflow-x-auto border border-slate-200 rounded-xl">
+      <table className="w-full text-left text-xs whitespace-nowrap">
+        <thead className="bg-slate-50 text-slate-500"><tr>{['N.°','Vencimiento','Saldo inicial','Interés','Amortización','Cuota','Saldo final'].map(h => <th key={h} className="p-3">{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-100">{plan.cuotas.map(c => <tr key={c.numeroCuota}>
+          <td className="p-3">{c.numeroCuota}</td><td className="p-3">{c.fechaVencimiento}</td>
+          <td className="p-3">{m(c.saldoInicial)}</td><td className="p-3">{m(c.interes)}</td>
+          <td className="p-3">{m(c.amortizacion)}</td><td className="p-3 font-semibold">{m(c.cuota)}</td><td className="p-3">{m(c.saldoFinal)}</td>
+        </tr>)}</tbody>
+      </table>
     </div>
-  );
+    <p className="text-xs text-slate-500">Ajuste última cuota: {m(plan.ajusteUltimaCuota)}.</p>
+  </section>;
+}
+
+export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTienda, onCancel }) => {
+  const [paso, setPaso] = useState<1 | 2 | 3 | 4>(1);
+  const [clientes, setClientes] = useState<ClienteResponse[]>([]);
+  const [productos, setProductos] = useState<ProductoResponse[]>([]);
+  const [carga, setCarga] = useState(true);
+  const [errorCarga, setErrorCarga] = useState('');
+  const [recarga, setRecarga] = useState(0);
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [cliente, setCliente] = useState<ClienteResponse | null>(null);
+  const [condicion, setCondicion] = useState<CondicionCrediticiaResponse | null>(null);
+  const [cargaCondicion, setCargaCondicion] = useState(false);
+  const [errorCondicion, setErrorCondicion] = useState('');
+  const [recargaCondicion, setRecargaCondicion] = useState(0);
+  const [busquedaProducto, setBusquedaProducto] = useState('');
+  const [items, setItems] = useState<VentaItem[]>([]);
+  const [modalidad, setModalidad] = useState<ModalidadPago>('MENSUAL');
+  const [cuotas, setCuotas] = useState(3);
+  const [gracia, setGracia] = useState(0);
+  const [simulacion, setSimulacion] = useState<CronogramaResponse | null>(null);
+  const [simulando, setSimulando] = useState(false);
+  const [error, setError] = useState('');
+  const [aceptaUnico, setAceptaUnico] = useState(false);
+  const [registrando, setRegistrando] = useState(false);
+  const [venta, setVenta] = useState<VentaResponse | null>(null);
+  const [planFinal, setPlanFinal] = useState<CronogramaResponse | null>(null);
+  const [unicoFinal, setUnicoFinal] = useState<PagoUnicoResponse | null>(null);
+  const [cargaFinal, setCargaFinal] = useState(false);
+  const [errorFinal, setErrorFinal] = useState('');
+  const [recargaFinal, setRecargaFinal] = useState(0);
+  const envioEnCurso = useRef(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([listarClientes(idTienda, true, controller.signal), listarProductos(idTienda, true, controller.signal)])
+      .then(([cs, ps]) => { if (!controller.signal.aborted) { setClientes(cs); setProductos(ps); setCarga(false); } })
+      .catch((e: unknown) => { if (!controller.signal.aborted) { setErrorCarga(obtenerMensajeError(e)); setCarga(false); } });
+    return () => controller.abort();
+  }, [idTienda, recarga]);
+
+  useEffect(() => {
+    if (!cliente) return;
+    const controller = new AbortController();
+    consultarCondicionCrediticia(idTienda, cliente.id, controller.signal)
+      .then(c => {
+        if (controller.signal.aborted) return;
+        setCondicion(c);
+        setCuotas(Math.min(3, c.plazoMaximo, 120));
+        setCargaCondicion(false);
+      }).catch((e: unknown) => {
+        if (controller.signal.aborted) return;
+        setErrorCondicion(obtenerMensajeError(e));
+        setCargaCondicion(false);
+      });
+    return () => controller.abort();
+  }, [idTienda, cliente, recargaCondicion]);
+
+  useEffect(() => {
+    if (!venta) return;
+    const controller = new AbortController();
+    const consulta = venta.modalidadPago === 'MENSUAL'
+      ? consultarCronograma(venta.id, controller.signal).then(p => { if (!controller.signal.aborted) setPlanFinal(p); })
+      : consultarPagoUnico(venta.id, controller.signal).then(p => { if (!controller.signal.aborted) setUnicoFinal(p); });
+    consulta.then(() => { if (!controller.signal.aborted) setCargaFinal(false); })
+      .catch((e: unknown) => { if (!controller.signal.aborted) { setErrorFinal(obtenerMensajeError(e)); setCargaFinal(false); } });
+    return () => controller.abort();
+  }, [venta, recargaFinal]);
+
+  const moneda = condicion?.monedaCredito ?? 'PEN';
+  const m = (v: number) => dinero(v, moneda);
+  const validas = items.length > 0 && items.every(i => cantidadValida(i) && Number.isSafeInteger(Math.round(i.producto.precioCredito * 100) * Math.round(Number(i.cantidad) * 1000)));
+  const centavos = validas ? items.reduce((s, i) => s + subtotalCentavos(i), 0) : 0;
+  const capital = centavos / 100;
+  const unicoPermitido = items.length > 0 && items.every(i => ['AMBAS', 'UNICO'].includes(i.producto.modalidad));
+  const mensualPermitido = items.length > 0 && items.every(i => ['AMBAS', 'MENSUAL'].includes(i.producto.modalidad));
+  const puedeAvanzar = validas && Number.isSafeInteger(centavos) && capital > 0 && !!condicion && capital <= condicion.limiteCredito && (unicoPermitido || mensualPermitido);
+  const modalidadValida = modalidad === 'MENSUAL' ? mensualPermitido && !!condicion && Number.isInteger(cuotas) && cuotas >= 1 && cuotas <= Math.min(condicion.plazoMaximo, 120) && Number.isInteger(gracia) && gracia >= 0 && gracia <= 30 : unicoPermitido;
+  const invalidaSimulacion = () => { setSimulacion(null); setError(''); setAceptaUnico(false); };
+
+  function seleccionarCliente(c: ClienteResponse) {
+    if (cliente?.id === c.id) return;
+    setCliente(c); setCondicion(null); setCargaCondicion(true); setErrorCondicion('');
+    setItems([]); setBusquedaProducto(''); setGracia(0); invalidaSimulacion();
+  }
+
+  function agregarProducto(p: ProductoResponse) {
+    setItems(prev => prev.some(i => i.producto.id === p.id) || prev.length >= 50 ? prev : [...prev, { producto: p, cantidad: '1' }]);
+    invalidaSimulacion();
+  }
+
+  async function simular() {
+    if (!condicion || !puedeAvanzar || !modalidadValida || simulando) return;
+    setSimulando(true); setSimulacion(null); setError('');
+    try {
+      const resultado = await simularCronograma({
+        monto: capital, tipoTasa: condicion.tipoTasa, valorTasa: condicion.tasaInteres,
+        periodoTasa: condicion.periodoTasa, capitalizacionTasa: condicion.capitalizacionTasa,
+        numeroCuotas: cuotas, ...ahoraLima(), diaCorte: condicion.diaCorte,
+        horaCorte: condicion.horaCorte, diaPago: condicion.diaPago, graciaAdicional: gracia, moneda,
+      });
+      setSimulacion(resultado);
+    } catch (e) { setError(obtenerMensajeError(e)); }
+    finally { setSimulando(false); }
+  }
+
+  const superaLimite = simulacion !== null && !!condicion && simulacion.capitalCapitalizado > condicion.limiteCredito;
+  const listo = puedeAvanzar && modalidadValida && (modalidad === 'MENSUAL' ? !!simulacion && !superaLimite : aceptaUnico);
+  async function confirmar() {
+    if (!cliente || !listo || envioEnCurso.current || venta) return;
+    envioEnCurso.current = true; setRegistrando(true); setError('');
+    const solicitud: RegistrarVentaRequest = {
+      idCliente: cliente.id, modalidadPago: modalidad, numeroCuotas: modalidad === 'UNICO' ? 1 : cuotas,
+      graciaAdicional: modalidad === 'UNICO' ? 0 : gracia,
+      detalles: items.map(i => ({ idProducto: i.producto.id, cantidad: Number(i.cantidad) })).sort((a, b) => a.idProducto - b.idProducto),
+    };
+    try {
+      // Reusar la clave si se perdió la respuesta, incluso al volver a abrir el wizard en esta pestaña.
+      const claveStorage = 'jades:venta-pendiente:' + idTienda + ':' + JSON.stringify(solicitud);
+      let clave = sessionStorage.getItem(claveStorage);
+      if (!clave) { clave = crearClaveIdempotencia(); sessionStorage.setItem(claveStorage, clave); }
+      const resultado = await registrarVenta(idTienda, solicitud, clave);
+      setVenta(resultado); setCargaFinal(true);
+      sessionStorage.removeItem(claveStorage);
+    } catch (e) { setError(obtenerMensajeError(e) + ' Si no recibiste confirmación, reintenta la misma operación sin modificar sus datos; no generes otra venta hasta verificar el registro.'); }
+    finally { envioEnCurso.current = false; setRegistrando(false); }
+  }
+
+  if (venta) return <div className={panel}>
+    <div className="flex gap-3 items-center"><CheckCircle className="w-8 h-8 text-[#139a6c]"/><div><h2 className="text-lg font-bold">Venta registrada</h2><p className="text-xs text-slate-500">Venta N.° {venta.id} · {venta.nombreCliente}</p></div></div>
+    <Datos datos={[
+      ['Capital registrado', dinero(venta.totalVenta, venta.monedaVenta)], ['Modalidad', venta.modalidadPago],
+      ['Fecha de venta', venta.fechaVenta], ['Corte asignado', venta.fechaCorteAsignada],
+      ['Pago asignado', venta.fechaPagoAsignada], ['Código de crédito', planFinal?.codigoCredito ?? unicoFinal?.codigoCredito ?? 'Pendiente de consulta'],
+    ]}/>
+    {cargaFinal && <p role="status" className="text-xs text-slate-500">Consultando obligaciones registradas...</p>}
+    {errorFinal && <div role="alert" className="text-sm text-red-700 space-y-2"><p>La venta ya fue registrada. No vuelvas a enviarla. {errorFinal}</p><button className={secundario} onClick={() => { setErrorFinal(''); setCargaFinal(true); setRecargaFinal(n => n + 1); }}>Consultar nuevamente</button></div>}
+    {planFinal && <Cronograma plan={planFinal} definitivo/>}
+    {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
+      ['Capital', dinero(unicoFinal.capital, unicoFinal.moneda)], ['Fecha de pago', unicoFinal.fechaPago],
+      ['Días de financiamiento', unicoFinal.diasFinanciamiento], ['Interés compensatorio', dinero(unicoFinal.interesCompensatorio, unicoFinal.moneda)],
+      ['Tasa efectiva del periodo', `${(unicoFinal.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['Total sin mora', dinero(unicoFinal.totalSinMora, unicoFinal.moneda)], ['Estado', unicoFinal.estadoCuota],
+    ]}/></>}
+    <button className={principal} onClick={onCancel}>Volver a clientes</button>
+  </div>;
+
+  const q = busquedaCliente.trim().toLocaleLowerCase('es-PE');
+  const encontrados = clientes.filter(c => c.dniCliente.includes(q) || c.nombreCliente.toLocaleLowerCase('es-PE').includes(q));
+  const qp = busquedaProducto.trim().toLocaleLowerCase('es-PE');
+  const catalogo = productos.filter(p => p.nombreProducto.toLocaleLowerCase('es-PE').includes(qp));
+  const aviso = (mensaje: string) => <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><Info className="w-4 h-4 shrink-0"/><span>{mensaje}</span></div>;
+
+  return <div className="space-y-6">
+    <div><h2 className="text-xl font-bold text-slate-900">Nueva venta a crédito</h2><p className="text-xs text-slate-500 mt-1">Selecciona un cliente, agrega productos y confirma el financiamiento.</p></div>
+    <div className="flex flex-wrap gap-4 text-xs font-semibold">{['Cliente','Productos / servicios','Modalidad de pago','Confirmación'].map((t,i) => <div key={t} className={`flex gap-2 items-center ${paso === i+1 ? 'text-[#139a6c]' : 'text-slate-500'}`}><span className={`w-6 h-6 rounded-full flex items-center justify-center ${paso === i+1 ? 'bg-[#139a6c] text-white' : 'bg-slate-100'}`}>{i+1}</span>{t}</div>)}</div>
+    {carga ? <p role="status" className={panel}>Cargando clientes y catálogo...</p> : errorCarga ? <div role="alert" className={panel}><p className="text-red-700">{errorCarga}</p><button className={secundario} onClick={() => { setErrorCarga(''); setCarga(true); setRecarga(n => n+1); }}>Reintentar</button></div> : <>
+    {paso === 1 && <section className={panel}>
+      <h3 className="font-bold">1. Selecciona el cliente</h3>
+      <div className="relative"><Search className="absolute left-3 top-3 w-4 h-4 text-slate-400"/><input className={campo + ' pl-10'} aria-label="Buscar cliente por nombre o DNI" placeholder="Buscar por nombre o DNI" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)}/></div>
+      <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+        {encontrados.map(c => <button key={c.id} type="button" onClick={() => seleccionarCliente(c)} className={`block w-full p-3 text-left text-xs ${cliente?.id === c.id ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-slate-50'}`}><strong>{c.nombreCliente}</strong><span className="ml-3">DNI {c.dniCliente}</span></button>)}
+        {!encontrados.length && <p className="p-4 text-xs text-slate-500">No se encontraron clientes activos.</p>}
+      </div>
+      {cliente && <p className="font-semibold text-sm text-[#139a6c]">{cliente.nombreCliente} · DNI {cliente.dniCliente}</p>}
+      {cargaCondicion && <p role="status" className="text-xs">Consultando condiciones crediticias...</p>}
+      {errorCondicion && <div role="alert" className="text-xs text-red-700 space-y-2"><p>{errorCondicion}</p><button className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
+      {condicion && <><Datos datos={[
+        ['Límite pactado', m(condicion.limiteCredito)], ['Crédito disponible', 'No expuesto por la API'],
+        ['Tasa de interés', `${condicion.tipoTasa} · ${(condicion.tasaInteres*100).toFixed(6)}% ${condicion.periodoTasa}`],
+        ['Capitalización', condicion.capitalizacionTasa ?? 'No aplica'],
+        ['Plazo máximo', `${condicion.plazoMaximo} cuotas`], ['Corte', `Día ${condicion.diaCorte} · ${condicion.horaCorte}`], ['Pago', `Día ${condicion.diaPago}`],
+        ['Mora', `${condicion.tipoTasaMora} · ${(condicion.tasaMoratoria*100).toFixed(6)}% ${condicion.periodoTasaMora}`],
+        ['Capitalización mora', condicion.capitalizacionMora ?? 'No aplica'], ['Moneda', moneda],
+      ]}/>{aviso('El límite pactado no es el crédito disponible. El backend validará el saldo real al registrar la venta.')}</>}
+      <div className="flex justify-end gap-3"><button className={secundario} onClick={onCancel}>Cancelar</button><button className={principal} disabled={!condicion || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button></div>
+    </section>}
+    {paso === 2 && <section className={panel}>
+      <h3 className="font-bold">2. Agrega productos o servicios</h3>
+      <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
+      <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-2 p-3 text-xs hover:bg-slate-50 disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(p.precioCredito)}</strong></button>)}
+        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos.' : 'La tienda no tiene productos activos registrados en el backend.'}</p>}
+      </div>
+      <div className="overflow-x-auto border border-slate-200 rounded-xl"><table className="w-full text-left text-xs">
+        <thead className="bg-slate-50 text-slate-500"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(i.producto.precioCredito)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 border border-slate-200 rounded-lg p-2" type="number" min={i.producto.unidadMedida === 'KILOGRAMO' ? .001 : 1} max={999999999} step={i.producto.unidadMedida === 'KILOGRAMO' ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
+      </table></div>
+      <p className="text-sm font-bold">Capital estimado: {validas ? m(capital) : '—'}</p>
+      {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}
+      {condicion && capital > condicion.limiteCredito && aviso('El capital supera el límite total pactado.')}
+      <div className="flex justify-end gap-3"><button className={secundario} onClick={() => setPaso(1)}>Atrás</button><button className={principal} disabled={!puedeAvanzar} onClick={() => { setModalidad(mensualPermitido ? 'MENSUAL' : 'UNICO'); invalidaSimulacion(); setPaso(3); }}>Continuar</button></div>
+    </section>}
+    {paso === 3 && <section className={panel}>
+      <h3 className="font-bold">3. Modalidad de pago</h3>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {([['UNICO','Pago único del ciclo',unicoPermitido],['MENSUAL','Pago en meses · método francés',mensualPermitido]] as const).map(([v,label,permitido]) => <button key={v} disabled={!permitido || simulando} onClick={() => { setModalidad(v); invalidaSimulacion(); }} className={`p-4 border-2 rounded-2xl text-sm font-semibold text-left disabled:opacity-40 ${modalidad===v ? 'border-[#139a6c] bg-emerald-50' : 'border-slate-200'}`}>{label}</button>)}
+      </div>
+      {modalidad === 'MENSUAL' && condicion && <>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <label className="text-xs font-semibold">Número de cuotas<select className={campo} disabled={simulando} value={cuotas} onChange={e => { setCuotas(Number(e.target.value)); invalidaSimulacion(); }}>{Array.from({length:Math.min(condicion.plazoMaximo,120)},(_,i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></label>
+          <label className="text-xs font-semibold">Meses de gracia adicionales<input className={campo} disabled={simulando} type="number" min={0} max={30} step={1} value={gracia} onChange={e => { setGracia(Number(e.target.value)); invalidaSimulacion(); }}/></label>
+        </div>
+        <button className={secundario} disabled={simulando || !modalidadValida || !puedeAvanzar} onClick={simular}>{simulando ? 'Calculando...' : 'Simular cronograma'}</button>
+        {simulacion && <Cronograma plan={simulacion}/>}
+        {superaLimite && aviso('El capital capitalizado supera el límite total del cliente.')}
+        {aviso('La simulación usa la fecha y hora de Lima del dispositivo. El servidor aplica su hora real y vuelve a validar precios, condiciones y crédito al confirmar.')}
+      </>}
+      {modalidad === 'UNICO' && <>
+        <Datos datos={[[ 'Capital estimado', m(capital)], ['Cuotas', 1], ['Gracia adicional', 0], ['Interés y total', 'Se conocen al registrar']]}/>
+        {aviso('El backend todavía no permite simular el pago único sin registrar la venta. No es posible mostrar el interés, total ni fechas definitivas antes de confirmar.')}
+        <label className="flex gap-2 items-start text-xs text-slate-700"><input type="checkbox" checked={aceptaUnico} onChange={e => setAceptaUnico(e.target.checked)}/>Entiendo que el cálculo definitivo se consultará después del registro.</label>
+      </>}
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+      <div className="flex justify-end gap-3"><button className={secundario} disabled={simulando} onClick={() => { invalidaSimulacion(); setPaso(2); }}>Atrás</button><button className={principal} disabled={!listo || simulando} onClick={() => setPaso(4)}>Continuar</button></div>
+    </section>}
+    {paso === 4 && <section className={panel}>
+      <h3 className="font-bold">4. Revisa y confirma la venta</h3>
+      <Datos datos={[[ 'Cliente', cliente?.nombreCliente], ['DNI', cliente?.dniCliente], ['Modalidad', modalidad], ['Cuotas', modalidad === 'UNICO' ? 1 : cuotas], ['Capital estimado', m(capital)], ['Total preliminar', simulacion ? m(simulacion.totalFinanciamiento) : 'No disponible']]}/>
+      <div className="divide-y divide-slate-100 text-xs">{items.map(i => <div key={i.producto.id} className="flex justify-between p-2"><span>{i.cantidad} × {i.producto.nombreProducto}</span><strong>{m(subtotalCentavos(i)/100)}</strong></div>)}</div>
+      {simulacion && <Cronograma plan={simulacion}/>}
+      {aviso('Al confirmar se registra una venta real. El servidor calcula las obligaciones definitivas y puede rechazar la operación si el crédito disponible es insuficiente.')}
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+      <div className="flex justify-end gap-3"><button className={secundario} disabled={registrando} onClick={() => { invalidaSimulacion(); setPaso(3); }}>Atrás</button><button className={principal} disabled={!listo || registrando} onClick={confirmar}>{registrando ? 'Registrando...' : 'Confirmar crédito'}</button></div>
+    </section>}
+    </>}
+  </div>;
 };

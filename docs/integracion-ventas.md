@@ -21,3 +21,9 @@ Pendientes: simulación previa de pago único, disponibilidad crediticia explíc
 - El administrador de negocio entra a Clientes, selecciona una tienda activa autorizada y consulta sus clientes (incluidos inactivos). El buscador filtra por DNI parcial/completo o nombre en memoria y el filtro por estado es independiente.
 - Al cambiar de tienda se desmonta la lista anterior y se cancela su solicitud. El listado muestra solo datos devueltos por el backend. No se registran usuarios ni clientes desde esta nueva vista.
 - Las otras secciones aún conservan sus prototipos; no usar para operaciones reales. El inicio de sesión sigue siendo obligatorio al recargar la aplicación.
+
+## Tercera etapa: nueva venta
+
+Wizard conectado a clientes activos, condiciones y catálogo de la tienda. El precio de crédito se estima por línea, se valida cantidad/modalidad/plazo, y el servidor recalcula al registrar. La simulación mensual se obtiene de /cronogramas/simular con hora de Lima; no se calcula interés en React. La venta real usa Idempotency-Key, y la confirmación consulta el cronograma o pago único persistido. Si falla esa consulta, se reintenta solo la lectura.
+
+Pendientes: endpoint de crédito disponible, simulación de pago único y simulación integral server-side con precios, reloj y condiciones autoritativos. El pago único puede registrarse con aceptación expresa de que no hay cotización previa; el detalle definitivo se consulta luego. Las demás pantallas siguen fuera de alcance. Los productos deben existir en la base de datos, no en los mocks del catálogo.
