@@ -33,3 +33,7 @@ Pendientes: endpoint de crédito disponible, simulación de pago único y simula
 El DTO de condiciones incluye creditoUtilizado y creditoDisponible. El endpoint GET /tiendas/{tienda}/clientes/{cliente}/condicion-crediticia/credito-disponible refresca el saldo; se consulta también tras registrar la venta. El wizard valida el capital contra el disponible real y, para MENSUAL, el capital capitalizado que devuelve la simulación. Para UNICO se reserva el capital original. Los saldos previos son instantáneas, la validación final transaccional sigue en el servidor. No se almacena un saldo disponible redundante en PostgreSQL.
 
 Pendientes vigentes: simulación de pago único e integral de venta, historial y perfil financiero del cliente.
+
+## Quinta etapa: simulación integral y nuevos contratos de cobro
+
+Nueva venta utiliza POST /tiendas/{tienda}/ventas/simular con el mismo cuerpo de registro. El servidor obtiene precios, reloj, tasas y crédito disponible, devuelve cotización mensual o única sin persistencia. Ambos flujos exigen simular antes de confirmar. graciaAdicional solo admite 0; la gracia obligatoria se conserva. Los DTO y servicios de pagos, liquidación y cortes incluyen las nuevas fechas, horas y detalles históricos. La UI de cobranzas permanece fuera de esta etapa. La confirmación vuelve a evaluar las reglas y puede producir importes diferentes si cambian los datos o el ciclo.

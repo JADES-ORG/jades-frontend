@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
 import { listarProductos } from '../../api/productos';
-import { simularCronograma, consultarCronograma, consultarPagoUnico } from '../../api/finanzas';
-import { registrarVenta, crearClaveIdempotencia } from '../../api/ventas';
+import { consultarCronograma, consultarPagoUnico } from '../../api/finanzas';
+import { registrarVenta, crearClaveIdempotencia, simularVenta } from '../../api/ventas';
 import { obtenerMensajeError } from '../../api/errores';
 import type { ClienteResponse, CondicionCrediticiaResponse, CreditoDisponibleResponse } from '../../types/clientes';
 import type { ProductoResponse } from '../../types/productos';
 import type { CronogramaResponse, PagoUnicoResponse, Moneda } from '../../types/finanzas';
-import type { ModalidadPago, RegistrarVentaRequest, VentaResponse } from '../../types/ventas';
+import type { ModalidadPago, RegistrarVentaRequest, VentaResponse, SimulacionVentaResponse } from '../../types/ventas';
 
 export interface VentaItem {
   producto: ProductoResponse;
@@ -27,15 +27,6 @@ const panel = 'bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow
 
 function dinero(valor: number, moneda: Moneda | string) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: moneda }).format(valor);
-}
-
-function ahoraLima() {
-  const partes = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  }).formatToParts(new Date());
-  const p = (tipo: string) => partes.find(parte => parte.type === tipo)?.value ?? '';
-  return { fechaVenta: `${p('year')}-${p('month')}-${p('day')}`, horaVenta: `${p('hour')}:${p('minute')}:${p('second')}` };
 }
 
 function cantidadValida(item: VentaItem) {
@@ -84,6 +75,28 @@ function Cronograma({ plan, definitivo = false }: { plan: CronogramaResponse; de
   </section>;
 }
 
+function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaResponse }) {
+  const m = (v: number) => dinero(v, s.moneda);
+  const u = s.pagoUnico;
+  return <section className="space-y-4">
+    <Datos datos={[
+      ['Fecha y hora cotizada', s.fechaVenta + ' ' + s.horaVenta],
+      ['Corte aplicable', s.fechaCorteAsignada], ['Fecha de pago', s.fechaPagoAsignada],
+      ['Capital cotizado', m(s.capitalVenta)], ['Capital a reservar', m(s.capitalReservado)],
+      ['Total a pagar', m(s.totalPagar)], ['Disponible al cotizar', m(s.creditoDisponible)],
+      ['Disponible posterior estimado', m(s.creditoDisponiblePosterior)],
+    ]}/>
+    {s.cronograma && <Cronograma plan={s.cronograma}/>}
+    {u && <><h4 className="font-bold text-sm">Simulación de pago único</h4><Datos datos={[
+      ['Capital', m(u.capital)], ['Días de financiamiento', u.diasFinanciamiento],
+      ['TED', `${(u.tasaEfectivaDiaria * 100).toFixed(6)}%`],
+      ['Tasa efectiva del periodo', `${(u.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['Interés compensatorio', m(u.interesCompensatorio)], ['Total sin mora', m(u.totalSinMora)],
+    ]}/></>}
+    <div className="text-xs text-slate-600 divide-y divide-slate-100">{s.detalles.map(d => <div key={d.idProducto} className="flex justify-between p-2"><span>{d.cantidad} × {d.nombreProducto} · {m(d.precioUnitario)}</span><strong>{m(d.subtotal)}</strong></div>)}</div>
+  </section>;
+}
+
 export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTienda, onCancel }) => {
   const [paso, setPaso] = useState<1 | 2 | 3 | 4>(1);
   const [clientes, setClientes] = useState<ClienteResponse[]>([]);
@@ -101,11 +114,9 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const [items, setItems] = useState<VentaItem[]>([]);
   const [modalidad, setModalidad] = useState<ModalidadPago>('MENSUAL');
   const [cuotas, setCuotas] = useState(3);
-  const [gracia, setGracia] = useState(0);
-  const [simulacion, setSimulacion] = useState<CronogramaResponse | null>(null);
+  const [simulacion, setSimulacion] = useState<SimulacionVentaResponse | null>(null);
   const [simulando, setSimulando] = useState(false);
   const [error, setError] = useState('');
-  const [aceptaUnico, setAceptaUnico] = useState(false);
   const [registrando, setRegistrando] = useState(false);
   const [venta, setVenta] = useState<VentaResponse | null>(null);
   const [planFinal, setPlanFinal] = useState<CronogramaResponse | null>(null);
@@ -175,13 +186,13 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const unicoPermitido = items.length > 0 && items.every(i => ['AMBAS', 'UNICO'].includes(i.producto.modalidad));
   const mensualPermitido = items.length > 0 && items.every(i => ['AMBAS', 'MENSUAL'].includes(i.producto.modalidad));
   const puedeAvanzar = validas && Number.isSafeInteger(centavos) && capital > 0 && !!condicion && saldoVigente && capital <= condicion.creditoDisponible && (unicoPermitido || mensualPermitido);
-  const modalidadValida = modalidad === 'MENSUAL' ? mensualPermitido && !!condicion && Number.isInteger(cuotas) && cuotas >= 1 && cuotas <= Math.min(condicion.plazoMaximo, 120) && Number.isInteger(gracia) && gracia >= 0 && gracia <= 30 : unicoPermitido;
-  const invalidaSimulacion = () => { setSimulacion(null); setError(''); setAceptaUnico(false); };
+  const modalidadValida = modalidad === 'MENSUAL' ? mensualPermitido && !!condicion && Number.isInteger(cuotas) && cuotas >= 1 && cuotas <= Math.min(condicion.plazoMaximo, 120) : unicoPermitido;
+  const invalidaSimulacion = () => { setSimulacion(null); setError(''); };
 
   function seleccionarCliente(c: ClienteResponse) {
     if (cliente?.id === c.id) return;
     setCliente(c); setCondicion(null); setCargaCondicion(true); setErrorCondicion('');
-    setItems([]); setBusquedaProducto(''); setGracia(0); setErrorSaldo(''); invalidaSimulacion();
+    setItems([]); setBusquedaProducto(''); setErrorSaldo(''); invalidaSimulacion();
   }
 
   function agregarProducto(p: ProductoResponse) {
@@ -189,23 +200,32 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     invalidaSimulacion();
   }
 
+  function construirSolicitud(): RegistrarVentaRequest | null {
+    if (!cliente) return null;
+    return {
+      idCliente: cliente.id, modalidadPago: modalidad, numeroCuotas: modalidad === 'UNICO' ? 1 : cuotas,
+      graciaAdicional: 0,
+      detalles: items.map(i => ({ idProducto: i.producto.id, cantidad: Number(i.cantidad) })).sort((a, b) => a.idProducto - b.idProducto),
+    };
+  }
+
   async function simular() {
-    if (!condicion || !puedeAvanzar || !modalidadValida || simulando) return;
+    const solicitud = construirSolicitud();
+    if (!solicitud || !puedeAvanzar || !modalidadValida || simulando) return;
     setSimulando(true); setSimulacion(null); setError('');
     try {
-      const resultado = await simularCronograma({
-        monto: capital, tipoTasa: condicion.tipoTasa, valorTasa: condicion.tasaInteres,
-        periodoTasa: condicion.periodoTasa, capitalizacionTasa: condicion.capitalizacionTasa,
-        numeroCuotas: cuotas, ...ahoraLima(), diaCorte: condicion.diaCorte,
-        horaCorte: condicion.horaCorte, diaPago: condicion.diaPago, graciaAdicional: gracia, moneda,
-      });
+      const resultado = await simularVenta(idTienda, solicitud);
       setSimulacion(resultado);
+      setCondicion(anterior => anterior?.idCliente === resultado.idCliente ? {
+        ...anterior, limiteCredito: resultado.limiteCredito,
+        creditoUtilizado: resultado.creditoUtilizado, creditoDisponible: resultado.creditoDisponible,
+      } : anterior);
     } catch (e) { setError(obtenerMensajeError(e)); }
     finally { setSimulando(false); }
   }
 
-  const superaLimite = simulacion !== null && !!condicion && simulacion.capitalCapitalizado > condicion.creditoDisponible;
-  const reserva = modalidad === 'MENSUAL' ? simulacion?.capitalCapitalizado : capital;
+  const superaLimite = simulacion !== null && !!condicion && simulacion.capitalReservado > condicion.creditoDisponible;
+  const reserva = simulacion?.capitalReservado;
   const restante = saldoVigente && condicion && reserva !== undefined ? Math.max(0, condicion.creditoDisponible - reserva) : null;
 
   async function actualizarSaldo() {
@@ -222,15 +242,12 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     }
   }
 
-  const listo = !actualizandoSaldo && puedeAvanzar && modalidadValida && (modalidad === 'MENSUAL' ? !!simulacion && !superaLimite : aceptaUnico);
+  const listo = !actualizandoSaldo && modalidadValida && !!simulacion && !superaLimite && (modalidad === 'MENSUAL' ? !!simulacion.cronograma : !!simulacion.pagoUnico);
   async function confirmar() {
     if (!cliente || !listo || envioEnCurso.current || venta) return;
     envioEnCurso.current = true; setRegistrando(true); setError('');
-    const solicitud: RegistrarVentaRequest = {
-      idCliente: cliente.id, modalidadPago: modalidad, numeroCuotas: modalidad === 'UNICO' ? 1 : cuotas,
-      graciaAdicional: modalidad === 'UNICO' ? 0 : gracia,
-      detalles: items.map(i => ({ idProducto: i.producto.id, cantidad: Number(i.cantidad) })).sort((a, b) => a.idProducto - b.idProducto),
-    };
+    const solicitud = construirSolicitud();
+    if (!solicitud) { envioEnCurso.current = false; setRegistrando(false); return; }
     try {
       // Reusar la clave si se perdió la respuesta, incluso al volver a abrir el wizard en esta pestaña.
       const claveStorage = 'jades:venta-pendiente:' + idTienda + ':' + JSON.stringify(solicitud);
@@ -259,8 +276,9 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
       ['Capital', dinero(unicoFinal.capital, unicoFinal.moneda)], ['Fecha de pago', unicoFinal.fechaPago],
       ['Días de financiamiento', unicoFinal.diasFinanciamiento], ['Interés compensatorio', dinero(unicoFinal.interesCompensatorio, unicoFinal.moneda)],
-      ['Tasa efectiva del periodo', `${(unicoFinal.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['Tasa efectiva del periodo', unicoFinal.tasaEfectivaPeriodo == null ? '—' : `${(unicoFinal.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
       ['Total sin mora', dinero(unicoFinal.totalSinMora, unicoFinal.moneda)], ['Estado', unicoFinal.estadoCuota],
+      ['Fecha de pago efectivo', unicoFinal.fechaPagoEfectivo ?? '—'], ['Total pagado', unicoFinal.totalPagado == null ? '—' : dinero(unicoFinal.totalPagado, unicoFinal.moneda)],
     ]}/></>}
     <button className={principal} onClick={onCancel}>Volver a clientes</button>
   </div>;
@@ -320,27 +338,23 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       {modalidad === 'MENSUAL' && condicion && <>
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="text-xs font-semibold">Número de cuotas<select className={campo} disabled={simulando} value={cuotas} onChange={e => { setCuotas(Number(e.target.value)); invalidaSimulacion(); }}>{Array.from({length:Math.min(condicion.plazoMaximo,120)},(_,i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></label>
-          <label className="text-xs font-semibold">Meses de gracia adicionales<input className={campo} disabled={simulando} type="number" min={0} max={30} step={1} value={gracia} onChange={e => { setGracia(Number(e.target.value)); invalidaSimulacion(); }}/></label>
+          <div className="text-xs text-slate-600">Gracia obligatoria: desde la compra hasta el pago del ciclo. No se permiten meses adicionales.</div>
         </div>
-        <button className={secundario} disabled={simulando || !modalidadValida || !puedeAvanzar} onClick={simular}>{simulando ? 'Calculando...' : 'Simular cronograma'}</button>
-        {simulacion && <Cronograma plan={simulacion}/>}
-        {superaLimite && aviso('El capital con gracia supera el crédito disponible del cliente.')}
-        {aviso('La simulación usa la fecha y hora de Lima del dispositivo. El servidor aplica su hora real y vuelve a validar precios, condiciones y crédito al confirmar.')}
       </>}
-      {modalidad === 'UNICO' && <>
-        <Datos datos={[[ 'Capital estimado', m(capital)], ['Cuotas', 1], ['Gracia adicional', 0], ['Interés y total', 'Se conocen al registrar']]}/>
-        {aviso('El backend todavía no permite simular el pago único sin registrar la venta. No es posible mostrar el interés, total ni fechas definitivas antes de confirmar.')}
-        <label className="flex gap-2 items-start text-xs text-slate-700"><input type="checkbox" checked={aceptaUnico} onChange={e => setAceptaUnico(e.target.checked)}/>Entiendo que el cálculo definitivo se consultará después del registro.</label>
-      </>}
+      {modalidad === 'UNICO' && <p className="text-xs text-slate-600">Una obligación al vencimiento del ciclo; sin meses adicionales de gracia.</p>}
+      <button className={secundario} disabled={simulando || !modalidadValida || !puedeAvanzar} onClick={simular}>{simulando ? 'Calculando...' : 'Simular venta'}</button>
+      {simulacion && <ResumenSimulacion simulacion={simulacion}/>}
+      {superaLimite && aviso('El capital a reservar supera el crédito disponible del cliente.')}
+      {aviso('La cotización usa precios, condiciones y hora de Lima del servidor. Al confirmar se vuelven a validar los datos; la cotización no reserva crédito.')}
       {condicion && <Datos datos={[[ 'Crédito disponible', m(condicion.creditoDisponible)], ['Capital a reservar', reserva === undefined ? 'Simula primero' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="flex justify-end gap-3"><button className={secundario} disabled={simulando} onClick={() => { invalidaSimulacion(); setPaso(2); }}>Atrás</button><button className={principal} disabled={!listo || simulando} onClick={() => setPaso(4)}>Continuar</button></div>
     </section>}
     {paso === 4 && <section className={panel}>
       <h3 className="font-bold">4. Revisa y confirma la venta</h3>
-      <Datos datos={[[ 'Cliente', cliente?.nombreCliente], ['DNI', cliente?.dniCliente], ['Modalidad', modalidad], ['Cuotas', modalidad === 'UNICO' ? 1 : cuotas], ['Capital estimado', m(capital)], ['Total preliminar', simulacion ? m(simulacion.totalFinanciamiento) : 'No disponible'], ['Crédito disponible', condicion ? m(condicion.creditoDisponible) : '—'], ['Capital a reservar', reserva === undefined ? '—' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>
-      <div className="divide-y divide-slate-100 text-xs">{items.map(i => <div key={i.producto.id} className="flex justify-between p-2"><span>{i.cantidad} × {i.producto.nombreProducto}</span><strong>{m(subtotalCentavos(i)/100)}</strong></div>)}</div>
-      {simulacion && <Cronograma plan={simulacion}/>}
+      <Datos datos={[[ 'Cliente', cliente?.nombreCliente], ['DNI', cliente?.dniCliente], ['Modalidad', modalidad], ['Cuotas', modalidad === 'UNICO' ? 1 : cuotas], ['Capital cotizado', simulacion ? dinero(simulacion.capitalVenta, simulacion.moneda) : '—'], ['Total preliminar', simulacion ? dinero(simulacion.totalPagar, simulacion.moneda) : '—'], ['Crédito disponible', condicion ? m(condicion.creditoDisponible) : '—'], ['Capital a reservar', reserva === undefined ? '—' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>
+      <div className="divide-y divide-slate-100 text-xs">{simulacion?.detalles.map(i => <div key={i.idProducto} className="flex justify-between p-2"><span>{i.cantidad} × {i.nombreProducto}</span><strong>{dinero(i.subtotal, simulacion.moneda)}</strong></div>)}</div>
+      {simulacion && <ResumenSimulacion simulacion={simulacion}/>}
       <button className={secundario} disabled={actualizandoSaldo || registrando} onClick={actualizarSaldo}>{actualizandoSaldo ? 'Consultando saldo...' : 'Actualizar crédito disponible'}</button>
       {errorSaldo && <p role="alert" className="text-xs text-red-700">{errorSaldo}</p>}
       {!listo && !actualizandoSaldo && aviso('Revisa la disponibilidad de crédito y los datos de la venta antes de confirmar.')}

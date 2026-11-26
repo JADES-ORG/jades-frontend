@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
   SimularCronogramaRequest, CronogramaResponse, PagoUnicoResponse,
-  CalculoMoraResponse, MoraClienteResponse, CorteResponse, RegistrarPagoRequest, PagoResponse,
+  CalculoMoraResponse, MoraClienteResponse, CorteResponse, RegistrarPagoRequest, PagoResponse, LiquidacionResponse, FiltrosPago,
 } from '../types/finanzas';
 
 export async function simularCronograma(solicitud: SimularCronogramaRequest, signal?: AbortSignal): Promise<CronogramaResponse> {
@@ -46,5 +46,20 @@ export async function consultarCorteTienda(idTienda: number, filtros: FiltrosCor
 
 export async function registrarPago(idCuota: number, solicitud: RegistrarPagoRequest): Promise<PagoResponse> {
   const { data } = await api.post<PagoResponse>(`/pagos/cuotas/${idCuota}`, solicitud);
+  return data;
+}
+
+export async function consultarImporteCuota(idCuota: number, filtros: FiltrosPago = {}, signal?: AbortSignal): Promise<LiquidacionResponse> {
+  const { data } = await api.get<LiquidacionResponse>(`/pagos/cuotas/${idCuota}/importe`, { params: filtros, signal });
+  return data;
+}
+
+export async function consultarLiquidacion(idCredito: number, filtros: FiltrosPago = {}, signal?: AbortSignal): Promise<LiquidacionResponse> {
+  const { data } = await api.get<LiquidacionResponse>(`/pagos/creditos/${idCredito}/liquidacion`, { params: filtros, signal });
+  return data;
+}
+
+export async function liquidarCredito(idCredito: number, solicitud: RegistrarPagoRequest): Promise<LiquidacionResponse> {
+  const { data } = await api.post<LiquidacionResponse>(`/pagos/creditos/${idCredito}/liquidacion`, solicitud);
   return data;
 }

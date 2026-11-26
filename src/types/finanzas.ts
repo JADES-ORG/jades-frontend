@@ -1,3 +1,5 @@
+import type { DetalleVentaResponse } from './ventas';
+
 export type Moneda = 'PEN' | 'USD';
 export type TipoTasa = 'NOMINAL' | 'EFECTIVA';
 
@@ -10,6 +12,13 @@ export interface CuotaCronograma {
   cuota: number;
   saldoFinal: number;
   estado: string;
+  idCuota: number | null;
+  fechaPagoEfectivo: string | null;
+  horaPagoEfectivo: string | null;
+  capitalPagado: number | null;
+  interesPagado: number | null;
+  moraPagada: number | null;
+  totalPagado: number | null;
 }
 
 export interface CronogramaResponse {
@@ -46,7 +55,7 @@ export interface SimularCronogramaRequest {
   horaCorte?: string;
   diaCorte: number;
   diaPago: number;
-  graciaAdicional?: number;
+  graciaAdicional?: 0;
   moneda: 'PEN' | 'USD';
 }
 
@@ -95,11 +104,16 @@ export interface PagoUnicoResponse {
   fechaPago: string;
   diasFinanciamiento: number;
   capital: number;
-  tasaEfectivaDiaria: number;
-  tasaEfectivaPeriodo: number;
+  tasaEfectivaDiaria: number | null;
+  tasaEfectivaPeriodo: number | null;
   interesCompensatorio: number;
   totalSinMora: number;
   estadoCuota: string;
+  fechaPagoEfectivo: string | null;
+  horaPagoEfectivo: string | null;
+  interesPagado: number | null;
+  moraPagada: number | null;
+  totalPagado: number | null;
 }
 
 export interface CompraCuentaCorriente {
@@ -134,6 +148,7 @@ export interface PagoCuentaCorriente {
   idPago: number;
   idCuota: number;
   fechaPago: string;
+  horaPagoEfectivo: string | null;
   fechaCancelacion: string | null;
   medioPago: string;
   diasAtraso: number;
@@ -142,6 +157,12 @@ export interface PagoCuentaCorriente {
   moraPagada: number;
   totalExigible: number;
   estado: string;
+  idVenta: number;
+  numeroCuota: number;
+  fechaCompra: string;
+  fechaPagoPactada: string;
+  moneda: Moneda;
+  detalles: DetalleVentaResponse[];
 }
 
 export interface CuentaCorrienteResponse {
@@ -200,6 +221,7 @@ export interface MoraClienteResponse {
 export interface RegistrarPagoRequest {
   monto: number;
   fechaPagoEfectivo: string;
+  horaPagoEfectivo?: string | null;
   medioPago: string;
 }
 
@@ -212,6 +234,7 @@ export interface PagoResponse {
   moneda: Moneda;
   fechaVencimiento: string;
   fechaPagoEfectivo: string;
+  horaPagoEfectivo: string | null;
   diasAtraso: number;
   medioPago: string;
   moraPagada: number;
@@ -230,10 +253,12 @@ export interface CorteResponse {
   idTienda: number;
   nombreTienda: string;
   ciclo: string;
-  fechaCorteAnterior: string;
-  fechaCorteActual: string;
-  horaCorte: string;
-  fechaLimitePago: string;
+  fechaCorteAnterior: string | null;
+  fechaCorteActual: string | null;
+  horaCorte: string | null;
+  fechaLimitePago: string | null;
+  calendariosMultiples: boolean;
+  calendarioIncompleto: boolean;
   moneda: Moneda;
   resumen: {
     totalComprasCiclo: number;
@@ -244,6 +269,8 @@ export interface CorteResponse {
     cantidadCompras: number;
     cantidadObligaciones: number;
     cantidadCuotasEnMora: number;
+    totalPagadoListado: number;
+    cantidadPagadas: number;
   };
   compras: {
     idVenta: number;
@@ -255,6 +282,9 @@ export interface CorteResponse {
     idCredito: number | null;
     codigoCredito: string | null;
     interesEstimado: number;
+    fechaCorteAsignada: string | null;
+    fechaPagoAsignada: string | null;
+    detalles: DetalleVentaResponse[];
   }[];
   obligaciones: {
     idCuota: number;
@@ -271,5 +301,62 @@ export interface CorteResponse {
     totalPagar: number;
     estadoCuota: string;
     enMora: boolean;
+    fechaCorteObligacion: string | null;
+    detalles: DetalleVentaResponse[];
   }[];
+  pagosRegistrados: PagoCorteResponse[];
+}
+
+export interface PagoCorteResponse {
+  idPago: number;
+  idCuota: number;
+  idCredito: number;
+  idVenta: number;
+  codigoCredito: string;
+  modalidadPago: string;
+  numeroCuota: number;
+  fechaCompra: string;
+  fechaCorteObligacion: string | null;
+  fechaPagoPactada: string;
+  fechaPagoEfectivo: string;
+  horaPagoEfectivo: string | null;
+  medioPago: string;
+  diasAtraso: number;
+  capitalPagado: number;
+  interesPagado: number;
+  moraPagada: number;
+  totalPagado: number;
+  saldoCreditoActual: number;
+  saldoCreditoAlCierreFechaPago: number;
+  moneda: Moneda;
+  estadoCuota: string;
+  detalles: DetalleVentaResponse[];
+}
+
+export interface LiquidacionResponse {
+  idCredito: number;
+  idVenta: number;
+  moneda: Moneda;
+  fechaPagoEfectivo: string;
+  horaPagoEfectivo: string | null;
+  capital: number;
+  interesCompensatorio: number;
+  mora: number;
+  totalPagar: number;
+  saldoCapitalRestante: number;
+  obligaciones: {
+    idCuota: number;
+    numeroCuota: number;
+    fechaVencimiento: string;
+    capital: number;
+    interesCompensatorio: number;
+    mora: number;
+    diasAtraso: number;
+    totalPagar: number;
+  }[];
+}
+
+export interface FiltrosPago {
+  fechaPagoEfectivo?: string;
+  horaPagoEfectivo?: string;
 }
