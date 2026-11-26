@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TiendaResumenResponse } from '../types/tiendas';
 import {
   ReceiptText,
   Home,
@@ -11,7 +12,6 @@ import {
   Settings,
   Search,
   Bell,
-  ChevronDown,
   LogOut,
 } from 'lucide-react';
 
@@ -26,6 +26,11 @@ export type StoreTab =
   | 'configuracion';
 
 interface StoreAdminLayoutProps {
+  tiendas: TiendaResumenResponse[];
+  idTiendaActiva: number | null;
+  cargandoTiendas: boolean;
+  correoUsuario: string;
+  onSelectTienda: (idTienda: number) => void;
   currentTab: StoreTab;
   onSelectTab: (tab: StoreTab) => void;
   onLogout: () => void;
@@ -33,11 +38,18 @@ interface StoreAdminLayoutProps {
 }
 
 export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
+  tiendas,
+  idTiendaActiva,
+  cargandoTiendas,
+  correoUsuario,
+  onSelectTienda,
   currentTab,
   onSelectTab,
   onLogout,
   children,
 }) => {
+  const tiendaActiva = tiendas.find(tienda => tienda.idTienda === idTiendaActiva);
+  const inicialUsuario = correoUsuario.slice(0, 2).toUpperCase();
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
       {/* SIDEBAR IZQUIERDO */}
@@ -58,24 +70,22 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
             </div>
           </div>
 
-          {/* Selector de Tienda: Bodega San Blas */}
+          {/* Tiendas autorizadas por el backend */}
           <div className="px-4 py-3 border-b border-white/10">
-            <div className="bg-white/10 hover:bg-white/15 rounded-2xl p-2.5 flex items-center justify-between cursor-pointer transition">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs text-white">
-                  SB
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white leading-tight">
-                    Bodega San Blas
-                  </p>
-                  <p className="text-[10px] text-emerald-200/60 font-normal">
-                    RUC 10451236789
-                  </p>
-                </div>
-              </div>
-              <ChevronDown className="w-4 h-4 text-emerald-200/60" />
-            </div>
+            <label htmlFor="tienda-activa" className="block text-[10px] uppercase tracking-wider text-emerald-200/70 mb-2">Tienda activa</label>
+            <select
+              id="tienda-activa"
+              value={idTiendaActiva ?? ''}
+              disabled={cargandoTiendas || tiendas.length === 0}
+              onChange={(e) => onSelectTienda(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#195342] border border-white/15 p-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+            >
+              {tiendas.length === 0 && <option value="">{cargandoTiendas ? 'Cargando...' : 'Sin tiendas disponibles'}</option>}
+              {tiendas.map(tienda => (
+                <option key={tienda.idTienda} value={tienda.idTienda}>{tienda.nombreTienda}</option>
+              ))}
+            </select>
+            {tiendaActiva && <p className="mt-2 text-[10px] text-emerald-200/70">Documento: {tiendaActiva.documentoTienda}</p>}
           </div>
 
           {/* Menú de Navegación Principal */}
@@ -189,11 +199,11 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
           <div className="pt-2 border-t border-white/10 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs text-white">
-                LA
+                {inicialUsuario}
               </div>
               <div>
                 <p className="text-xs font-bold text-white leading-tight">
-                  Luis Alvarez
+                  {correoUsuario}
                 </p>
                 <button
                   onClick={onLogout}
@@ -224,7 +234,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
               {currentTab === 'configuracion' && 'Configuración'}
             </h2>
             <p className="text-xs text-slate-400 font-normal">
-              {currentTab === 'inicio' && 'Domingo, 15 de junio de 2025'}
+              {currentTab === 'inicio' && (tiendaActiva?.nombreTienda ?? 'Sin tienda seleccionada')}
               {currentTab === 'clientes' && 'Gestión de clientes y créditos'}
               {currentTab === 'productos' && 'Catálogo de venta'}
               {currentTab === 'nueva_venta' && 'Registro de crédito'}
@@ -232,7 +242,6 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
               {currentTab === 'cortes' && 'Listados por ciclo'}
               {currentTab === 'ayuda' && 'Uso del sistema'}
               {currentTab === 'configuracion' && 'Datos y preferencias del negocio'}
-              {currentTab !== 'inicio' && currentTab !== 'clientes' && currentTab !== 'productos' && currentTab !== 'nueva_venta' && currentTab !== 'pagos' && currentTab !== 'cortes' && currentTab !== 'ayuda' && currentTab !== 'configuracion' && 'Bodega San Blas'}
             </p>
           </div>
 
@@ -254,7 +263,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
 
             {/* Avatar LA */}
             <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700">
-              LA
+              {inicialUsuario}
             </div>
           </div>
         </header>
