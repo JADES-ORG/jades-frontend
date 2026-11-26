@@ -9,12 +9,17 @@ export interface ClienteResponse {
   estadoCliente: string;
 }
 
-export interface CondicionCrediticiaResponse {
-  id: number;
+export interface CreditoDisponibleResponse {
   idCliente: number;
-  nombreCliente: string;
   monedaCredito: Moneda;
   limiteCredito: number;
+  creditoUtilizado: number;
+  creditoDisponible: number;
+}
+
+export interface CondicionCrediticiaResponse extends CreditoDisponibleResponse {
+  id: number;
+  nombreCliente: string;
   plazoMaximo: number;
   diaCorte: number;
   diaPago: number;

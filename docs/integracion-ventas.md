@@ -27,3 +27,9 @@ Pendientes: simulación previa de pago único, disponibilidad crediticia explíc
 Wizard conectado a clientes activos, condiciones y catálogo de la tienda. El precio de crédito se estima por línea, se valida cantidad/modalidad/plazo, y el servidor recalcula al registrar. La simulación mensual se obtiene de /cronogramas/simular con hora de Lima; no se calcula interés en React. La venta real usa Idempotency-Key, y la confirmación consulta el cronograma o pago único persistido. Si falla esa consulta, se reintenta solo la lectura.
 
 Pendientes: endpoint de crédito disponible, simulación de pago único y simulación integral server-side con precios, reloj y condiciones autoritativos. El pago único puede registrarse con aceptación expresa de que no hay cotización previa; el detalle definitivo se consulta luego. Las demás pantallas siguen fuera de alcance. Los productos deben existir en la base de datos, no en los mocks del catálogo.
+
+## Cuarta etapa: crédito disponible
+
+El DTO de condiciones incluye creditoUtilizado y creditoDisponible. El endpoint GET /tiendas/{tienda}/clientes/{cliente}/condicion-crediticia/credito-disponible refresca el saldo; se consulta también tras registrar la venta. El wizard valida el capital contra el disponible real y, para MENSUAL, el capital capitalizado que devuelve la simulación. Para UNICO se reserva el capital original. Los saldos previos son instantáneas, la validación final transaccional sigue en el servidor. No se almacena un saldo disponible redundante en PostgreSQL.
+
+Pendientes vigentes: simulación de pago único e integral de venta, historial y perfil financiero del cliente.
