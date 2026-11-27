@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { cerrarSesion, recuperarSesion } from './api/autenticacion';
+import { cerrarSesion, recuperarSesion, type CodigoRecuperacionResponse } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
 import { listarMisTiendas, listarTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
@@ -65,7 +65,8 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion('CLIENTE'));
   const [currentView, setCurrentView] = useState<MainView>(() => currentUser ? 'client_portal' : 'login');
   const [userEmail, setUserEmail] = useState<string>(() => currentUser?.correo ?? '');
-  const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
+  const [codigoRecuperacion, setCodigoRecuperacion] = useState<CodigoRecuperacionResponse | null>(null);
+  const [tokenRecuperacion, setTokenRecuperacion] = useState<string | null>(null);
   const [misTiendas, setMisTiendas] = useState<TiendaResumenResponse[]>([]);
   const [idTiendaActiva, setIdTiendaActiva] = useState<number | null>(null);
   const [cargandoTiendas, setCargandoTiendas] = useState(false);
@@ -93,6 +94,9 @@ export function App() {
 
   useEffect(() => {
     const expirar = () => {
+      setCodigoRecuperacion(null);
+      setTokenRecuperacion(null);
+      setUserEmail('');
       setTiendas([]);
       setAvisoTiendas(null);
       setBusquedaTiendas('');
@@ -200,6 +204,8 @@ export function App() {
   const handleLoginSuccess = (user: LoginResponse) => {
     setCurrentUser(user);
     setUserEmail(user.correo);
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
 
     if (user.rol === 'CLIENTE') {
       setCurrentView('client_portal');
@@ -225,24 +231,29 @@ export function App() {
   };
 
   const handleGoToForgotPassword = () => {
-    setIsRecoveringPassword(true);
+    cerrarSesion();
+    setCurrentUser(null);
+    setUserEmail('');
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
     setCurrentView('forgot_password');
   };
 
-  const handleCodeSent = (email: string) => {
+  const handleCodeSent = (email: string, respuesta: CodigoRecuperacionResponse) => {
     setUserEmail(email);
+    setCodigoRecuperacion(respuesta);
     setCurrentView('verify_code');
   };
 
-  const handleCodeVerified = () => {
-    if (isRecoveringPassword) {
-      setCurrentView('reset_password');
-    } else {
-      setCurrentView('login');
-    }
+  const handleCodeVerified = (token: string) => {
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(token);
+    setCurrentView('reset_password');
   };
 
   const handlePasswordSaved = () => {
+    setTokenRecuperacion(null);
+    setUserEmail('');
     setCurrentView('password_updated');
   };
 
@@ -262,7 +273,9 @@ export function App() {
     setIsRegisterClientModalOpen(false);
     setIsEditClientModalOpen(false);
     setIsEditConditionsModalOpen(false);
-    setIsRecoveringPassword(false);
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
+    setUserEmail('');
     setCurrentView('login');
   };
 
@@ -326,24 +339,32 @@ export function App() {
     );
   }
 
-  if (currentView === 'verify_code') {
+  if (currentView === 'verify_code' && codigoRecuperacion && userEmail) {
     return (
       <VerifyCodePage
+        correo={userEmail}
         emailMasked={maskEmail(userEmail)}
+        codigoInicial={codigoRecuperacion}
         onVerify={handleCodeVerified}
-        onResend={() => alert('Por el momento no podemos reenviar el código. Comunícate con el administrador para recuperar tu acceso.')}
         onBackToLogin={handleLogout}
       />
     );
   }
 
-  if (currentView === 'reset_password') {
+  if (currentView === 'reset_password' && tokenRecuperacion && userEmail) {
     return (
       <ResetPasswordPage
+        correo={userEmail}
+        tokenRecuperacion={tokenRecuperacion}
         onPasswordSaved={handlePasswordSaved}
         onBackToLogin={handleLogout}
+        onRestart={handleGoToForgotPassword}
       />
     );
+  }
+
+  if (currentView === 'verify_code' || currentView === 'reset_password') {
+    return <ForgotPasswordPage onCodeSent={handleCodeSent} onBackToLogin={handleLogout} />;
   }
 
   if (currentView === 'password_updated') {

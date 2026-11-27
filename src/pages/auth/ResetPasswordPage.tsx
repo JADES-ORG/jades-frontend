@@ -1,40 +1,51 @@
 import React, { useState } from 'react';
 import { AuthLayout } from '../../layouts/AuthLayout';
+import { restablecerContrasena } from '../../api/autenticacion';
+import { obtenerMensajeError } from '../../api/errores';
 
 interface ResetPasswordPageProps {
-  onPasswordSaved?: (newPassword: string) => void;
-  onBackToLogin?: () => void;
+  correo: string;
+  tokenRecuperacion: string;
+  onPasswordSaved: () => void;
+  onBackToLogin: () => void;
+  onRestart: () => void;
 }
 
 export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
+  correo,
+  tokenRecuperacion,
   onPasswordSaved,
   onBackToLogin,
+  onRestart,
 }) => {
   const [nuevaContrasena, setNuevaContrasena] = useState('');
   const [confirmarContrasena, setConfirmarContrasena] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setErrorMsg(null);
-
-    if (nuevaContrasena.length < 8) {
-      setErrorMsg('La contraseña debe tener al menos 8 caracteres.');
+    if (nuevaContrasena.length < 12 || !nuevaContrasena.trim() || new TextEncoder().encode(nuevaContrasena).length > 72) {
+      setErrorMsg('La contraseña debe tener al menos 12 caracteres y máximo 72 bytes.');
       return;
     }
     if (nuevaContrasena !== confirmarContrasena) {
       setErrorMsg('Las contraseñas no coinciden.');
       return;
     }
-
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await restablecerContrasena(correo, tokenRecuperacion, nuevaContrasena);
+      setNuevaContrasena('');
+      setConfirmarContrasena('');
+      onPasswordSaved();
+    } catch (error) {
+      setErrorMsg(obtenerMensajeError(error));
+    } finally {
       setIsLoading(false);
-      if (onPasswordSaved) {
-        onPasswordSaved(nuevaContrasena);
-      }
-    }, 400);
+    }
   };
 
   return (
@@ -49,7 +60,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
         </p>
 
         {errorMsg && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
+          <div role="alert" className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
             {errorMsg}
           </div>
         )}
@@ -65,6 +76,10 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
             <input
               id="nueva-contrasena"
               type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={72}
+              disabled={isLoading}
               required
               value={nuevaContrasena}
               onChange={(e) => setNuevaContrasena(e.target.value)}
@@ -72,7 +87,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
               className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-2 focus:ring-[#139a6c]/20 outline-none transition"
             />
             <p className="text-xs text-slate-400 mt-1.5 font-normal">
-              Usa al menos 8 caracteres.
+              Usa al menos 12 caracteres y un máximo de 72 bytes.
             </p>
           </div>
 
@@ -86,6 +101,10 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
             <input
               id="confirmar-contrasena"
               type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={72}
+              disabled={isLoading}
               required
               value={confirmarContrasena}
               onChange={(e) => setConfirmarContrasena(e.target.value)}
@@ -106,10 +125,12 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 space-y-3 text-center">
+          <button type="button" disabled={isLoading} onClick={onRestart} className="block w-full text-sm font-semibold text-[#139a6c] hover:underline">Solicitar otro código</button>
           <button
             type="button"
             onClick={onBackToLogin}
+            disabled={isLoading}
             className="text-sm font-semibold text-[#139a6c] hover:text-[#0f825b] hover:underline cursor-pointer transition"
           >
             Volver al inicio de sesión
