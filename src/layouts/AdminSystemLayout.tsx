@@ -13,6 +13,8 @@ export type AdminTab = 'resumen' | 'tiendas' | 'registrar';
 
 interface AdminSystemLayoutProps {
   currentTab: AdminTab;
+  busqueda: string;
+  onBuscar: (valor: string) => void;
   onSelectTab: (tab: AdminTab) => void;
   onLogout: () => void;
   children: React.ReactNode;
@@ -20,6 +22,8 @@ interface AdminSystemLayoutProps {
 
 export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
   currentTab,
+  busqueda,
+  onBuscar,
   onSelectTab,
   onLogout,
   children,
@@ -150,7 +154,10 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Buscar tienda..."
+                placeholder="Buscar tienda consultada..."
+                aria-label="Buscar tienda consultada"
+                value={busqueda}
+                onChange={e => onBuscar(e.target.value)}
                 className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
               />
             </div>
