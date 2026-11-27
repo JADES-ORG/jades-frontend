@@ -1,5 +1,5 @@
 import React from 'react';
-import { Campo, inputClase } from './CondicionesCreditoForm';
+import { Campo, Selector, TituloSeccion, inputClase } from './CondicionesCreditoForm';
 
 export interface DatosClienteForm {
     nombre: string;
@@ -12,7 +12,7 @@ export interface DatosClienteForm {
 interface DatosClienteFieldsProps {
     valores: DatosClienteForm;
     onChange: (valores: DatosClienteForm) => void;
-    /** Contraseña inicial: solo se pide al registrar. */
+    /** Datos de acceso al portal (correo y contraseña): solo se piden al registrar. */
     contrasena?: { valor: string; onChange: (valor: string) => void };
 }
 
@@ -22,8 +22,8 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
 
     return (
         <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">Datos generales</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TituloSeccion>Datos generales</TituloSeccion>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
                 <Campo id="dc-nombre" label="Nombres y apellidos" ayuda="Nombre completo del titular del crédito.">
                     <input
                         id="dc-nombre"
@@ -36,7 +36,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                         className={inputClase}
                     />
                 </Campo>
-                <Campo id="dc-dni" label="DNI" ayuda="Documento de 8 dígitos; no puede repetirse en la tienda.">
+                <Campo id="dc-dni" label="DNI" ayuda="Documento de 8 dígitos; no puede repetirse.">
                     <input
                         id="dc-dni"
                         type="text"
@@ -49,7 +49,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                         className={inputClase}
                     />
                 </Campo>
-                <Campo id="dc-telefono" label="Teléfono" ayuda="Opcional. Contacto para comunicaciones del negocio.">
+                <Campo id="dc-telefono" label="Teléfono" ayuda="Contacto para comunicaciones del negocio.">
                     <input
                         id="dc-telefono"
                         type="tel"
@@ -60,44 +60,45 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                         className={inputClase}
                     />
                 </Campo>
-                <Campo id="dc-estado" label="Estado" ayuda="Inactivo bloquea nuevas ventas; conserva deudas y pagos.">
-                    <select
+                <Campo id="dc-estado" label="Estado" ayuda="Inactivo bloquea nuevas ventas, conserva deudas y pagos.">
+                    <Selector
                         id="dc-estado"
                         value={valores.estado}
                         onChange={(e) => set('estado', e.target.value as DatosClienteForm['estado'])}
-                        className={`${inputClase} cursor-pointer`}
                     >
                         <option value="ACTIVO">Activo</option>
                         <option value="INACTIVO">Inactivo</option>
-                    </select>
-                </Campo>
-                <Campo id="dc-correo" label="Correo de acceso" ayuda="Usuario del portal de consulta del cliente.">
-                    <input
-                        id="dc-correo"
-                        type="email"
-                        required
-                        maxLength={150}
-                        value={valores.correo}
-                        onChange={(e) => set('correo', e.target.value)}
-                        placeholder="maria@ejemplo.com"
-                        className={inputClase}
-                    />
+                    </Selector>
                 </Campo>
                 {contrasena && (
-                    <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="Entre 8 y 72 caracteres. Entrégala al cliente para su primer ingreso.">
-                        <input
-                            id="dc-contrasena"
-                            type="password"
-                            required
-                            minLength={8}
-                            maxLength={72}
-                            autoComplete="new-password"
-                            value={contrasena.valor}
-                            onChange={(e) => contrasena.onChange(e.target.value)}
-                            placeholder="••••••••"
-                            className={inputClase}
-                        />
-                    </Campo>
+                    <>
+                        <Campo id="dc-correo" label="Correo de acceso" ayuda="Usuario del portal de consulta del cliente.">
+                            <input
+                                id="dc-correo"
+                                type="email"
+                                required
+                                maxLength={150}
+                                value={valores.correo}
+                                onChange={(e) => set('correo', e.target.value)}
+                                placeholder="maria@ejemplo.com"
+                                className={inputClase}
+                            />
+                        </Campo>
+                        <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="Credencial de acceso asignada al cliente.">
+                            <input
+                                id="dc-contrasena"
+                                type="password"
+                                required
+                                minLength={8}
+                                maxLength={72}
+                                autoComplete="new-password"
+                                value={contrasena.valor}
+                                onChange={(e) => contrasena.onChange(e.target.value)}
+                                placeholder="••••••••"
+                                className={inputClase}
+                            />
+                        </Campo>
+                    </>
                 )}
             </div>
         </div>

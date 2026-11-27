@@ -145,11 +145,46 @@ export const CONDICIONES_INICIALES: CondicionesForm = {
     diaCorte: '',
     horaCorte: '18:00',
     diaPago: '',
-    tipoTasaMora: 'EFECTIVA',
+    tipoTasaMora: 'NOMINAL',
     valorMora: '',
     periodoMora: 'MENSUAL',
-    capitalizacionMora: '',
+    capitalizacionMora: 'DIARIA',
 };
+
+/* Formato de los campos tal como se muestran en el diseño: "2.5000000%", "S/ 2,000.00", "6 meses". */
+
+export const simboloMoneda = (moneda: string): string => (moneda === 'USD' ? 'US$' : 'S/');
+
+/** Quita símbolo de moneda, espacios y separadores de miles: "S/ 2,000.00" → "2000.00". */
+const limpiarMonto = (texto: string): string => texto.replace(/S\/|US\$|\s|,/g, '');
+
+/** "2.5" → "2.5000000%". Conserva todos los decimales escritos (mínimo 7). */
+export function formatearPorcentaje(texto: string): string {
+    const limpio = texto.replace(/[%\s]/g, '').replace(',', '.');
+    if (!/^\d+(\.\d+)?$/.test(limpio)) return texto;
+    const [entero, decimales = ''] = limpio.split('.');
+    return `${Number(entero)}.${decimales.padEnd(7, '0')}%`;
+}
+
+/** "2000" → "S/ 2,000.00" (o "US$ 2,000.00"). */
+export function formatearLimite(texto: string, moneda: string): string {
+    const limpio = limpiarMonto(texto);
+    if (!/^\d+(\.\d{1,2})?$/.test(limpio)) return texto;
+    const monto = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(limpio));
+    return `${simboloMoneda(moneda)} ${monto}`;
+}
+
+const leerMeses = (texto: string): number => {
+    const m = /^(\d+)\s*(mes|meses)?$/i.exec(texto.trim());
+    return m ? Number(m[1]) : NaN;
+};
+
+/** "6" → "6 meses". */
+export function formatearPlazo(texto: string): string {
+    const meses = leerMeses(texto);
+    if (!Number.isInteger(meses)) return texto;
+    return `${meses} ${meses === 1 ? 'mes' : 'meses'}`;
+}
 
 /** Convierte la fracción del backend (0.025) a porcentaje sin perder precisión ("2.5"). */
 function fraccionAPorcentaje(fraccion: number): string {
@@ -159,26 +194,24 @@ function fraccionAPorcentaje(fraccion: number): string {
 export function condicionesDesdeRespuesta(c: CondicionCrediticiaResponse): CondicionesForm {
     return {
         tipoTasa: c.tipoTasa,
-        valorTasa: fraccionAPorcentaje(c.tasaInteres),
+        valorTasa: formatearPorcentaje(fraccionAPorcentaje(c.tasaInteres)),
         periodoTasa: c.periodoTasa as PeriodoTasa,
         capitalizacionTasa: (c.capitalizacionTasa ?? '') as PeriodoTasa | '',
         moneda: c.monedaCredito,
-        limiteCredito: String(c.limiteCredito),
-        plazoMaximo: String(c.plazoMaximo),
+        limiteCredito: formatearLimite(String(c.limiteCredito), c.monedaCredito),
+        plazoMaximo: formatearPlazo(String(c.plazoMaximo)),
         diaCorte: String(c.diaCorte),
         horaCorte: (c.horaCorte ?? '18:00').slice(0, 5),
         diaPago: String(c.diaPago),
         tipoTasaMora: c.tipoTasaMora,
-        valorMora: fraccionAPorcentaje(c.tasaMoratoria),
+        valorMora: formatearPorcentaje(fraccionAPorcentaje(c.tasaMoratoria)),
         periodoMora: c.periodoTasaMora as PeriodoTasa,
         capitalizacionMora: (c.capitalizacionMora ?? '') as PeriodoTasa | '',
     };
 }
 
-const numero = (texto: string): number => Number(texto.trim().replace(',', '.'));
-
 function porcentajeAFraccion(texto: string): number {
-    const limpio = texto.trim().replace('%', '').replace(',', '.');
+    const limpio = texto.replace(/[%\s]/g, '').replace(',', '.');
     if (!/^\d+(\.\d+)?$/.test(limpio)) return NaN;
     return Number((Number(limpio) / 100).toPrecision(15));
 }
@@ -192,14 +225,15 @@ const entero = (texto: string): number => (/^\d+$/.test(texto.trim()) ? Number(t
 export function validarCondiciones(f: CondicionesForm): { solicitud: CondicionCrediticiaRequest } | { error: string } {
     const tasa = porcentajeAFraccion(f.valorTasa);
     const mora = porcentajeAFraccion(f.valorMora);
-    const limite = numero(f.limiteCredito);
-    const plazo = entero(f.plazoMaximo);
+    const montoLimite = limpiarMonto(f.limiteCredito);
+    const limite = Number(montoLimite);
+    const plazo = leerMeses(f.plazoMaximo);
     const corte = entero(f.diaCorte);
     const pago = entero(f.diaPago);
     if (!Number.isFinite(tasa) || tasa <= 0) return { error: 'Ingresa una tasa de interés mayor a cero.' };
     if (!Number.isFinite(mora) || mora <= 0) return { error: 'Ingresa una tasa moratoria mayor a cero.' };
-    if (!Number.isFinite(limite) || limite <= 0) return { error: 'Ingresa un límite de crédito mayor a cero.' };
-    if (!/^\d+(\.\d{1,2})?$/.test(f.limiteCredito.trim().replace(',', '.'))) return { error: 'El límite de crédito admite como máximo 2 decimales.' };
+    if (!montoLimite || !Number.isFinite(limite) || limite <= 0) return { error: 'Ingresa un límite de crédito mayor a cero.' };
+    if (!/^\d+(\.\d{1,2})?$/.test(montoLimite)) return { error: 'El límite de crédito admite como máximo 2 decimales.' };
     if (!Number.isInteger(plazo) || plazo < 1 || plazo > 120) return { error: 'El plazo máximo debe estar entre 1 y 120 meses.' };
     if (!Number.isInteger(corte) || corte < 1 || corte > 31) return { error: 'El día de corte debe estar entre 1 y 31.' };
     if (!Number.isInteger(pago) || pago < 1 || pago > 31) return { error: 'El día de pago debe estar entre 1 y 31.' };
@@ -236,12 +270,16 @@ export function validarCondiciones(f: CondicionesForm): { solicitud: CondicionCr
 
 /* ---------- Datos generales del cliente ---------- */
 
-export function validarDatosCliente(d: { nombre: string; dni: string; telefono: string; correo: string }): string | null {
+export function validarDatosCliente(
+    d: { nombre: string; dni: string; telefono: string; correo: string },
+    { requiereCorreo = true }: { requiereCorreo?: boolean } = {},
+): string | null {
     if (!d.nombre.trim()) return 'Ingresa los nombres y apellidos.';
     if (d.nombre.trim().length > 200) return 'El nombre admite como máximo 200 caracteres.';
     if (!/^\d{8}$/.test(d.dni.trim())) return 'El DNI debe tener exactamente 8 dígitos.';
     if (d.telefono.trim().length > 15) return 'El teléfono admite como máximo 15 caracteres.';
     if (!/^[+0-9() -]*$/.test(d.telefono.trim())) return 'El teléfono solo puede contener números, espacios, +, ( ) y -.';
+    if (!requiereCorreo) return null;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.correo.trim())) return 'Ingresa un correo válido.';
     if (d.correo.trim().length > 150) return 'El correo admite como máximo 150 caracteres.';
     return null;

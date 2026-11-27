@@ -4,7 +4,7 @@ import { obtenerMensajeError } from '../../api/errores';
 import type { ClienteResponse } from '../../types/clientes';
 import { validarDatosCliente } from '../../features/clientes/model';
 import { DatosClienteFields, type DatosClienteForm } from './DatosClienteFields';
-import { AvisoError, BotonesModal, ModalShell } from './ModalShell';
+import { AvisoError, BotonesModal, ModalShell, cuerpoModal } from './ModalShell';
 
 interface EditarClienteModalProps {
   idTienda: number;
@@ -26,7 +26,8 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({ idTienda
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    const problema = validarDatosCliente(datos);
+    // El correo de acceso no se edita aquí: se envía el que ya tiene el cliente.
+    const problema = validarDatosCliente(datos, { requiereCorreo: false });
     setError(problema);
     if (problema) return;
     setGuardando(true);
@@ -57,9 +58,8 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({ idTienda
           descripcion="Actualiza los datos generales y de acceso del cliente."
           onClose={onClose}
           bloqueado={guardando}
-          ancho="xl"
       >
-        <form onSubmit={guardar} noValidate className="p-6 sm:p-8 space-y-6">
+        <form onSubmit={guardar} noValidate className={cuerpoModal}>
           <fieldset disabled={guardando}>
             <DatosClienteFields valores={datos} onChange={setDatos} />
           </fieldset>

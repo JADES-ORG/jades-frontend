@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Info } from 'lucide-react';
 import { desactivarCliente, registrarCliente, registrarCondicionCrediticia } from '../../api/clientes';
 import { obtenerMensajeError } from '../../api/errores';
 import type { ClienteResponse } from '../../types/clientes';
@@ -11,7 +10,7 @@ import {
 } from '../../features/clientes/model';
 import { CondicionesCreditoForm } from './CondicionesCreditoForm';
 import { DatosClienteFields, type DatosClienteForm } from './DatosClienteFields';
-import { AvisoError, BotonesModal, ModalShell } from './ModalShell';
+import { AvisoError, BotonesModal, ModalShell, NotaInfo, botonPrincipalModal, cuerpoModal } from './ModalShell';
 
 interface RegistrarClienteModalProps {
   idTienda: number;
@@ -115,26 +114,21 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
           bloqueado={guardando}
       >
         {step === 1 ? (
-            <form onSubmit={continuar} noValidate className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+            <form onSubmit={continuar} noValidate className={cuerpoModal}>
               <DatosClienteFields valores={datos} onChange={setDatos} contrasena={{ valor: contrasena, onChange: setContrasena }} />
               <AvisoError mensaje={error} />
               <BotonesModal onCancelar={cerrar} textoGuardar="Continuar" textoGuardando="Continuar" guardando={false} />
             </form>
         ) : (
-            <form onSubmit={registrar} noValidate className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
-              <CondicionesCreditoForm valores={condiciones} onChange={setCondiciones} deshabilitado={guardando} />
-              <p className="flex items-start text-[11px] text-slate-500 bg-emerald-50/60 border border-emerald-100 rounded-xl p-3">
-                <Info className="w-3.5 h-3.5 mr-2 mt-0.5 shrink-0 text-[#139a6c]" />
-                Base financiera 360/30. Las tasas se conservan con al menos 7 decimales para los cálculos.
-              </p>
+            <form onSubmit={registrar} noValidate className={cuerpoModal}>
+              <CondicionesCreditoForm valores={condiciones} onChange={setCondiciones} modo="registro" deshabilitado={guardando} />
+              <NotaInfo>
+                Base 360/30. El periodo de gracia se determina con la fecha de compra y el ciclo, antes de calcular la cuota francesa.
+              </NotaInfo>
               <AvisoError mensaje={error} />
               {completado ? (
-                  <div className="pt-4 border-t border-slate-100 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={cerrar}
-                        className="px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-                    >
+                  <div className="pt-2 flex justify-end">
+                    <button type="button" onClick={cerrar} className={botonPrincipalModal}>
                       Cerrar
                     </button>
                   </div>
