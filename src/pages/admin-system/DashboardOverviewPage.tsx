@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TiendaDetalleResponse } from '../../types/tiendas';
 import {
   Store,
   TrendingUp,
@@ -8,11 +9,19 @@ import {
 } from 'lucide-react';
 
 interface DashboardOverviewPageProps {
+  tiendas: TiendaDetalleResponse[];
+  cargando: boolean;
+  error: string | null;
+  onRecargar: () => void;
   onGoToRegister: () => void;
   onGoToStores: () => void;
 }
 
 export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
+  tiendas,
+  cargando,
+  error,
+  onRecargar,
   onGoToRegister,
   onGoToStores,
 }) => {
@@ -38,6 +47,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
         </button>
       </div>
 
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} <button type="button" onClick={onRecargar} className="underline font-semibold">Reintentar</button></p>}
+      {cargando && <p role="status" className="text-xs text-slate-500">Cargando tiendas...</p>}
       {/* Grid de 4 Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tiendas registradas */}
@@ -47,8 +58,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           </div>
           <div>
             <p className="text-xs text-slate-500 font-medium">Tiendas registradas</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">126</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">118 activas</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{tiendas.length}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{tiendas.filter(t => t.estadoTienda === 'ACTIVO').length} activas</p>
           </div>
         </div>
 
@@ -58,9 +69,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium">Nuevas este mes</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">8</h3>
-            <p className="text-[11px] text-emerald-600 font-medium mt-0.5">+3 frente al mes anterior</p>
+            <p className="text-xs text-slate-500 font-medium">Giros distintos</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{new Set(tiendas.map(t => t.giroDeNegocio)).size}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Tipos de negocio registrados</p>
           </div>
         </div>
 
@@ -70,9 +81,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium">Clientes gestionados</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">4,820</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">En toda la plataforma</p>
+            <p className="text-xs text-slate-500 font-medium">Administradores asignados</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{new Set(tiendas.flatMap(t => t.administradores.map(a => a.idUsuario))).size}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Usuarios vinculados a tiendas</p>
           </div>
         </div>
 
@@ -83,8 +94,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           </div>
           <div>
             <p className="text-xs text-slate-500 font-medium">Tiendas inactivas</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">8</h3>
-            <p className="text-[11px] text-rose-600 font-medium mt-0.5">Requieren revisión</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{tiendas.filter(t => t.estadoTienda === 'INACTIVO').length}</h3>
+            <p className="text-[11px] text-rose-600 font-medium mt-0.5">No disponibles para nuevas ventas</p>
           </div>
         </div>
       </div>
@@ -92,8 +103,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
       {/* Tabla: Tiendas recientes */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-900">Tiendas recientes</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Últimos negocios incorporados</p>
+          <h3 className="text-sm font-bold text-slate-900">Tiendas registradas</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Resultados verificados con el backend</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -101,49 +112,21 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-6">TIENDA</th>
-                <th className="py-3 px-6">TIPO</th>
-                <th className="py-3 px-6">ADMINISTRADOR</th>
-                <th className="py-3 px-6">REGISTRO</th>
+                <th className="py-3 px-6">ID</th>
+                <th className="py-3 px-6">DOCUMENTO</th>
                 <th className="py-3 px-6">ESTADO</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              <tr className="hover:bg-slate-50/60 transition">
-                <td className="py-4 px-6 font-semibold text-slate-900">Bodega San Blas</td>
-                <td className="py-4 px-6 text-slate-600">Bodega</td>
-                <td className="py-4 px-6 text-slate-600">Luis Alvarez</td>
-                <td className="py-4 px-6 text-slate-500">12 jun 2025</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                    Activo
-                  </span>
-                </td>
-              </tr>
-              <tr className="hover:bg-slate-50/60 transition">
-                <td className="py-4 px-6 font-semibold text-slate-900">Dulce Trigo</td>
-                <td className="py-4 px-6 text-slate-600">Panadería</td>
-                <td className="py-4 px-6 text-slate-600">Elena Ramos</td>
-                <td className="py-4 px-6 text-slate-500">10 jun 2025</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                    Activo
-                  </span>
-                </td>
-              </tr>
-              <tr className="hover:bg-slate-50/60 transition">
-                <td className="py-4 px-6 font-semibold text-slate-900">Carnes Don Pepe</td>
-                <td className="py-4 px-6 text-slate-600">Carnicería</td>
-                <td className="py-4 px-6 text-slate-600">José Medina</td>
-                <td className="py-4 px-6 text-slate-500">08 jun 2025</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                    Activo
-                  </span>
-                </td>
-              </tr>
+              {[...tiendas].sort((a, b) => b.idTienda - a.idTienda).slice(0, 5).map(t => (
+                <tr key={t.idTienda} className="hover:bg-slate-50/60 transition">
+                  <td className="py-4 px-6 font-semibold text-slate-900">{t.nombreTienda}</td>
+                  <td className="py-4 px-6">{t.idTienda}</td>
+                  <td className="py-4 px-6">{t.documentoTienda}</td>
+                  <td className="py-4 px-6">{t.estadoTienda === 'ACTIVO' ? 'Activo' : 'Inactivo'}</td>
+                </tr>
+              ))}
+              {!tiendas.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">{cargando ? 'Cargando tiendas...' : error ? 'No se pudo cargar el listado.' : 'No hay tiendas registradas.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -153,7 +136,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             onClick={onGoToStores}
             className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
           >
-            Ver todas
+            Gestionar tiendas
           </button>
         </div>
       </div>

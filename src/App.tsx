@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cerrarSesion, recuperarSesion } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
-import { listarMisTiendas } from './api/tiendas';
+import { listarMisTiendas, listarTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
-import type { TiendaResumenResponse } from './types/tiendas';
+import type { TiendaDetalleResponse, TiendaRegistradaResponse, TiendaResumenResponse } from './types/tiendas';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { VerifyCodePage } from './pages/auth/VerifyCodePage';
@@ -15,7 +15,7 @@ import { AdminSystemLayout, type AdminTab } from './layouts/AdminSystemLayout';
 import { DashboardOverviewPage } from './pages/admin-system/DashboardOverviewPage';
 import { TiendasListPage } from './pages/admin-system/TiendasListPage';
 import { RegistrarTiendaPage } from './pages/admin-system/RegistrarTiendaPage';
-import { EditarTiendaModal, type TiendaData } from './components/admin-system/EditarTiendaModal';
+import { EditarTiendaModal } from './components/admin-system/EditarTiendaModal';
 
 // Módulo 2: Administrador del Negocio (Bodega San Blas / Luis Alvarez)
 import { StoreAdminLayout, type StoreTab } from './layouts/StoreAdminLayout';
@@ -35,7 +35,6 @@ import { StoreCortesPage, initialCortes } from './pages/store-admin/StoreCortesP
 import { DetalleCorteModal, type CorteItemData } from './components/store-admin/DetalleCorteModal';
 import { StoreAyudaPage } from './pages/store-admin/StoreAyudaPage';
 import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPage';
-import { CambiosGuardadosModal } from './components/store-admin/CambiosGuardadosModal';
 
 // Módulo 3: Portal Cliente
 import { ClientPortal } from './features/client-portal/ClientPortal';
@@ -53,66 +52,6 @@ export type MainView =
   | 'client_portal';    // 8. Portal Cliente (María Quispe)
 
 export type StoreSubView = 'lista' | 'detalle_cliente' | 'plan_pagos';
-
-// Tiendas registradas en la plataforma
-const initialTiendas: TiendaData[] = [
-  {
-    id: 1,
-    nombreComercial: 'Bodega San Blas',
-    razonSocial: 'Luis Alvarez',
-    giro: 'Bodega',
-    telefono: '987 654 321',
-    direccion: 'Cusco',
-    correo: 'contacto@sanblas.com',
-    estado: 'Activo',
-    documento: '20601234567',
-    adminNombre: 'Luis Alvarez',
-    adminCorreo: 'luis@ejemplo.com',
-    adminTelefono: '987 654 321',
-  },
-  {
-    id: 2,
-    nombreComercial: 'Dulce Trigo',
-    razonSocial: 'Elena Ramos',
-    giro: 'Panadería',
-    telefono: '956 210 874',
-    direccion: 'Arequipa',
-    correo: 'contacto@dulcetrigo.com',
-    estado: 'Activo',
-    documento: '20601234568',
-    adminNombre: 'Elena Ramos',
-    adminCorreo: 'elena@ejemplo.com',
-    adminTelefono: '956 210 874',
-  },
-  {
-    id: 3,
-    nombreComercial: 'Carnes Don Pepe',
-    razonSocial: 'José Medina',
-    giro: 'Carnicería',
-    telefono: '944 823 110',
-    direccion: 'Lima',
-    correo: 'contacto@donpepe.com',
-    estado: 'Activo',
-    documento: '20601234569',
-    adminNombre: 'José Medina',
-    adminCorreo: 'jose@ejemplo.com',
-    adminTelefono: '944 823 110',
-  },
-  {
-    id: 4,
-    nombreComercial: 'Studio Bella',
-    razonSocial: 'Karla Soto',
-    giro: 'Peluquería',
-    telefono: '933 442 190',
-    direccion: 'Trujillo',
-    correo: 'contacto@studiobella.com',
-    estado: 'Activo',
-    documento: '20601234570',
-    adminNombre: 'Karla Soto',
-    adminCorreo: 'karla@ejemplo.com',
-    adminTelefono: '933 442 190',
-  },
-];
 
 function maskEmail(email: string): string {
   if (!email || !email.includes('@')) return 'l***@ejemplo.com';
@@ -154,6 +93,11 @@ export function App() {
 
   useEffect(() => {
     const expirar = () => {
+      setTiendas([]);
+      setAvisoTiendas(null);
+      setBusquedaTiendas('');
+      setIsEditModalOpen(false);
+      setEditingTienda(null);
       cerrarSesion();
       setCurrentUser(null);
       setMisTiendas([]);
@@ -168,9 +112,29 @@ export function App() {
 
   // Estados del Administrador del Sistema
   const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
-  const [tiendas, setTiendas] = useState<TiendaData[]>(initialTiendas);
+  const [tiendas, setTiendas] = useState<TiendaDetalleResponse[]>([]);
+  const [cargandoAdminTiendas, setCargandoAdminTiendas] = useState(false);
+  const [errorAdminTiendas, setErrorAdminTiendas] = useState<string | null>(null);
+  const [recargaAdminTiendas, setRecargaAdminTiendas] = useState(0);
+  const [avisoTiendas, setAvisoTiendas] = useState<string | null>(null);
+  const [busquedaTiendas, setBusquedaTiendas] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingTienda, setEditingTienda] = useState<TiendaData | null>(null);
+  const [editingTienda, setEditingTienda] = useState<TiendaDetalleResponse | null>(null);
+
+  useEffect(() => {
+    if (currentUser?.rol !== 'ADMIN_SISTEMA') return;
+    const controller = new AbortController();
+    setCargandoAdminTiendas(true);
+    setErrorAdminTiendas(null);
+    listarTiendas(controller.signal).then(data => {
+      if (!controller.signal.aborted) setTiendas(data);
+    }).catch(e => {
+      if (!controller.signal.aborted) setErrorAdminTiendas(obtenerMensajeError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setCargandoAdminTiendas(false);
+    });
+    return () => controller.abort();
+  }, [currentUser, recargaAdminTiendas]);
 
   // Estados del Administrador del Negocio (Bodega San Blas)
   const [storeTab, setStoreTab] = useState<StoreTab>('inicio');
@@ -232,9 +196,6 @@ export function App() {
     setIsRegistrarPagoModalOpen(true);
   };
 
-  // Estados de Configuración
-  const [isCambiosGuardadosModalOpen, setIsCambiosGuardadosModalOpen] = useState(false);
-
   // --- Manejadores de Autenticación ---
   const handleLoginSuccess = (user: LoginResponse) => {
     setCurrentUser(user);
@@ -243,6 +204,13 @@ export function App() {
     if (user.rol === 'CLIENTE') {
       setCurrentView('client_portal');
     } else if (user.rol === 'ADMIN_SISTEMA') {
+      setTiendas([]);
+      setAvisoTiendas(null);
+      setBusquedaTiendas('');
+      setEditingTienda(null);
+      setIsEditModalOpen(false);
+      setCargandoAdminTiendas(true);
+      setErrorAdminTiendas(null);
       setCurrentView('admin_system');
       setAdminTab('resumen');
     } else if (user.rol === 'ADMIN_NEGOCIO') {
@@ -279,6 +247,11 @@ export function App() {
   };
 
   const handleLogout = () => {
+    setTiendas([]);
+    setAvisoTiendas(null);
+    setBusquedaTiendas('');
+    setIsEditModalOpen(false);
+    setEditingTienda(null);
     cerrarSesion();
     setCurrentUser(null);
     setMisTiendas([]);
@@ -294,21 +267,37 @@ export function App() {
   };
 
   // --- Manejadores de Tiendas (Admin Sistema) ---
-  const handleOpenEdit = (tienda: TiendaData) => {
+  const handleOpenEdit = (tienda: TiendaDetalleResponse) => {
     setEditingTienda(tienda);
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (tiendaActualizada: TiendaData) => {
-    setTiendas((prev) =>
-      prev.map((t) => (t.id === tiendaActualizada.id ? tiendaActualizada : t))
-    );
+  const recargarAdminTiendas = () => {
+    setCargandoAdminTiendas(true);
+    setRecargaAdminTiendas(n => n + 1);
   };
 
-  const handleRegisterSuccess = (nuevaTienda: TiendaData) => {
-    setTiendas((prev) => [nuevaTienda, ...prev]);
-    setAdminTab('tiendas');
+  const handleSaveEdit = (tiendaActualizada: TiendaDetalleResponse, mensaje: string) => {
+    if (currentUser?.rol !== 'ADMIN_SISTEMA' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
+    setTiendas(prev => prev.map(t => t.idTienda === tiendaActualizada.idTienda ? tiendaActualizada : t));
+    setAvisoTiendas(mensaje);
+    recargarAdminTiendas();
   };
+
+  const handleRegisterSuccess = (nuevaTienda: TiendaRegistradaResponse) => {
+    if (currentUser?.rol !== 'ADMIN_SISTEMA' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
+    setAvisoTiendas(`Tienda registrada con ID ${nuevaTienda.idTienda}. Administrador: ${nuevaTienda.correoAdministrador}.`);
+    setBusquedaTiendas('');
+    setAdminTab('tiendas');
+    recargarAdminTiendas();
+  };
+
+  const actualizarTiendaSeleccionada = useCallback((tienda: TiendaDetalleResponse) => {
+    if (currentUser?.rol !== 'ADMIN_NEGOCIO' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
+    setMisTiendas(prev => prev.map(t => t.idTienda === tienda.idTienda ? {
+      idTienda: tienda.idTienda, nombreTienda: tienda.nombreTienda, documentoTienda: tienda.documentoTienda, estadoTienda: tienda.estadoTienda,
+    } : t));
+  }, [currentUser]);
 
   // --- Renderizado Condicional de Vistas ---
   // La navegación protegida depende exclusivamente del rol autenticado.
@@ -372,11 +361,17 @@ export function App() {
 
         <AdminSystemLayout
           currentTab={adminTab}
+          busqueda={busquedaTiendas}
+          onBuscar={(valor) => { setBusquedaTiendas(valor); setAdminTab('tiendas'); }}
           onSelectTab={setAdminTab}
           onLogout={handleLogout}
         >
           {adminTab === 'resumen' && (
             <DashboardOverviewPage
+              tiendas={tiendas}
+              cargando={cargandoAdminTiendas}
+              error={errorAdminTiendas}
+              onRecargar={recargarAdminTiendas}
               onGoToRegister={() => setAdminTab('registrar')}
               onGoToStores={() => setAdminTab('tiendas')}
             />
@@ -385,6 +380,12 @@ export function App() {
           {adminTab === 'tiendas' && (
             <TiendasListPage
               tiendas={tiendas}
+              aviso={avisoTiendas}
+              busqueda={busquedaTiendas}
+              onBuscar={setBusquedaTiendas}
+              cargando={cargandoAdminTiendas}
+              error={errorAdminTiendas}
+              onRecargar={recargarAdminTiendas}
               onGoToRegister={() => setAdminTab('registrar')}
               onEditTienda={handleOpenEdit}
             />
@@ -398,18 +399,21 @@ export function App() {
           )}
         </AdminSystemLayout>
 
-        <EditarTiendaModal
+        {isEditModalOpen && editingTienda && <EditarTiendaModal
+          key={editingTienda.idTienda}
           isOpen={isEditModalOpen}
           tienda={editingTienda}
           onClose={() => setIsEditModalOpen(false)}
           onSave={handleSaveEdit}
-        />
+        />}
       </>
     );
   }
 
   // VISTA: ADMINISTRADOR DEL NEGOCIO (BODEGA SAN BLAS / LUIS ALVAREZ)
   if (currentView === 'store_admin') {
+    const tiendaSeleccionada = misTiendas.find(t => t.idTienda === idTiendaActiva);
+    const soloConsulta = tiendaSeleccionada?.estadoTienda !== 'ACTIVO';
     return (
       <>
 
@@ -445,15 +449,15 @@ export function App() {
             }}>Reintentar</button>
           </div>
         ) : idTiendaActiva === null ? (
-          <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas activas asignadas.</p>
+          <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas asignadas.</p>
         ) : (
           <>
-        {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes' || storeTab === 'configuracion') && (
+        {soloConsulta && <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Tienda inactiva: se permiten consultas y cobranzas, no nuevas ventas ni modificaciones.</p>}
+        {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes') && (
           <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
             {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
             {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
             {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
-            {storeTab === 'configuracion' && 'Los cambios de esta sección aún no se guardan en tu tienda.'}
           </p>
         )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
@@ -509,7 +513,8 @@ export function App() {
         )}
 
         {/* Pestaña: Nueva venta a crédito */}
-        {storeTab === 'nueva_venta' && (
+        {storeTab === 'nueva_venta' && soloConsulta && <p className="text-sm text-slate-600">No se pueden registrar ventas en una tienda inactiva.</p>}
+        {storeTab === 'nueva_venta' && !soloConsulta && (
           <StoreNuevaVentaPage
             key={idTiendaActiva}
             idTienda={idTiendaActiva}
@@ -539,9 +544,12 @@ export function App() {
         )}
 
         {/* Pestaña: Configuración */}
-        {storeTab === 'configuracion' && (
+        {storeTab === 'configuracion' && tiendaSeleccionada && (
           <StoreConfiguracionPage
-            onSaveSuccess={() => setIsCambiosGuardadosModalOpen(true)}
+            key={idTiendaActiva}
+            tienda={tiendaSeleccionada}
+            correoUsuario={currentUser?.correo ?? ''}
+            onActualizar={actualizarTiendaSeleccionada}
           />
         )}
           </>
@@ -596,10 +604,6 @@ export function App() {
         onRegistrarPago={handleRegistrarPagoFromCorte}
       />
 
-      <CambiosGuardadosModal
-        isOpen={isCambiosGuardadosModalOpen}
-        onClose={() => setIsCambiosGuardadosModalOpen(false)}
-      />
     </>
   );
 }

@@ -1,28 +1,39 @@
 import React, { useState } from 'react';
 import { Search, ChevronDown, Plus } from 'lucide-react';
-import type { TiendaData } from '../../components/admin-system/EditarTiendaModal';
+import type { TiendaDetalleResponse } from '../../types/tiendas';
 
 interface TiendasListPageProps {
-  tiendas: TiendaData[];
+  tiendas: TiendaDetalleResponse[];
+  cargando: boolean;
+  error: string | null;
+  onRecargar: () => void;
+  aviso: string | null;
+  busqueda: string;
+  onBuscar: (valor: string) => void;
   onGoToRegister: () => void;
-  onEditTienda: (tienda: TiendaData) => void;
+  onEditTienda: (tienda: TiendaDetalleResponse) => void;
 }
 
 export const TiendasListPage: React.FC<TiendasListPageProps> = ({
   tiendas,
+  cargando,
+  error,
+  onRecargar,
+  aviso,
+  busqueda,
+  onBuscar,
   onGoToRegister,
   onEditTienda,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState<'TODOS' | 'Activo' | 'Inactivo'>('TODOS');
 
   // Filtrado reactivo en tiempo real
   const tiendasFiltradas = tiendas.filter((t) => {
     const matchesSearch =
-      t.nombreComercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.adminNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.direccion.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEstado = estadoFilter === 'TODOS' || t.estado === estadoFilter;
+      [t.nombreTienda, t.documentoTienda, t.razonSocial, t.giroDeNegocio, t.direccion, String(t.idTienda),
+        ...t.administradores.flatMap(a => [a.nombreUsuario, a.correoUsuario])]
+        .some(valor => valor.toLowerCase().includes(busqueda.trim().toLowerCase()));
+    const matchesEstado = estadoFilter === 'TODOS' || t.estadoTienda === (estadoFilter === 'Activo' ? 'ACTIVO' : 'INACTIVO');
     return matchesSearch && matchesEstado;
   });
 
@@ -48,23 +59,29 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
         </button>
       </div>
 
+      {aviso && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">{aviso}</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+      <div className="flex items-center justify-end">
+        <button type="button" disabled={cargando} onClick={onRecargar} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold disabled:opacity-50">{cargando ? 'Actualizando...' : 'Actualizar listado'}</button>
+      </div>
+
       {/* Resumen Métrico Compacto (Fila de 4 números) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
         <div className="p-2 sm:px-4 text-left">
           <p className="text-[11px] text-slate-400 font-medium">Total tiendas</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">126</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{tiendas.length}</p>
         </div>
         <div className="p-2 sm:px-4 text-left">
           <p className="text-[11px] text-slate-400 font-medium">Activas</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">118</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{tiendas.filter(t => t.estadoTienda === 'ACTIVO').length}</p>
         </div>
         <div className="p-2 sm:px-4 text-left">
           <p className="text-[11px] text-slate-400 font-medium">Inactivas</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">8</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{tiendas.filter(t => t.estadoTienda === 'INACTIVO').length}</p>
         </div>
         <div className="p-2 sm:px-4 text-left">
           <p className="text-[11px] text-slate-400 font-medium">Giros distintos</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">4</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{new Set(tiendas.map(t => t.giroDeNegocio)).size}</p>
         </div>
       </div>
 
@@ -74,9 +91,9 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar tienda, responsable o ciudad"
+            value={busqueda}
+            onChange={(e) => onBuscar(e.target.value)}
+            placeholder="Buscar tienda, documento, administrador o ubicación"
             className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
           />
         </div>
@@ -84,7 +101,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
         <div className="relative sm:w-48">
           <select
             value={estadoFilter}
-            onChange={(e) => setEstadoFilter(e.target.value as any)}
+            onChange={(e) => setEstadoFilter(e.target.value as 'TODOS' | 'Activo' | 'Inactivo')}
             className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] pr-8 cursor-pointer"
           >
             <option value="TODOS">Todos los estados</option>
@@ -102,6 +119,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
             <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-6">TIENDA</th>
+                <th className="py-3 px-6">DOCUMENTO</th>
                 <th className="py-3 px-6">GIRO</th>
                 <th className="py-3 px-6">ADMINISTRADOR</th>
                 <th className="py-3 px-6">UBICACIÓN</th>
@@ -112,38 +130,41 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {tiendasFiltradas.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/60 transition">
-                  <td className="py-4 px-6 font-semibold text-slate-900">{t.nombreComercial}</td>
-                  <td className="py-4 px-6 text-slate-600">{t.giro}</td>
-                  <td className="py-4 px-6 text-slate-600">{t.adminNombre}</td>
+                <tr key={t.idTienda} className="hover:bg-slate-50/60 transition">
+                  <td className="py-4 px-6 font-semibold text-slate-900">{t.nombreTienda}<p className="text-[10px] font-normal text-slate-400">ID {t.idTienda}</p></td>
+                  <td className="py-4 px-6 text-slate-600">{t.documentoTienda}</td>
+                  <td className="py-4 px-6 text-slate-600">{t.giroDeNegocio}</td>
+                  <td className="py-4 px-6 text-slate-600">{t.administradores.map(a => a.nombreUsuario).join(', ') || '—'}</td>
                   <td className="py-4 px-6 text-slate-500">{t.direccion}</td>
-                  <td className="py-4 px-6 text-slate-500">{t.telefono}</td>
+                  <td className="py-4 px-6 text-slate-500">{t.telefonoTienda || '—'}</td>
                   <td className="py-4 px-6">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border ${
-                        t.estado === 'Activo'
+                        t.estadoTienda === 'ACTIVO'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
                           : 'bg-rose-50 text-rose-700 border-rose-200/60'
                       }`}
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          t.estado === 'Activo' ? 'bg-emerald-500' : 'bg-rose-500'
+                          t.estadoTienda === 'ACTIVO' ? 'bg-emerald-500' : 'bg-rose-500'
                         }`}
                       ></span>
-                      {t.estado}
+                      {t.estadoTienda === 'ACTIVO' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
                     <button
+                      disabled={cargando}
                       onClick={() => onEditTienda(t)}
                       className="px-3 py-1.5 border border-slate-200 text-slate-700 hover:border-[#139a6c] hover:text-[#139a6c] hover:bg-slate-50 text-xs font-semibold rounded-lg transition cursor-pointer"
                     >
-                      Editar
+                      {t.estadoTienda === 'ACTIVO' ? 'Editar' : 'Gestionar'}
                     </button>
                   </td>
                 </tr>
               ))}
+              {!tiendasFiltradas.length && <tr><td colSpan={8} className="py-8 text-center text-slate-500">{cargando ? 'Cargando tiendas...' : error ? 'No se pudo cargar el listado.' : tiendas.length ? 'No hay resultados para el filtro.' : 'No hay tiendas registradas.'}</td></tr>}
             </tbody>
           </table>
         </div>

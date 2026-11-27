@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Info } from 'lucide-react';
-import type { TiendaData } from '../../components/admin-system/EditarTiendaModal';
+import { registrarTienda } from '../../api/tiendas';
+import { obtenerMensajeError } from '../../api/errores';
+import type { TiendaRegistradaResponse } from '../../types/tiendas';
 
 interface RegistrarTiendaPageProps {
   onCancel: () => void;
-  onRegisterSuccess: (nuevaTienda: TiendaData) => void;
+  onRegisterSuccess: (nuevaTienda: TiendaRegistradaResponse) => void;
 }
 
 export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
@@ -17,7 +19,6 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [correo, setCorreo] = useState('');
-  const [estado, setEstado] = useState<'Activo' | 'Inactivo'>('Activo');
   const [documento, setDocumento] = useState('');
 
   const [adminNombre, setAdminNombre] = useState('');
@@ -26,30 +27,42 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
   const [adminTelefono, setAdminTelefono] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+    setError(null);
+    if (!nombreComercial.trim() || !razonSocial.trim() || !direccion.trim() || !adminNombre.trim()
+        || !/^\d{11}$/.test(documento.trim()) || adminContrasena.length < 12
+        || new TextEncoder().encode(adminContrasena).length > 72) {
+      setError('Completa los campos obligatorios, el documento de 11 dígitos y una contraseña de 12 a 72 bytes (máximo).');
+      return;
+    }
     setIsLoading(true);
-
-    const nueva: TiendaData = {
-      id: Date.now(),
-      nombreComercial: nombreComercial.trim() || 'Nueva Tienda',
-      razonSocial: razonSocial.trim() || 'Empresa S.A.C.',
-      giro,
-      telefono: telefono.trim() || '987 654 321',
-      direccion: direccion.trim() || 'Lima, Perú',
-      correo: correo.trim() || 'tienda@ejemplo.com',
-      estado,
-      documento: documento.trim() || '20601234567',
-      adminNombre: adminNombre.trim() || 'Admin Asignado',
-      adminCorreo: adminCorreo.trim() || 'admin@tienda.com',
-      adminTelefono: adminTelefono.trim() || '987 654 321',
-    };
-
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const nueva = await registrarTienda({
+        nombreTienda: nombreComercial.trim(),
+        razonSocial: razonSocial.trim(),
+        documentoTienda: documento.trim(),
+        giroDeNegocio: giro,
+        direccion: direccion.trim(),
+        telefonoTienda: telefono.trim() || null,
+        correoTienda: correo.trim() || null,
+        administrador: {
+          nombreUsuario: adminNombre.trim(),
+          correoUsuario: adminCorreo.trim(),
+          telefonoUsuario: adminTelefono.trim() || null,
+          contrasena: adminContrasena,
+        },
+      });
+      setAdminContrasena('');
       onRegisterSuccess(nueva);
-    }, 400);
+    } catch (e) {
+      setError(obtenerMensajeError(e));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -65,6 +78,8 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
 
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8">
         <form onSubmit={handleSubmit} className="space-y-8">
+          {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+          <fieldset disabled={isLoading} className="space-y-8">
           {/* SECCIÓN 1: DATOS DE LA TIENDA */}
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">
@@ -79,6 +94,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <input
                   type="text"
                   required
+                  maxLength={120}
                   value={nombreComercial}
                   onChange={(e) => setNombreComercial(e.target.value)}
                   placeholder="Bodega San Blas"
@@ -94,6 +110,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <input
                   type="text"
                   required
+                  maxLength={150}
                   value={razonSocial}
                   onChange={(e) => setRazonSocial(e.target.value)}
                   placeholder="Luis Alvarez"
@@ -128,6 +145,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={15}
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
                   placeholder="987 654 321"
@@ -142,6 +160,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 </label>
                 <input
                   type="text"
+                  required maxLength={200}
                   value={direccion}
                   onChange={(e) => setDireccion(e.target.value)}
                   placeholder="Cusco, Perú"
@@ -156,6 +175,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 </label>
                 <input
                   type="email"
+                  maxLength={150}
                   value={correo}
                   onChange={(e) => setCorreo(e.target.value)}
                   placeholder="contacto@ejemplo.com"
@@ -168,15 +188,8 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Estado
                 </label>
-                <select
-                  value={estado}
-                  onChange={(e) => setEstado(e.target.value as 'Activo' | 'Inactivo')}
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none cursor-pointer"
-                >
-                  <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1.5">Inactivo impide nuevas operaciones; conserva el historial.</p>
+                <input type="text" value="Activo" readOnly className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
+                <p className="text-[10px] text-slate-400 mt-1.5">Las tiendas nuevas se registran activas.</p>
               </div>
 
               <div>
@@ -185,6 +198,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 </label>
                 <input
                   type="text"
+                  required maxLength={11} minLength={11} inputMode="numeric" pattern="[0-9]{11}"
                   value={documento}
                   onChange={(e) => setDocumento(e.target.value)}
                   placeholder="Ingresa el documento"
@@ -209,6 +223,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <input
                   type="text"
                   required
+                  maxLength={200}
                   value={adminNombre}
                   onChange={(e) => setAdminNombre(e.target.value)}
                   placeholder="Luis Alvarez"
@@ -224,6 +239,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <input
                   type="email"
                   required
+                  maxLength={150}
                   value={adminCorreo}
                   onChange={(e) => setAdminCorreo(e.target.value)}
                   placeholder="luis@ejemplo.com"
@@ -239,12 +255,13 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <input
                   type="password"
                   required
+                  minLength={12} maxLength={72} autoComplete="new-password"
                   value={adminContrasena}
                   onChange={(e) => setAdminContrasena(e.target.value)}
                   placeholder="••••••••••••"
                   className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Credencial de acceso asignada al administrador.</p>
+                <p className="text-[10px] text-slate-400 mt-1.5">Mínimo 12 caracteres; máximo 72 bytes.</p>
               </div>
 
               <div>
@@ -253,6 +270,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={15}
                   value={adminTelefono}
                   onChange={(e) => setAdminTelefono(e.target.value)}
                   placeholder="987 654 321"
@@ -271,11 +289,13 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
             </p>
           </div>
 
+          </fieldset>
           {/* Footer de Acciones */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onCancel}
+              disabled={isLoading}
               className="px-6 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Cancelar

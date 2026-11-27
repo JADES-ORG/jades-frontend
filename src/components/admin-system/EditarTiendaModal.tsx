@@ -1,295 +1,147 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Info } from 'lucide-react';
-
-export interface TiendaData {
-  id: number;
-  nombreComercial: string;
-  razonSocial: string;
-  giro: string;
-  telefono: string;
-  direccion: string;
-  correo: string;
-  estado: 'Activo' | 'Inactivo';
-  documento: string;
-  adminNombre: string;
-  adminCorreo: string;
-  adminTelefono: string;
-}
+import { actualizarTienda, consultarTienda, desactivarTienda, reactivarTienda } from '../../api/tiendas';
+import { obtenerMensajeError } from '../../api/errores';
+import type { ActualizarTiendaRequest, TiendaDetalleResponse } from '../../types/tiendas';
 
 interface EditarTiendaModalProps {
   isOpen: boolean;
-  tienda: TiendaData | null;
+  tienda: TiendaDetalleResponse;
   onClose: () => void;
-  onSave: (tiendaActualizada: TiendaData) => void;
+  onSave: (tiendaActualizada: TiendaDetalleResponse, mensaje: string) => void;
 }
 
-export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({
-  isOpen,
-  tienda,
-  onClose,
-  onSave,
-}) => {
-  const [formData, setFormData] = useState<TiendaData | null>(null);
-  const [nuevaContrasena, setNuevaContrasena] = useState('');
+function datosFormulario(t: TiendaDetalleResponse): ActualizarTiendaRequest {
+  return {
+    nombreTienda: t.nombreTienda, razonSocial: t.razonSocial, documentoTienda: t.documentoTienda,
+    giroDeNegocio: t.giroDeNegocio, direccion: t.direccion, telefonoTienda: t.telefonoTienda, correoTienda: t.correoTienda,
+  };
+}
+
+export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, tienda, onClose, onSave }) => {
+  const [detalle, setDetalle] = useState(tienda);
+  const [formulario, setFormulario] = useState(() => datosFormulario(tienda));
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recarga, setRecarga] = useState(0);
+  const [consultado, setConsultado] = useState(false);
 
   useEffect(() => {
-    if (tienda) {
-      setFormData({ ...tienda });
-      setNuevaContrasena('');
-    }
-  }, [tienda]);
+    const controller = new AbortController();
+    setCargando(true);
+    setConsultado(false);
+    setError(null);
+    consultarTienda(tienda.idTienda, controller.signal).then(data => {
+      if (controller.signal.aborted) return;
+      setDetalle(data);
+      setFormulario(datosFormulario(data));
+      setConsultado(true);
+    }).catch(e => {
+      if (!controller.signal.aborted) setError(obtenerMensajeError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setCargando(false);
+    });
+    return () => controller.abort();
+  }, [tienda.idTienda, recarga]);
 
-  if (!isOpen || !formData) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
+  if (!isOpen) return null;
+  const activa = detalle.estadoTienda === 'ACTIVO';
+  const bloqueado = guardando || cargando || !consultado;
+  const cambiar = (campo: keyof ActualizarTiendaRequest, valor: string) => setFormulario(prev => ({ ...prev, [campo]: valor }));
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    onClose();
+    if (bloqueado || !activa) return;
+    setError(null);
+    if (!formulario.nombreTienda.trim() || !formulario.razonSocial.trim() || !formulario.giroDeNegocio.trim() ||
+        !formulario.direccion.trim() || !/^\d{11}$/.test(formulario.documentoTienda.trim())) {
+      setError('Completa los datos obligatorios y el documento de 11 dígitos.');
+      return;
+    }
+    setGuardando(true);
+    try {
+      const actualizada = await actualizarTienda(detalle.idTienda, {
+        nombreTienda: formulario.nombreTienda.trim(), razonSocial: formulario.razonSocial.trim(),
+        documentoTienda: formulario.documentoTienda.trim(), giroDeNegocio: formulario.giroDeNegocio.trim(),
+        direccion: formulario.direccion.trim(), telefonoTienda: formulario.telefonoTienda?.trim() || null,
+        correoTienda: formulario.correoTienda?.trim() || null,
+      });
+      onSave(actualizada, 'Datos de la tienda actualizados correctamente.');
+      onClose();
+    } catch (e) {
+      setError(obtenerMensajeError(e));
+    } finally {
+      setGuardando(false);
+    }
   };
+
+  const cambiarEstado = async () => {
+    if (bloqueado || !window.confirm(activa ? '¿Desactivar esta tienda? Se conservará el historial y no se permitirán nuevas ventas.' : '¿Reactivar esta tienda?')) return;
+    setError(null);
+    setGuardando(true);
+    try {
+      const resultado = activa ? await desactivarTienda(detalle.idTienda) : await reactivarTienda(detalle.idTienda);
+      onSave({ ...detalle, estadoTienda: resultado.estadoTienda }, activa ? 'Tienda desactivada correctamente.' : 'Tienda reactivada correctamente.');
+      onClose();
+    } catch (e) {
+      setError(obtenerMensajeError(e));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const campos: { campo: keyof ActualizarTiendaRequest; etiqueta: string; max: number; required?: boolean; tipo?: string }[] = [
+    { campo: 'nombreTienda', etiqueta: 'Nombre comercial', max: 120, required: true },
+    { campo: 'razonSocial', etiqueta: 'Razón social o responsable', max: 150, required: true },
+    { campo: 'giroDeNegocio', etiqueta: 'Tipo / giro del negocio', max: 50, required: true },
+    { campo: 'telefonoTienda', etiqueta: 'Teléfono', max: 15 },
+    { campo: 'direccion', etiqueta: 'Dirección', max: 200, required: true },
+    { campo: 'correoTienda', etiqueta: 'Correo del negocio', max: 150, tipo: 'email' },
+    { campo: 'documentoTienda', etiqueta: 'Documento del negocio', max: 11, required: true },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header Modal */}
+      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 my-8 overflow-hidden">
         <div className="p-6 sm:p-8 border-b border-slate-100 flex items-start justify-between">
           <div>
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-              Editar tienda
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Actualiza los datos generales y del administrador asignado.
-            </p>
+            <h3 className="text-xl font-bold text-slate-900">Editar tienda</h3>
+            <p className="text-xs text-slate-500 mt-1">Datos generales, administradores asignados y estado.</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <button type="button" aria-label="Cerrar" disabled={guardando} onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
-
-        {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6 max-h-[75vh] overflow-y-auto">
-          {/* SECCIÓN 1: DATOS DE LA TIENDA */}
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
-              DATOS DE LA TIENDA
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nombre comercial
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.nombreComercial}
-                  onChange={(e) => setFormData({ ...formData, nombreComercial: e.target.value })}
-                  placeholder="Bodega San Blas"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Nombre con el que se identifica el negocio.</p>
+          {cargando && <p role="status" className="text-xs text-slate-500">Consultando tienda...</p>}
+          {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} {!consultado && <button type="button" onClick={() => setRecarga(n => n + 1)} className="underline font-semibold">Reintentar</button>}</p>}
+          <fieldset disabled={bloqueado || !activa} className="grid grid-cols-1 sm:grid-cols-2 gap-4 disabled:opacity-70">
+            {campos.map(({ campo, etiqueta, max, required, tipo }) => (
+              <label key={campo} className="block text-xs font-bold text-slate-700">{etiqueta}
+                <input type={tipo || 'text'} required={required} maxLength={max} pattern={campo === 'documentoTienda' ? '[0-9]{11}' : undefined} inputMode={campo === 'documentoTienda' ? 'numeric' : undefined}
+                  value={formulario[campo] ?? ''} onChange={e => cambiar(campo, e.target.value)} className="mt-1 w-full px-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] outline-none" />
+              </label>
+            ))}
+            <label className="block text-xs font-bold text-slate-700">Estado actual
+              <input readOnly value={activa ? 'Activo' : 'Inactivo'} className="mt-1 w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
+            </label>
+          </fieldset>
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <h4 className="text-[11px] font-bold uppercase text-slate-400">Administradores asignados</h4>
+            {detalle.administradores.length ? detalle.administradores.map(a => (
+              <div key={a.idUsuario} className="rounded-xl border border-slate-200 p-3 text-xs">
+                <p className="font-semibold text-slate-800">{a.nombreUsuario} · {a.activo ? 'Activo' : 'Inactivo'}</p>
+                <p className="text-slate-600">{a.correoUsuario} · {a.telefonoUsuario || 'Sin teléfono'}</p>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Razón social o responsable
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.razonSocial}
-                  onChange={(e) => setFormData({ ...formData, razonSocial: e.target.value })}
-                  placeholder="Luis Alvarez"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Responsable legal o razón social.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Tipo / giro del negocio
-                </label>
-                <select
-                  value={formData.giro}
-                  onChange={(e) => setFormData({ ...formData, giro: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none cursor-pointer"
-                >
-                  <option value="Bodega">Bodega</option>
-                  <option value="Panadería">Panadería</option>
-                  <option value="Carnicería">Carnicería</option>
-                  <option value="Peluquería">Peluquería</option>
-                  <option value="Farmacia">Farmacia</option>
-                  <option value="Minimarket">Minimarket</option>
-                  <option value="Otro">Otro</option>
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">Selecciona el giro principal del establecimiento.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                  placeholder="987 654 321"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Número de contacto de la tienda.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                  placeholder="Cusco, Perú"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Ubicación del establecimiento.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Correo
-                </label>
-                <input
-                  type="email"
-                  value={formData.correo}
-                  onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                  placeholder="contacto@ejemplo.com"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Correo de contacto del negocio.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Estado
-                </label>
-                <select
-                  value={formData.estado}
-                  onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'Activo' | 'Inactivo' })}
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none cursor-pointer"
-                >
-                  <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">Inactivo impide nuevas operaciones; conserva el historial.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Documento del negocio
-                </label>
-                <input
-                  type="text"
-                  value={formData.documento}
-                  onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
-                  placeholder="Ingresa el documento"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Número tributario o identificación del establecimiento.</p>
-              </div>
-            </div>
+            )) : <p className="text-xs text-slate-500">No hay administradores vinculados.</p>}
+            <p className="text-xs text-slate-500">Las credenciales y los datos de los administradores no se modifican desde este formulario.</p>
           </div>
-
-          {/* SECCIÓN 2: ADMINISTRADOR DEL NEGOCIO */}
-          <div className="pt-4 border-t border-slate-100">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
-              ADMINISTRADOR DEL NEGOCIO
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nombre completo
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.adminNombre}
-                  onChange={(e) => setFormData({ ...formData, adminNombre: e.target.value })}
-                  placeholder="Luis Alvarez"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Persona que administrará esta tienda.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Correo de acceso
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.adminCorreo}
-                  onChange={(e) => setFormData({ ...formData, adminCorreo: e.target.value })}
-                  placeholder="luis@ejemplo.com"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Usuario asignado a esta tienda.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nueva contraseña (opcional)
-                </label>
-                <input
-                  type="password"
-                  value={nuevaContrasena}
-                  onChange={(e) => setNuevaContrasena(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Déjalo vacío para mantener la contraseña actual.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Teléfono del administrador
-                </label>
-                <input
-                  type="text"
-                  value={formData.adminTelefono}
-                  onChange={(e) => setFormData({ ...formData, adminTelefono: e.target.value })}
-                  placeholder="987 654 321"
-                  className="w-full px-3.5 py-2.5 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Contacto del responsable de la cuenta.</p>
-              </div>
-            </div>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-3 text-emerald-800">
+            <Info className="w-5 h-5 shrink-0" />
+            <p className="text-xs">{activa ? 'Al desactivar se impiden nuevas ventas y modificaciones, pero se conservan las consultas y cobranzas.' : 'La tienda inactiva solo puede consultarse. Reactívala para editar sus datos.'}</p>
           </div>
-
-          {/* Banner de Info */}
-          <div className="bg-emerald-50/70 border border-emerald-200/60 rounded-2xl p-3.5 flex items-center space-x-3 text-emerald-800">
-            <Info className="w-4 h-4 text-[#139a6c] shrink-0" />
-            <p className="text-xs font-medium">
-              Las credenciales iniciales se entregan únicamente al administrador asignado.
-            </p>
-          </div>
-
-          {/* Footer de Acciones */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Guardar tienda
-            </button>
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-end gap-3">
+            <button type="button" disabled={bloqueado} onClick={() => void cambiarEstado()} className={`px-5 py-2.5 rounded-xl text-white text-xs font-semibold disabled:opacity-50 ${activa ? 'bg-red-600 hover:bg-red-700' : 'bg-[#139a6c]'}`}>{activa ? 'Desactivar tienda' : 'Reactivar tienda'}</button>
+            <button type="button" disabled={guardando} onClick={onClose} className="px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold">Cancelar</button>
+            {activa && <button type="submit" disabled={bloqueado} className="px-5 py-2.5 rounded-xl text-white bg-[#139a6c] text-xs font-semibold disabled:opacity-50">{guardando ? 'Guardando...' : 'Guardar cambios'}</button>}
           </div>
         </form>
       </div>

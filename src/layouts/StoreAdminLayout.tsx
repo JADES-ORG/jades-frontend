@@ -72,7 +72,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
 
           {/* Tiendas autorizadas por el backend */}
           <div className="px-4 py-3 border-b border-white/10">
-            <label htmlFor="tienda-activa" className="block text-[10px] uppercase tracking-wider text-emerald-200/70 mb-2">Tienda activa</label>
+            <label htmlFor="tienda-activa" className="block text-[10px] uppercase tracking-wider text-emerald-200/70 mb-2">Tienda seleccionada</label>
             <select
               id="tienda-activa"
               value={idTiendaActiva ?? ''}
@@ -82,10 +82,10 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
             >
               {tiendas.length === 0 && <option value="">{cargandoTiendas ? 'Cargando...' : 'Sin tiendas disponibles'}</option>}
               {tiendas.map(tienda => (
-                <option key={tienda.idTienda} value={tienda.idTienda}>{tienda.nombreTienda}</option>
+                <option key={tienda.idTienda} value={tienda.idTienda}>{tienda.nombreTienda}{tienda.estadoTienda !== 'ACTIVO' ? ' (Inactiva)' : ''}</option>
               ))}
             </select>
-            {tiendaActiva && <p className="mt-2 text-[10px] text-emerald-200/70">Documento: {tiendaActiva.documentoTienda}</p>}
+            {tiendaActiva && <p className="mt-2 text-[10px] text-emerald-200/70">Documento: {tiendaActiva.documentoTienda} · {tiendaActiva.estadoTienda === 'ACTIVO' ? 'Activa' : 'Solo consulta y cobranza'}</p>}
           </div>
 
           {/* Menú de Navegación Principal */}
@@ -132,6 +132,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
               </button>
 
               <button
+                disabled={tiendaActiva?.estadoTienda !== 'ACTIVO'}
                 onClick={() => onSelectTab('nueva_venta')}
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                   currentTab === 'nueva_venta'
