@@ -26,8 +26,7 @@ import { StorePlanPagosPage } from './pages/store-admin/StorePlanPagosPage';
 import { RegistrarClienteModal } from './components/store-admin/RegistrarClienteModal';
 import { EditarClienteModal } from './components/store-admin/EditarClienteModal';
 import { EditarCondicionesModal } from './components/store-admin/EditarCondicionesModal';
-import { StoreProductosListPage, initialProductos } from './pages/store-admin/StoreProductosListPage';
-import { ProductoModal, type ProductoData } from './components/store-admin/ProductoModal';
+import { StoreProductosListPage } from './pages/store-admin/StoreProductosListPage';
 import { StoreNuevaVentaPage } from './pages/store-admin/StoreNuevaVentaPage';
 import { StorePagosPage, initialPagos } from './pages/store-admin/StorePagosPage';
 import { RegistrarPagoModal, type PagoItemData } from './components/store-admin/RegistrarPagoModal';
@@ -182,40 +181,6 @@ export function App() {
   const [isRegisterClientModalOpen, setIsRegisterClientModalOpen] = useState(false);
   const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
   const [isEditConditionsModalOpen, setIsEditConditionsModalOpen] = useState(false);
-
-  // Estados de Productos y Servicios (Bodega San Blas)
-  const [productos, setProductos] = useState<ProductoData[]>(initialProductos);
-  const [isProductoModalOpen, setIsProductoModalOpen] = useState(false);
-  const [productoModalMode, setProductoModalMode] = useState<'nuevo' | 'editar'>('nuevo');
-  const [editingProducto, setEditingProducto] = useState<ProductoData | null>(null);
-
-  // Estados de Nueva Venta a Crédito (Bodega San Blas)
-
-  const handleOpenNewProducto = () => {
-    setProductoModalMode('nuevo');
-    setEditingProducto(null);
-    setIsProductoModalOpen(true);
-  };
-
-  const handleOpenEditProducto = (producto: ProductoData) => {
-    setProductoModalMode('editar');
-    setEditingProducto(producto);
-    setIsProductoModalOpen(true);
-  };
-
-  const handleSaveProducto = (productoGuardado: ProductoData) => {
-    if (productoModalMode === 'nuevo') {
-      const nuevo: ProductoData = {
-        ...productoGuardado,
-        id: Date.now(),
-      };
-      setProductos((prev) => [nuevo, ...prev]);
-    } else {
-      setProductos((prev) =>
-        prev.map((p) => (p.id === productoGuardado.id ? productoGuardado : p))
-      );
-    }
-  };
 
   // Estados de Pagos y Cobranzas (Bodega San Blas)
   const [pagosList, setPagosList] = useState<PagoItemData[]>(initialPagos);
@@ -483,7 +448,7 @@ export function App() {
           <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas activas asignadas.</p>
         ) : (
           <>
-        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && (
+        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && storeTab !== 'productos' && (
           <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Vista de demostración: esta sección aún no está conectada completamente al backend.</p>
         )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
@@ -532,9 +497,9 @@ export function App() {
         {/* Pestaña: Productos y servicios */}
         {storeTab === 'productos' && (
           <StoreProductosListPage
-            productos={productos}
-            onNewProducto={handleOpenNewProducto}
-            onEditProducto={handleOpenEditProducto}
+            key={idTiendaActiva}
+            idTienda={idTiendaActiva}
+            soloConsulta={misTiendas.find(t => t.idTienda === idTiendaActiva)?.estadoTienda !== 'ACTIVO'}
           />
         )}
 
@@ -604,14 +569,6 @@ export function App() {
           console.log('Condiciones actualizadas:', condicionesActualizadas);
           setIsEditConditionsModalOpen(false);
         }}
-      />
-
-      <ProductoModal
-        isOpen={isProductoModalOpen}
-        mode={productoModalMode}
-        initialData={editingProducto}
-        onClose={() => setIsProductoModalOpen(false)}
-        onSave={handleSaveProducto}
       />
 
       <RegistrarPagoModal

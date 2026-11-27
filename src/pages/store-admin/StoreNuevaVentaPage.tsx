@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
 import { listarProductos } from '../../api/productos';
+import { admiteCantidadDecimal } from '../../types/productos';
 import { consultarCronograma, consultarPagoUnico } from '../../api/finanzas';
 import { registrarVenta, crearClaveIdempotencia, simularVenta } from '../../api/ventas';
 import { obtenerMensajeError } from '../../api/errores';
@@ -30,7 +31,7 @@ function dinero(valor: number, moneda: Moneda | string) {
 }
 
 function cantidadValida(item: VentaItem) {
-  const patron = item.producto.unidadMedida === 'KILOGRAMO'
+  const patron = admiteCantidadDecimal(item.producto.unidadMedida)
     ? /^\d{1,9}(\.\d{1,3})?$/ : /^\d{1,9}$/;
   return patron.test(item.cantidad) && Number(item.cantidad) > 0;
 }
@@ -322,7 +323,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       </div>
       <div className="overflow-x-auto border border-slate-200 rounded-xl"><table className="w-full text-left text-xs">
         <thead className="bg-slate-50 text-slate-500"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(i.producto.precioCredito)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 border border-slate-200 rounded-lg p-2" type="number" min={i.producto.unidadMedida === 'KILOGRAMO' ? .001 : 1} max={999999999} step={i.producto.unidadMedida === 'KILOGRAMO' ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
+        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(i.producto.precioCredito)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 border border-slate-200 rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
       </table></div>
       <p className="text-sm font-bold">Capital estimado: {validas ? m(capital) : '—'}</p>
       {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}

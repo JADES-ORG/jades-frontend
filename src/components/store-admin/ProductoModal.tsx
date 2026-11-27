@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown } from 'lucide-react';
+import { consultarImagenProducto } from '../../api/productos';
+import { obtenerMensajeError } from '../../api/errores';
+import { UNIDADES_PRODUCTO } from '../../types/productos';
 
 export interface ProductoData {
   id?: number;
@@ -13,6 +16,7 @@ export interface ProductoData {
   precioContado: number;
   precioCredito: number;
   modalidad: 'Ambas modalidades' | 'Pago único' | 'En meses';
+  imagenProducto?: string | null;
 }
 
 interface ProductoModalProps {
@@ -20,7 +24,8 @@ interface ProductoModalProps {
   mode: 'nuevo' | 'editar';
   initialData?: ProductoData | null;
   onClose: () => void;
-  onSave: (data: ProductoData) => void;
+  idTienda: number;
+  onSave: (data: ProductoData, archivo?: File) => Promise<void>;
 }
 
 export const ProductoModal: React.FC<ProductoModalProps> = ({
@@ -28,6 +33,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
   mode,
   initialData,
   onClose,
+  idTienda,
   onSave,
 }) => {
   const [nombre, setNombre] = useState('');
@@ -35,22 +41,27 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
   const [proveedor, setProveedor] = useState('');
   const [marca, setMarca] = useState('');
   const [unidad, setUnidad] = useState('Unidad');
-  const [estado, setEstado] = useState<'Activo' | 'Inactivo'>('Activo');
-  const [descripcion, setDescripcion] = useState('Selección de productos para el hogar');
+
+  const [descripcion, setDescripcion] = useState('');
+  const [archivo, setArchivo] = useState<File>();
+  const [preview, setPreview] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [precioContado, setPrecioContado] = useState('');
   const [precioCredito, setPrecioCredito] = useState('');
   const [modalidad, setModalidad] = useState<'Ambas modalidades' | 'Pago único' | 'En meses'>('Ambas modalidades');
 
   useEffect(() => {
     if (isOpen) {
+      setArchivo(undefined);
+      setError(null);
       if (mode === 'editar' && initialData) {
         setNombre(initialData.nombre || '');
         setTipo(initialData.tipo || 'Producto');
         setProveedor(initialData.proveedor || '');
         setMarca(initialData.marca || '');
         setUnidad(initialData.unidad || 'Unidad');
-        setEstado(initialData.estado || 'Activo');
-        setDescripcion(initialData.descripcion || 'Selección de productos para el hogar');
+        setDescripcion(initialData.descripcion || '');
         setPrecioContado(initialData.precioContado !== undefined ? initialData.precioContado.toFixed(2) : '00.00');
         setPrecioCredito(initialData.precioCredito !== undefined ? initialData.precioCredito.toFixed(2) : '00.00');
         setModalidad(initialData.modalidad || 'Ambas modalidades');
@@ -61,8 +72,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         setProveedor('');
         setMarca('');
         setUnidad('Unidad');
-        setEstado('Activo');
-        setDescripcion('Selección de productos para el hogar');
+        setDescripcion('');
         setPrecioContado('00.00');
         setPrecioCredito('00.00');
         setModalidad('Ambas modalidades');
@@ -70,24 +80,53 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
     }
   }, [isOpen, mode, initialData]);
 
+  useEffect(() => {
+    if (!archivo) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(archivo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [archivo]);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    if (guardando) return;
+    setError(null);
+    if (!nombre.trim() || !/^\d+(\.\d{1,2})?$/.test(precioContado) || !/^\d+(\.\d{1,2})?$/.test(precioCredito)
+        || !Number.isFinite(Number(precioContado)) || !Number.isFinite(Number(precioCredito))
+        || Number(precioContado) <= 0 || Number(precioCredito) <= 0) {
+      setError('Ingresa el nombre y precios mayores a cero con hasta dos decimales.');
+      return;
+    }
+    if (!archivo && (mode === 'nuevo' || !initialData?.imagenProducto)) {
+      setError('Selecciona una imagen PNG o JPEG.');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await onSave({
       id: initialData?.id,
-      nombre: nombre || 'Producto sin nombre',
+      nombre: nombre.trim(),
       tipo,
-      proveedor,
-      marca: marca || '—',
+      proveedor: tipo === 'Producto' ? proveedor.trim() : '',
+      marca: tipo === 'Producto' ? marca.trim() : '',
       unidad,
-      estado,
+      estado: initialData?.estado ?? 'Activo',
       descripcion,
-      precioContado: parseFloat(precioContado) || 0,
-      precioCredito: parseFloat(precioCredito) || 0,
+      precioContado: Number(precioContado),
+      precioCredito: Number(precioCredito),
       modalidad,
-    });
-    onClose();
+    }, archivo);
+      onClose();
+    } catch (e) {
+      setError(obtenerMensajeError(e));
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (
@@ -105,6 +144,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            disabled={guardando}
             className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -113,6 +153,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-6 max-h-[80vh] overflow-y-auto">
+          {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+          <fieldset disabled={guardando} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div>
             <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
@@ -129,6 +171,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   type="text"
                   required
                   placeholder="Nombre comercial"
+                  maxLength={150}
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
@@ -167,6 +210,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 <input
                   type="text"
                   placeholder="Opcional"
+                  disabled={tipo === 'Servicio'}
+                  maxLength={150}
                   value={proveedor}
                   onChange={(e) => setProveedor(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
@@ -184,6 +229,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 <input
                   type="text"
                   placeholder="Opcional"
+                  disabled={tipo === 'Servicio'}
+                  maxLength={100}
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
@@ -204,12 +251,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                     onChange={(e) => setUnidad(e.target.value)}
                     className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
-                    <option value="Unidad">Unidad</option>
-                    <option value="Paquete">Paquete</option>
-                    <option value="Servicio">Servicio</option>
-                    <option value="Sesión">Sesión</option>
-                    <option value="Kilo (kg)">Kilo (kg)</option>
-                    <option value="Litro (L)">Litro (L)</option>
+                    {Object.entries(UNIDADES_PRODUCTO).map(([codigo, etiqueta]) => <option key={codigo} value={etiqueta}>{etiqueta}</option>)}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -225,8 +267,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 </label>
                 <div className="relative">
                   <select
-                    value={estado}
-                    onChange={(e) => setEstado(e.target.value as 'Activo' | 'Inactivo')}
+                    value={initialData?.estado ?? 'Activo'}
+                    disabled
                     className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
                     <option value="Activo">Activo</option>
@@ -247,6 +289,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 <input
                   type="text"
                   placeholder="Selección de productos para el hogar"
+                  maxLength={500}
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
@@ -262,12 +305,23 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   Imagen
                 </label>
                 <label className="border-2 border-dashed border-slate-200 hover:border-[#139a6c] rounded-xl p-2.5 flex items-center justify-center text-blue-600 hover:text-emerald-700 text-xs font-semibold cursor-pointer transition bg-slate-50/50">
-                  <input type="file" className="hidden" accept="image/*" />
-                  <span>+ Seleccionar imagen</span>
+                  <input type="file" className="hidden" accept="image/png,image/jpeg,.png,.jpg,.jpeg" onChange={(e) => {
+                    const seleccion = e.target.files?.[0];
+                    if (!seleccion) return;
+                    if (!['image/png', 'image/jpeg'].includes(seleccion.type) || seleccion.size > 5 * 1024 * 1024 || seleccion.size === 0) {
+                      setError('Selecciona una imagen PNG o JPEG de hasta 5 MB.');
+                      e.target.value = '';
+                      return;
+                    }
+                    setError(null);
+                    setArchivo(seleccion);
+                  }} />
+                  <span>{archivo?.name ?? '+ Seleccionar imagen'}</span>
                 </label>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Foto del producto o imagen representativa del servicio.
+                  PNG o JPEG, máximo 5 MB. Obligatoria al registrar.
                 </p>
+                {preview ? <img src={preview} alt="Vista previa" className="mt-2 h-24 w-24 rounded-xl object-cover" /> : initialData?.id && initialData.imagenProducto ? <ImagenProducto idTienda={idTienda} idProducto={initialData.id} imagen={initialData.imagenProducto} nombre={initialData.nombre} className="mt-2 h-24 w-24 rounded-xl object-cover" /> : null}
               </div>
             </div>
           </div>
@@ -349,20 +403,23 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
             </div>
           </div>
 
+          </fieldset>
           {/* Footer Botones */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
+              disabled={guardando}
               className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
+              disabled={guardando}
               className="px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
-              Guardar producto
+              {guardando ? 'Guardando...' : 'Guardar producto'}
             </button>
           </div>
         </form>
@@ -370,3 +427,33 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
     </div>
   );
 };
+
+export function ImagenProducto({ idTienda, idProducto, imagen, nombre, className }: {
+  idTienda: number;
+  idProducto: number;
+  imagen: string;
+  nombre: string;
+  className?: string;
+}) {
+  const [resultado, setResultado] = useState<{ imagen: string; url: string } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    let url: string | undefined;
+    setResultado(null);
+    consultarImagenProducto(idTienda, idProducto, imagen, controller.signal).then(blob => {
+      if (controller.signal.aborted) return;
+      url = URL.createObjectURL(blob);
+      setResultado({ imagen, url });
+    }).catch(() => {
+      if (!controller.signal.aborted) setResultado(null);
+    });
+    return () => {
+      controller.abort();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [idTienda, idProducto, imagen]);
+
+  return resultado?.imagen === imagen
+    ? <img src={resultado.url} alt={nombre} className={className} />
+    : <span className={`${className ?? ''} flex items-center justify-center bg-slate-100 text-[9px] text-slate-500 text-center`}>Sin imagen</span>;
+}
