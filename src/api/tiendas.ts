@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { BajaTiendaResponse, RegistrarTiendaRequest, TiendaRegistradaResponse, TiendaResumenResponse } from '../types/tiendas';
+import type { ActualizarTiendaRequest, BajaTiendaResponse, ConfiguracionTiendaRequest, RegistrarTiendaRequest, TiendaDetalleResponse, TiendaRegistradaResponse, TiendaResumenResponse } from '../types/tiendas';
 
 export async function listarMisTiendas(signal?: AbortSignal): Promise<TiendaResumenResponse[]> {
   const { data } = await api.get<TiendaResumenResponse[]>('/tiendas/mis-tiendas', { signal });
@@ -11,8 +11,8 @@ export async function registrarTienda(solicitud: RegistrarTiendaRequest): Promis
   return data;
 }
 
-export async function consultarTienda(idTienda: number, signal?: AbortSignal): Promise<TiendaResumenResponse> {
-  const { data } = await api.get<TiendaResumenResponse>(`/tiendas/${idTienda}`, { signal });
+export async function consultarTienda(idTienda: number, signal?: AbortSignal): Promise<TiendaDetalleResponse> {
+  const { data } = await api.get<TiendaDetalleResponse>(`/tiendas/${idTienda}`, { signal });
   return data;
 }
 
@@ -23,5 +23,25 @@ export async function desactivarTienda(idTienda: number): Promise<BajaTiendaResp
 
 export async function reactivarTienda(idTienda: number): Promise<TiendaResumenResponse> {
   const { data } = await api.patch<TiendaResumenResponse>(`/tiendas/${idTienda}/reactivar`);
+  return data;
+}
+
+export async function listarTiendas(signal?: AbortSignal): Promise<TiendaDetalleResponse[]> {
+  const { data } = await api.get<TiendaDetalleResponse[]>('/tiendas', { signal });
+  return data;
+}
+
+export async function actualizarTienda(idTienda: number, solicitud: ActualizarTiendaRequest): Promise<TiendaDetalleResponse> {
+  const { data } = await api.put<TiendaDetalleResponse>(`/tiendas/${idTienda}`, solicitud);
+  return data;
+}
+
+export async function consultarConfiguracionTienda(idTienda: number, signal?: AbortSignal): Promise<TiendaDetalleResponse> {
+  const { data } = await api.get<TiendaDetalleResponse>(`/tiendas/${idTienda}/configuracion`, { signal });
+  return data;
+}
+
+export async function actualizarConfiguracionTienda(idTienda: number, solicitud: ConfiguracionTiendaRequest): Promise<TiendaDetalleResponse> {
+  const { data } = await api.put<TiendaDetalleResponse>(`/tiendas/${idTienda}/configuracion`, solicitud);
   return data;
 }

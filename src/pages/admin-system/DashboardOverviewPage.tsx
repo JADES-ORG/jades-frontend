@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TiendaResumenResponse } from '../../types/tiendas';
+import type { TiendaDetalleResponse } from '../../types/tiendas';
 import {
   Store,
   TrendingUp,
@@ -9,13 +9,19 @@ import {
 } from 'lucide-react';
 
 interface DashboardOverviewPageProps {
-  tiendas: TiendaResumenResponse[];
+  tiendas: TiendaDetalleResponse[];
+  cargando: boolean;
+  error: string | null;
+  onRecargar: () => void;
   onGoToRegister: () => void;
   onGoToStores: () => void;
 }
 
 export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
   tiendas,
+  cargando,
+  error,
+  onRecargar,
   onGoToRegister,
   onGoToStores,
 }) => {
@@ -28,7 +34,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             Resumen de la plataforma
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Resumen de las tiendas consultadas o registradas durante esta sesión.
+            Actividad y estado de las tiendas registradas.
           </p>
         </div>
 
@@ -41,6 +47,8 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
         </button>
       </div>
 
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} <button type="button" onClick={onRecargar} className="underline font-semibold">Reintentar</button></p>}
+      {cargando && <p role="status" className="text-xs text-slate-500">Cargando tiendas...</p>}
       {/* Grid de 4 Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Tiendas registradas */}
@@ -49,9 +57,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <Store className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium">Tiendas consultadas</p>
+            <p className="text-xs text-slate-500 font-medium">Tiendas registradas</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{tiendas.length}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">{tiendas.filter(t => t.estadoTienda === 'ACTIVO').length} activas consultadas</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{tiendas.filter(t => t.estadoTienda === 'ACTIVO').length} activas</p>
           </div>
         </div>
 
@@ -61,9 +69,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium">Nuevas este mes</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">—</h3>
-            <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Dato no disponible</p>
+            <p className="text-xs text-slate-500 font-medium">Giros distintos</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{new Set(tiendas.map(t => t.giroDeNegocio)).size}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Tipos de negocio registrados</p>
           </div>
         </div>
 
@@ -73,9 +81,9 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 font-medium">Clientes gestionados</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">—</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Dato no disponible</p>
+            <p className="text-xs text-slate-500 font-medium">Administradores asignados</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">{new Set(tiendas.flatMap(t => t.administradores.map(a => a.idUsuario))).size}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">Usuarios vinculados a tiendas</p>
           </div>
         </div>
 
@@ -87,7 +95,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
           <div>
             <p className="text-xs text-slate-500 font-medium">Tiendas inactivas</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{tiendas.filter(t => t.estadoTienda === 'INACTIVO').length}</h3>
-            <p className="text-[11px] text-rose-600 font-medium mt-0.5">Inactivas consultadas</p>
+            <p className="text-[11px] text-rose-600 font-medium mt-0.5">No disponibles para nuevas ventas</p>
           </div>
         </div>
       </div>
@@ -95,7 +103,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
       {/* Tabla: Tiendas recientes */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-900">Tiendas consultadas</h3>
+          <h3 className="text-sm font-bold text-slate-900">Tiendas registradas</h3>
           <p className="text-xs text-slate-400 mt-0.5">Resultados verificados con el backend</p>
         </div>
 
@@ -110,7 +118,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {tiendas.slice(0, 5).map(t => (
+              {[...tiendas].sort((a, b) => b.idTienda - a.idTienda).slice(0, 5).map(t => (
                 <tr key={t.idTienda} className="hover:bg-slate-50/60 transition">
                   <td className="py-4 px-6 font-semibold text-slate-900">{t.nombreTienda}</td>
                   <td className="py-4 px-6">{t.idTienda}</td>
@@ -118,7 +126,7 @@ export const DashboardOverviewPage: React.FC<DashboardOverviewPageProps> = ({
                   <td className="py-4 px-6">{t.estadoTienda === 'ACTIVO' ? 'Activo' : 'Inactivo'}</td>
                 </tr>
               ))}
-              {!tiendas.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">Consulta una tienda o registra una nueva.</td></tr>}
+              {!tiendas.length && <tr><td colSpan={4} className="py-8 text-center text-slate-500">{cargando ? 'Cargando tiendas...' : error ? 'No se pudo cargar el listado.' : 'No hay tiendas registradas.'}</td></tr>}
             </tbody>
           </table>
         </div>

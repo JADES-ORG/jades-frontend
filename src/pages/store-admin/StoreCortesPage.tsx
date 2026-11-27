@@ -145,7 +145,7 @@ export const StoreCortesPage: React.FC<StoreCortesPageProps> = ({
   const totalCorte = cortes.reduce((sum, c) => sum + c.totalPagar, 0);
 
   const handleDownloadReport = () => {
-    alert('Descargando reporte financiero consolidado del Corte de Junio 2025 (PDF/Excel)');
+    alert('La descarga del reporte todavía no está disponible.');
   };
 
   return (

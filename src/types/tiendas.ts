@@ -32,3 +32,28 @@ export interface BajaTiendaResponse {
   idUsuarioResponsable: number;
   fechaBaja: string;
 }
+
+export interface AdministradorTiendaResponse {
+  idUsuario: number;
+  nombreUsuario: string;
+  correoUsuario: string;
+  telefonoUsuario: string | null;
+  activo: boolean;
+}
+
+export interface ConfiguracionTiendaRequest {
+  nombreTienda: string;
+  giroDeNegocio: string;
+  telefonoTienda: string | null;
+  correoTienda: string | null;
+}
+
+export interface ActualizarTiendaRequest extends ConfiguracionTiendaRequest {
+  razonSocial: string;
+  documentoTienda: string;
+  direccion: string;
+}
+
+export interface TiendaDetalleResponse extends TiendaResumenResponse, ActualizarTiendaRequest {
+  administradores: AdministradorTiendaResponse[];
+}

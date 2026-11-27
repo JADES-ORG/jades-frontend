@@ -266,7 +266,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     <Datos datos={[
       ['Capital registrado', dinero(venta.totalVenta, venta.monedaVenta)], ['Modalidad', venta.modalidadPago],
       ['Fecha de venta', venta.fechaVenta], ['Corte asignado', venta.fechaCorteAsignada],
-      ['Pago asignado', venta.fechaPagoAsignada], ['Código de crédito', planFinal?.codigoCredito ?? unicoFinal?.codigoCredito ?? 'Pendiente de consulta'],
+      ['Pago asignado', venta.fechaPagoAsignada], ['Código de crédito', planFinal?.codigoCredito ?? unicoFinal?.codigoCredito ?? (cargaFinal ? 'Consultando…' : 'No disponible por ahora')],
       ['Crédito utilizado actual', saldoFinal ? dinero(saldoFinal.creditoUtilizado, saldoFinal.monedaCredito) : '—'],
       ['Crédito disponible actual', saldoFinal ? dinero(saldoFinal.creditoDisponible, saldoFinal.monedaCredito) : '—'],
     ]}/>
@@ -311,7 +311,12 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
         ['Plazo máximo', `${condicion.plazoMaximo} cuotas`], ['Corte', `Día ${condicion.diaCorte} · ${condicion.horaCorte}`], ['Pago', `Día ${condicion.diaPago}`],
         ['Mora', `${condicion.tipoTasaMora} · ${(condicion.tasaMoratoria*100).toFixed(6)}% ${condicion.periodoTasaMora}`],
         ['Capitalización mora', condicion.capitalizacionMora ?? 'No aplica'], ['Moneda', moneda],
-      ]}/>{!saldoVigente ? aviso('No se recibió el crédito disponible. Actualiza el backend y vuelve a consultar.') : aviso('El saldo se calcula con las ventas vigentes y el capital pendiente. El backend lo valida de nuevo al confirmar.')}</>}
+      ]}/>
+        {!saldoVigente && <div role="alert" className="space-y-2">
+          {aviso('No pudimos consultar el crédito disponible. Vuelve a intentarlo para continuar.')}
+          <button type="button" className={secundario} disabled={cargaCondicion} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n + 1); }}>Volver a consultar</button>
+        </div>}
+      </>}
       <div className="flex justify-end gap-3"><button className={secundario} onClick={onCancel}>Cancelar</button><button className={principal} disabled={!condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button></div>
     </section>}
     {paso === 2 && <section className={panel}>
@@ -319,7 +324,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
       <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
         {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-2 p-3 text-xs hover:bg-slate-50 disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(p.precioCredito)}</strong></button>)}
-        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos.' : 'La tienda no tiene productos activos registrados en el backend.'}</p>}
+        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
       </div>
       <div className="overflow-x-auto border border-slate-200 rounded-xl"><table className="w-full text-left text-xs">
         <thead className="bg-slate-50 text-slate-500"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
@@ -339,14 +344,14 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       {modalidad === 'MENSUAL' && condicion && <>
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="text-xs font-semibold">Número de cuotas<select className={campo} disabled={simulando} value={cuotas} onChange={e => { setCuotas(Number(e.target.value)); invalidaSimulacion(); }}>{Array.from({length:Math.min(condicion.plazoMaximo,120)},(_,i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></label>
-          <div className="text-xs text-slate-600">Gracia obligatoria: desde la compra hasta el pago del ciclo. No se permiten meses adicionales.</div>
+          <div className="text-xs text-slate-600">El periodo de gracia se calcula automáticamente según las fechas pactadas con el cliente.</div>
         </div>
       </>}
-      {modalidad === 'UNICO' && <p className="text-xs text-slate-600">Una obligación al vencimiento del ciclo; sin meses adicionales de gracia.</p>}
+      {modalidad === 'UNICO' && <p className="text-xs text-slate-600">El cliente realizará un solo pago en la fecha de vencimiento.</p>}
       <button className={secundario} disabled={simulando || !modalidadValida || !puedeAvanzar} onClick={simular}>{simulando ? 'Calculando...' : 'Simular venta'}</button>
       {simulacion && <ResumenSimulacion simulacion={simulacion}/>}
       {superaLimite && aviso('El capital a reservar supera el crédito disponible del cliente.')}
-      {aviso('La cotización usa precios, condiciones y hora de Lima del servidor. Al confirmar se vuelven a validar los datos; la cotización no reserva crédito.')}
+      {simulacion && <p className="text-xs text-slate-500">La simulación es referencial. El importe y el saldo se actualizarán al confirmar la venta.</p>}
       {condicion && <Datos datos={[[ 'Crédito disponible', m(condicion.creditoDisponible)], ['Capital a reservar', reserva === undefined ? 'Simula primero' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="flex justify-end gap-3"><button className={secundario} disabled={simulando} onClick={() => { invalidaSimulacion(); setPaso(2); }}>Atrás</button><button className={principal} disabled={!listo || simulando} onClick={() => setPaso(4)}>Continuar</button></div>
@@ -359,7 +364,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       <button className={secundario} disabled={actualizandoSaldo || registrando} onClick={actualizarSaldo}>{actualizandoSaldo ? 'Consultando saldo...' : 'Actualizar crédito disponible'}</button>
       {errorSaldo && <p role="alert" className="text-xs text-red-700">{errorSaldo}</p>}
       {!listo && !actualizandoSaldo && aviso('Revisa la disponibilidad de crédito y los datos de la venta antes de confirmar.')}
-      {aviso('Al confirmar se registra una venta real. El servidor calcula las obligaciones definitivas y puede rechazar la operación si el crédito disponible es insuficiente.')}
+      {aviso('Al confirmar, se registrará la venta y se descontará el capital correspondiente del crédito disponible del cliente.')}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="flex justify-end gap-3"><button className={secundario} disabled={registrando || actualizandoSaldo} onClick={() => { invalidaSimulacion(); setPaso(3); }}>Atrás</button><button className={principal} disabled={!listo || registrando} onClick={confirmar}>{registrando ? 'Registrando...' : 'Confirmar crédito'}</button></div>
     </section>}

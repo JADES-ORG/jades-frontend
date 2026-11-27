@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cerrarSesion, recuperarSesion } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
-import { listarMisTiendas } from './api/tiendas';
+import { listarMisTiendas, listarTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
-import type { TiendaRegistradaResponse, TiendaResumenResponse } from './types/tiendas';
+import type { TiendaDetalleResponse, TiendaRegistradaResponse, TiendaResumenResponse } from './types/tiendas';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { VerifyCodePage } from './pages/auth/VerifyCodePage';
@@ -112,11 +112,29 @@ export function App() {
 
   // Estados del Administrador del Sistema
   const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
-  const [tiendas, setTiendas] = useState<TiendaResumenResponse[]>([]);
+  const [tiendas, setTiendas] = useState<TiendaDetalleResponse[]>([]);
+  const [cargandoAdminTiendas, setCargandoAdminTiendas] = useState(false);
+  const [errorAdminTiendas, setErrorAdminTiendas] = useState<string | null>(null);
+  const [recargaAdminTiendas, setRecargaAdminTiendas] = useState(0);
   const [avisoTiendas, setAvisoTiendas] = useState<string | null>(null);
   const [busquedaTiendas, setBusquedaTiendas] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingTienda, setEditingTienda] = useState<TiendaResumenResponse | null>(null);
+  const [editingTienda, setEditingTienda] = useState<TiendaDetalleResponse | null>(null);
+
+  useEffect(() => {
+    if (currentUser?.rol !== 'ADMIN_SISTEMA') return;
+    const controller = new AbortController();
+    setCargandoAdminTiendas(true);
+    setErrorAdminTiendas(null);
+    listarTiendas(controller.signal).then(data => {
+      if (!controller.signal.aborted) setTiendas(data);
+    }).catch(e => {
+      if (!controller.signal.aborted) setErrorAdminTiendas(obtenerMensajeError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setCargandoAdminTiendas(false);
+    });
+    return () => controller.abort();
+  }, [currentUser, recargaAdminTiendas]);
 
   // Estados del Administrador del Negocio (Bodega San Blas)
   const [storeTab, setStoreTab] = useState<StoreTab>('inicio');
@@ -191,6 +209,8 @@ export function App() {
       setBusquedaTiendas('');
       setEditingTienda(null);
       setIsEditModalOpen(false);
+      setCargandoAdminTiendas(true);
+      setErrorAdminTiendas(null);
       setCurrentView('admin_system');
       setAdminTab('resumen');
     } else if (user.rol === 'ADMIN_NEGOCIO') {
@@ -247,28 +267,37 @@ export function App() {
   };
 
   // --- Manejadores de Tiendas (Admin Sistema) ---
-  const handleOpenEdit = (tienda: TiendaResumenResponse) => {
+  const handleOpenEdit = (tienda: TiendaDetalleResponse) => {
     setEditingTienda(tienda);
     setIsEditModalOpen(true);
   };
 
-  const incorporarTienda = (tienda: TiendaResumenResponse) => {
-    if (currentUser?.rol !== 'ADMIN_SISTEMA' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
-    setTiendas(prev => [tienda, ...prev.filter(t => t.idTienda !== tienda.idTienda)]);
+  const recargarAdminTiendas = () => {
+    setCargandoAdminTiendas(true);
+    setRecargaAdminTiendas(n => n + 1);
   };
 
-  const handleSaveEdit = (tiendaActualizada: TiendaResumenResponse) => {
+  const handleSaveEdit = (tiendaActualizada: TiendaDetalleResponse, mensaje: string) => {
     if (currentUser?.rol !== 'ADMIN_SISTEMA' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
-    incorporarTienda(tiendaActualizada);
-    setAvisoTiendas(`Tienda ${tiendaActualizada.idTienda}: ${tiendaActualizada.estadoTienda === 'ACTIVO' ? 'reactivada' : 'desactivada'} correctamente.`);
+    setTiendas(prev => prev.map(t => t.idTienda === tiendaActualizada.idTienda ? tiendaActualizada : t));
+    setAvisoTiendas(mensaje);
+    recargarAdminTiendas();
   };
 
   const handleRegisterSuccess = (nuevaTienda: TiendaRegistradaResponse) => {
     if (currentUser?.rol !== 'ADMIN_SISTEMA' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
-    incorporarTienda(nuevaTienda);
     setAvisoTiendas(`Tienda registrada con ID ${nuevaTienda.idTienda}. Administrador: ${nuevaTienda.correoAdministrador}.`);
+    setBusquedaTiendas('');
     setAdminTab('tiendas');
+    recargarAdminTiendas();
   };
+
+  const actualizarTiendaSeleccionada = useCallback((tienda: TiendaDetalleResponse) => {
+    if (currentUser?.rol !== 'ADMIN_NEGOCIO' || localStorage.getItem('token') !== currentUser.tokenAcceso) return;
+    setMisTiendas(prev => prev.map(t => t.idTienda === tienda.idTienda ? {
+      idTienda: tienda.idTienda, nombreTienda: tienda.nombreTienda, documentoTienda: tienda.documentoTienda, estadoTienda: tienda.estadoTienda,
+    } : t));
+  }, [currentUser]);
 
   // --- Renderizado Condicional de Vistas ---
   // La navegación protegida depende exclusivamente del rol autenticado.
@@ -302,7 +331,7 @@ export function App() {
       <VerifyCodePage
         emailMasked={maskEmail(userEmail)}
         onVerify={handleCodeVerified}
-        onResend={() => alert(`Nuevo código de 6 dígitos enviado a ${maskEmail(userEmail)}`)}
+        onResend={() => alert('Por el momento no podemos reenviar el código. Comunícate con el administrador para recuperar tu acceso.')}
         onBackToLogin={handleLogout}
       />
     );
@@ -340,6 +369,9 @@ export function App() {
           {adminTab === 'resumen' && (
             <DashboardOverviewPage
               tiendas={tiendas}
+              cargando={cargandoAdminTiendas}
+              error={errorAdminTiendas}
+              onRecargar={recargarAdminTiendas}
               onGoToRegister={() => setAdminTab('registrar')}
               onGoToStores={() => setAdminTab('tiendas')}
             />
@@ -351,7 +383,9 @@ export function App() {
               aviso={avisoTiendas}
               busqueda={busquedaTiendas}
               onBuscar={setBusquedaTiendas}
-              onConsultar={incorporarTienda}
+              cargando={cargandoAdminTiendas}
+              error={errorAdminTiendas}
+              onRecargar={recargarAdminTiendas}
               onGoToRegister={() => setAdminTab('registrar')}
               onEditTienda={handleOpenEdit}
             />
@@ -419,8 +453,12 @@ export function App() {
         ) : (
           <>
         {soloConsulta && <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Tienda inactiva: se permiten consultas y cobranzas, no nuevas ventas ni modificaciones.</p>}
-        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && storeTab !== 'productos' && storeTab !== 'configuracion' && (
-          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Vista de demostración: esta sección aún no está conectada completamente al backend.</p>
+        {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes') && (
+          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
+            {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
+            {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
+            {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
+          </p>
         )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
         {storeTab === 'inicio' && (
@@ -508,14 +546,10 @@ export function App() {
         {/* Pestaña: Configuración */}
         {storeTab === 'configuracion' && tiendaSeleccionada && (
           <StoreConfiguracionPage
+            key={idTiendaActiva}
             tienda={tiendaSeleccionada}
             correoUsuario={currentUser?.correo ?? ''}
-            actualizando={cargandoTiendas}
-            onActualizar={() => {
-              setErrorTiendas(null);
-              setCargandoTiendas(true);
-              setRecargaTiendas(n => n + 1);
-            }}
+            onActualizar={actualizarTiendaSeleccionada}
           />
         )}
           </>

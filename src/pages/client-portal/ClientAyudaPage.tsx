@@ -9,7 +9,7 @@ export function ClientAyudaPage({
     {
       tab: "resumen",
       title: "Mi resumen",
-      text: "Consulta capital pendiente, próximo pago y estado general de tu cuenta. El crédito disponible se mostrará cuando el negocio lo informe.",
+      text: "Consulta capital pendiente, próximo pago y estado general de tu cuenta. Para conocer tu crédito disponible, consulta con tu negocio.",
     },
     {
       tab: "compras",
@@ -65,7 +65,7 @@ export function ClientAyudaPage({
         <p>
           Desde aquí puedes revisar cuánto debes, cuándo vence tu próximo pago y
           el detalle de cada compra sin modificar las condiciones pactadas. Los
-          pagos los registra el negocio. El pago único puede cancelarse antes del vencimiento; en créditos mensuales se permite adelantar la cuota correspondiente y liquidar según las reglas del backend.
+          pagos los registra el negocio. El pago único puede cancelarse antes del vencimiento; en créditos mensuales se permite adelantar la cuota correspondiente y consultar las condiciones para cancelar todo el crédito con el negocio.
         </p>
       </div>
       <h3>Dónde encontrar cada información</h3>
