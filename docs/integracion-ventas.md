@@ -37,3 +37,7 @@ Pendientes vigentes: simulación de pago único e integral de venta, historial y
 ## Quinta etapa: simulación integral y nuevos contratos de cobro
 
 Nueva venta utiliza POST /tiendas/{tienda}/ventas/simular con el mismo cuerpo de registro. El servidor obtiene precios, reloj, tasas y crédito disponible, devuelve cotización mensual o única sin persistencia. Ambos flujos exigen simular antes de confirmar. graciaAdicional solo admite 0; la gracia obligatoria se conserva. Los DTO y servicios de pagos, liquidación y cortes incluyen las nuevas fechas, horas y detalles históricos. La UI de cobranzas permanece fuera de esta etapa. La confirmación vuelve a evaluar las reglas y puede producir importes diferentes si cambian los datos o el ciclo.
+
+## Integración del portal cliente
+
+El portal usa los contratos de src/types/finanzas.ts y los servicios compartidos de src/api/clientes.ts, finanzas.ts, autenticacion.ts y errores.ts. El GET /portal/mi-cuenta identifica al cliente desde su JWT. Se mantienen el interceptor, la validación por rol y todo el flujo administrativo de develop; solo el cliente restaura una sesión vigente al recargar. No hay controles de demostración. El portal es de lectura: el importe pendiente registrado no equivale necesariamente a una cotización de pago anticipado. Las pruebas del portal se ejecutan con npm run test:client y npm run test:client:ui.

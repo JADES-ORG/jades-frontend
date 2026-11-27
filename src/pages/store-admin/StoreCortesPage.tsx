@@ -2,129 +2,7 @@ import React, { useState } from 'react';
 import { Download, Eye, ChevronDown, Info } from 'lucide-react';
 import type { CorteItemData } from '../../components/store-admin/DetalleCorteModal';
 
-export const initialCortes: CorteItemData[] = [
-  {
-    id: 1,
-    cliente: 'María Quispe',
-    fechaCorte: '10 jun · 18:00 h',
-    fechaPago: '15 jun 2025',
-    obligacion: 'Cuota 02',
-    capital: 201.61,
-    interesCompensatorio: 10.21,
-    mora: 0.00,
-    totalPagar: 211.82,
-    estado: 'Pendiente',
-    subtituloModal: 'Corte 10 jun 2025, 18:00 h · Pago 15 jun 2025',
-    conceptos: [
-      {
-        fecha: '05 abr 2025',
-        concepto: 'Cuota 02 · CR-001284',
-        dias: '30 días',
-        capitalBase: 'S/ 201.61',
-        interes: 'S/ 10.21',
-      },
-    ],
-    totalExigible: 'S/ 211.82',
-    estadoModal: 'Vence hoy',
-    infoBanner:
-      'TEM compensatoria: 2.500000%. Interés S/ 10.21 calculado sobre saldo inicial S/ 408.26; amortización S/ 201.61.',
-    allowRegisterPago: true,
-  },
-  {
-    id: 2,
-    cliente: 'Rosa Huamán',
-    fechaCorte: '02 jun · 20:00 h',
-    fechaPago: '07 jun 2025',
-    obligacion: '2 compras',
-    capital: 280.00,
-    interesCompensatorio: 3.58,
-    mora: 0.91,
-    totalPagar: 284.49,
-    estado: 'En mora',
-    subtituloModal: 'Corte 02 jun 2025, 20:00 h · Pago 07 jun 2025',
-    conceptos: [
-      {
-        fecha: '18 may 2025',
-        concepto: 'Productos varios · pago único',
-        dias: '19 días',
-        capitalBase: 'S/ 180.00',
-        interes: 'S/ 2.84',
-      },
-      {
-        fecha: '28 may 2025',
-        concepto: 'Canasta familiar · pago único',
-        dias: '9 días',
-        capitalBase: 'S/ 100.00',
-        interes: 'S/ 0.74',
-      },
-      {
-        fecha: '07–15 jun',
-        concepto: 'Intereses por mora',
-        dias: '8 días',
-        capitalBase: 'Base 283.58',
-        interes: 'S/ 0.91',
-        isMoraRow: true,
-      },
-    ],
-    totalExigible: 'S/ 284.49',
-    estadoModal: 'Vencido · 8 días',
-    infoBanner:
-      'TEM compensatoria 2.500000%. TNM moratoria 1.200000%, capitalización diaria. Base de mora: S/ 283.58. Tasa efectiva de 8 días: 0.3204484%.',
-    allowRegisterPago: true,
-  },
-  {
-    id: 3,
-    cliente: 'Carlos Mendoza',
-    fechaCorte: '11 jun · 18:00 h',
-    fechaPago: '16 jun 2025',
-    obligacion: '1 compra',
-    capital: 1750.00,
-    interesCompensatorio: 43.75,
-    mora: 0.00,
-    totalPagar: 1793.75,
-    estado: 'Por vencer',
-    subtituloModal: 'Corte 11 jun 2025, 18:00 h · Pago 16 jun 2025',
-    conceptos: [
-      {
-        fecha: '16 may 2025',
-        concepto: 'Productos · CR-001240',
-        dias: '30 días',
-        capitalBase: 'S/ 1,750.00',
-        interes: 'S/ 43.75',
-      },
-    ],
-    totalExigible: 'S/ 1,793.75',
-    estadoModal: 'Por vencer',
-    infoBanner: 'TEM compensatoria: 2.500000%.',
-    allowRegisterPago: false,
-  },
-  {
-    id: 4,
-    cliente: 'Jorge Flores',
-    fechaCorte: '05 jun · 18:00 h',
-    fechaPago: '10 jun 2025',
-    obligacion: '1 compra',
-    capital: 150.00,
-    interesCompensatorio: 3.12,
-    mora: 0.00,
-    totalPagar: 153.12,
-    estado: 'Pagado',
-    subtituloModal: 'Corte 05 jun 2025, 18:00 h · Pago 10 jun 2025',
-    conceptos: [
-      {
-        fecha: '10 may 2025',
-        concepto: 'Productos · CR-001190',
-        dias: '30 días',
-        capitalBase: 'S/ 150.00',
-        interes: 'S/ 3.12',
-      },
-    ],
-    totalExigible: 'S/ 153.12',
-    estadoModal: 'Pagado',
-    infoBanner: 'Obligación cancelada puntualmente el 10/06/2025.',
-    allowRegisterPago: false,
-  },
-];
+export const initialCortes: CorteItemData[] = [];
 
 interface StoreCortesPageProps {
   cortes: CorteItemData[];
@@ -260,7 +138,14 @@ export const StoreCortesPage: React.FC<StoreCortesPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {cortes.map((item) => (
+              {cortes.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-8 text-center text-slate-400">
+                    No hay cortes ni obligaciones registradas en este período.
+                  </td>
+                </tr>
+              ) : (
+                cortes.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/60 transition">
                   {/* Cliente */}
                   <td className="py-4 px-5 font-bold text-slate-900">
@@ -337,7 +222,8 @@ export const StoreCortesPage: React.FC<StoreCortesPageProps> = ({
                     </button>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

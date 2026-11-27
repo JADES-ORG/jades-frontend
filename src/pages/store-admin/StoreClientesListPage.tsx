@@ -134,7 +134,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({ id
           <div><dt className="text-slate-400">Teléfono</dt><dd>{seleccionado.telefonoCliente || '—'}</dd></div>
           <div><dt className="text-slate-400">Correo</dt><dd>{seleccionado.correoCliente || '—'}</dd></div>
         </dl>
-        <p className="text-[11px] text-slate-500">La información financiera y las acciones de edición se integrarán en una etapa posterior.</p>
+        <p className="text-[11px] text-slate-500">Por ahora puedes consultar los datos personales del cliente.</p>
       </section>}
     </div>
   );

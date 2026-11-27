@@ -9,54 +9,7 @@ import {
 } from 'lucide-react';
 import type { PagoItemData } from '../../components/store-admin/RegistrarPagoModal';
 
-export const initialPagos: PagoItemData[] = [
-  {
-    id: 1,
-    cliente: 'María Quispe',
-    obligacion: 'Cuota 02 · CR-001284',
-    vence: '15 jun',
-    capital: 201.61,
-    interesCompensatorio: 10.21,
-    mora: 0.00,
-    total: 211.82,
-    estado: 'Pendiente',
-    diasAtraso: 0,
-    capitalPendientePost: 560.28,
-    creditoDisponiblePost: 1439.72,
-    capitalLiberado: 201.61,
-  },
-  {
-    id: 2,
-    cliente: 'Rosa Huamán',
-    obligacion: 'Ciclo junio · pago único',
-    vence: '07 jun',
-    capital: 280.00,
-    interesCompensatorio: 3.58,
-    mora: 0.91,
-    total: 284.49,
-    estado: 'En mora',
-    diasAtraso: 8,
-    tasaMoraInfo: 'TNM 1.200000% con capitalización diaria',
-    capitalPendientePost: 0.00,
-    creditoDisponiblePost: 2000.00,
-    capitalLiberado: 280.00,
-  },
-  {
-    id: 3,
-    cliente: 'Carlos Mendoza',
-    obligacion: 'Pago único · CR-001240',
-    vence: '16 jun',
-    capital: 1750.00,
-    interesCompensatorio: 43.75,
-    mora: 0.00,
-    total: 1793.75,
-    estado: 'Por vencer',
-    diasAtraso: 0,
-    capitalPendientePost: 0.00,
-    creditoDisponiblePost: 2000.00,
-    capitalLiberado: 1750.00,
-  },
-];
+export const initialPagos: PagoItemData[] = [];
 
 interface StorePagosPageProps {
   pagos: PagoItemData[];
@@ -69,6 +22,24 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('Estados pendientes');
+
+  const exigibleHoy = pagos
+    .filter((p) => p.estado === 'Pendiente' && p.diasAtraso === 0)
+    .reduce((acc, p) => acc + p.total, 0);
+
+  const countExigibleHoy = pagos.filter(
+    (p) => p.estado === 'Pendiente' && p.diasAtraso === 0
+  ).length;
+
+  const enMora = pagos
+    .filter((p) => p.estado === 'En mora')
+    .reduce((acc, p) => acc + p.total, 0);
+
+  const proximos7Dias = pagos
+    .filter((p) => p.estado === 'Por vencer')
+    .reduce((acc, p) => acc + p.total, 0);
+
+  const countProximos7Dias = pagos.filter((p) => p.estado === 'Por vencer').length;
 
   const filteredPagos = pagos.filter((item) => {
     const term = searchTerm.toLowerCase();
@@ -100,8 +71,8 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-400 font-medium">Exigible hoy</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ 211.82</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">1 obligación pendiente</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {exigibleHoy.toFixed(2)}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{countExigibleHoy} obligaciones pendientes</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-100/60">
             <Clock className="w-5 h-5" />
@@ -112,8 +83,10 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-400 font-medium">En mora</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ 284.49</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Incluye S/ 0.91 de mora</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {enMora.toFixed(2)}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {enMora > 0 ? 'Con recargo de mora' : 'Sin deudas en mora'}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 border border-rose-100/60">
             <AlertTriangle className="w-5 h-5" />
@@ -124,8 +97,8 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-400 font-medium">Próximos 7 días</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ 1,793.75</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">1 obligación por vencer</p>
+            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {proximos7Dias.toFixed(2)}</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{countProximos7Dias} obligaciones por vencer</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
             <Calendar className="w-5 h-5" />

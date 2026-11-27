@@ -1,73 +1,94 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, ChevronDown, Package, ExternalLink } from 'lucide-react';
-import type { ProductoData } from '../../components/store-admin/ProductoModal';
+import { ImagenProducto, ProductoModal, type ProductoData } from '../../components/store-admin/ProductoModal';
+import { actualizarProducto, desactivarProducto, listarProductos, registrarProducto } from '../../api/productos';
+import { obtenerMensajeError } from '../../api/errores';
+import { UNIDADES_PRODUCTO, type ProductoRequest, type ProductoResponse } from '../../types/productos';
 
-export const initialProductos: ProductoData[] = [
-  {
-    id: 1,
-    nombre: 'Canasta de abarrotes',
-    tipo: 'Producto',
-    proveedor: 'Distribuidora Central',
-    marca: 'Selección San Blas',
-    unidad: 'Unidad',
-    precioContado: 78.00,
-    precioCredito: 85.00,
-    modalidad: 'Ambas modalidades',
-    estado: 'Activo',
-    descripcion: 'Selección de productos para el hogar',
-  },
-  {
-    id: 2,
-    nombre: 'Pack cuidado personal',
-    tipo: 'Producto',
-    proveedor: 'Distribuidora Vida',
-    marca: 'Vida',
-    unidad: 'Paquete',
-    precioContado: 40.00,
-    precioCredito: 45.00,
-    modalidad: 'Ambas modalidades',
-    estado: 'Activo',
-    descripcion: 'Kit de aseo y cuidado básico',
-  },
-  {
-    id: 3,
-    nombre: 'Corte de cabello',
-    tipo: 'Servicio',
-    proveedor: '',
-    marca: '—',
-    unidad: 'Servicio',
-    precioContado: 25.00,
-    precioCredito: 30.00,
-    modalidad: 'Pago único',
-    estado: 'Activo',
-    descripcion: 'Corte de cabello estilo clásico o moderno',
-  },
-  {
-    id: 4,
-    nombre: 'Masaje relajante',
-    tipo: 'Servicio',
-    proveedor: '',
-    marca: '—',
-    unidad: 'Sesión',
-    precioContado: 70.00,
-    precioCredito: 82.00,
-    modalidad: 'En meses',
-    estado: 'Activo',
-    descripcion: 'Sesión terapéutica descontracturante',
-  },
-];
-
-interface StoreProductosListPageProps {
-  productos: ProductoData[];
-  onNewProducto: () => void;
-  onEditProducto: (producto: ProductoData) => void;
+function convertirProducto(p: ProductoResponse): ProductoData {
+  return {
+    id: p.id,
+    nombre: p.nombreProducto,
+    tipo: p.tipoProducto === 'SERVICIO' ? 'Servicio' : 'Producto',
+    proveedor: p.proveedor ?? '',
+    marca: p.marca ?? '',
+    unidad: UNIDADES_PRODUCTO[p.unidadMedida as keyof typeof UNIDADES_PRODUCTO] ?? p.unidadMedida,
+    precioContado: Number(p.precioContado),
+    precioCredito: Number(p.precioCredito),
+    modalidad: p.modalidad === 'UNICO' ? 'Pago único' : p.modalidad === 'MENSUAL' ? 'En meses' : 'Ambas modalidades',
+    estado: p.estadoProducto === 'ACTIVO' ? 'Activo' : 'Inactivo',
+    descripcion: p.descripcion ?? '',
+    imagenProducto: p.imagenProducto,
+  };
 }
 
-export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({
-  productos,
-  onNewProducto,
-  onEditProducto,
-}) => {
+interface StoreProductosListPageProps {
+  idTienda: number;
+  soloConsulta: boolean;
+}
+
+export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ idTienda, soloConsulta }) => {
+  const [productos, setProductos] = useState<ProductoData[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recarga, setRecarga] = useState(0);
+  const [modal, setModal] = useState<{ mode: 'nuevo' | 'editar'; producto?: ProductoData } | null>(null);
+  const [desactivando, setDesactivando] = useState<number | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setCargando(true);
+    setError(null);
+    listarProductos(idTienda, false, controller.signal).then(data => {
+      if (!controller.signal.aborted) setProductos(data.map(convertirProducto));
+    }).catch(e => {
+      if (!controller.signal.aborted) setError(obtenerMensajeError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setCargando(false);
+    });
+    return () => controller.abort();
+  }, [idTienda, recarga]);
+
+  const guardarProducto = async (producto: ProductoData, archivo?: File) => {
+    if (soloConsulta) throw new Error('La tienda está inactiva.');
+    const unidad = Object.entries(UNIDADES_PRODUCTO).find(([, etiqueta]) => etiqueta === producto.unidad)?.[0];
+    if (!unidad) throw new Error('Unidad de medida no válida.');
+    const solicitud: ProductoRequest = {
+      nombreProducto: producto.nombre,
+      descripcion: producto.descripcion?.trim() || null,
+      precioContado: producto.precioContado,
+      precioCredito: producto.precioCredito,
+      tipoProducto: producto.tipo === 'Producto' ? 'PRODUCTO' : 'SERVICIO',
+      proveedor: producto.tipo === 'Producto' ? producto.proveedor || null : null,
+      marca: producto.tipo === 'Producto' ? producto.marca || null : null,
+      unidadMedida: unidad,
+      modalidad: producto.modalidad === 'Pago único' ? 'UNICO' : producto.modalidad === 'En meses' ? 'MENSUAL' : 'AMBAS',
+    };
+    if (producto.id === undefined && !archivo) throw new Error('Selecciona una imagen.');
+    const data = producto.id === undefined
+      ? await registrarProducto(idTienda, solicitud, archivo!)
+      : await actualizarProducto(idTienda, producto.id, solicitud, archivo);
+    const guardado = convertirProducto(data);
+    setProductos(prev => prev.some(p => p.id === guardado.id)
+      ? prev.map(p => p.id === guardado.id ? guardado : p)
+      : [guardado, ...prev]);
+  };
+
+  const desactivar = async (producto: ProductoData) => {
+    if (soloConsulta || producto.id === undefined || desactivando !== null) return;
+    if (!window.confirm(`¿Desactivar ${producto.nombre}? No estará disponible para nuevas ventas.`)) return;
+    setDesactivando(producto.id);
+    setError(null);
+    try {
+      const guardado = convertirProducto(await desactivarProducto(idTienda, producto.id));
+      setProductos(prev => prev.map(p => p.id === guardado.id ? guardado : p));
+    } catch (e) {
+      setError(obtenerMensajeError(e));
+    } finally {
+      setDesactivando(null);
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
 
@@ -101,13 +122,18 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({
         </div>
 
         <button
-          onClick={onNewProducto}
+          disabled={soloConsulta || cargando || !!error}
+          onClick={() => setModal({ mode: 'nuevo' })}
           className="inline-flex items-center justify-center space-x-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>Nuevo producto o servicio</span>
         </button>
       </div>
+
+      {soloConsulta && <p className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">Tienda inactiva: catálogo disponible solo para consulta.</p>}
+      {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} <button type="button" onClick={() => setRecarga(n => n + 1)} className="font-semibold underline">Reintentar</button></div>}
+      {cargando && <p role="status" className="text-xs text-slate-500">Cargando productos...</p>}
 
       {/* Tarjeta de Métricas (4 KPIs) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
@@ -183,13 +209,13 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({
                   {/* Nombre con icono representativo */}
                   <td className="py-4 px-6 font-bold text-slate-900">
                     <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/50">
+                      {item.id !== undefined && item.imagenProducto ? <ImagenProducto idTienda={idTienda} idProducto={item.id} imagen={item.imagenProducto} nombre={item.nombre} className="w-9 h-9 rounded-xl object-cover shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/50">
                         {item.tipo === 'Producto' ? (
                           <Package className="w-4 h-4" />
                         ) : (
                           <ExternalLink className="w-4 h-4" />
                         )}
-                      </div>
+                      </div>}
                       <span className="font-bold text-slate-900">{item.nombre}</span>
                     </div>
                   </td>
@@ -234,16 +260,18 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({
                   {/* Botón Editar */}
                   <td className="py-4 px-6 text-right">
                     <button
-                      onClick={() => onEditProducto(item)}
+                      disabled={soloConsulta || desactivando !== null}
+                      onClick={() => setModal({ mode: 'editar', producto: item })}
                       className="px-4 py-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
                     >
                       Editar
                     </button>
+                    {item.estado === 'Activo' && !soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => void desactivar(item)} className="ml-2 text-xs font-semibold text-red-700 disabled:opacity-50">{desactivando === item.id ? 'Desactivando...' : 'Desactivar'}</button>}
                   </td>
                 </tr>
               ))}
 
-              {filtered.length === 0 && (
+              {!cargando && !error && filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
                     No se encontraron productos o servicios que coincidan con la búsqueda.
@@ -254,6 +282,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({
           </table>
         </div>
       </div>
+      {modal && !soloConsulta && <ProductoModal isOpen mode={modal.mode} initialData={modal.producto} idTienda={idTienda} onClose={() => setModal(null)} onSave={guardarProducto} />}
     </div>
   );
 };

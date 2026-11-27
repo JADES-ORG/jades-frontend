@@ -22,3 +22,24 @@ export async function iniciarSesion(solicitud: IniciarSesionRequest): Promise<Lo
   localStorage.setItem('usuario', JSON.stringify(data));
   return data;
 }
+
+/** Restaura una sesión local vigente. La autenticidad del JWT la valida el backend. */
+export function recuperarSesion(rolRequerido?: LoginResponse['rol']): LoginResponse | null {
+  try {
+    const raw = localStorage.getItem('usuario');
+    const token = localStorage.getItem('token');
+    if (!raw || !token) return null;
+    const usuario = JSON.parse(raw) as LoginResponse;
+    if (!usuario || token !== usuario.tokenAcceso || !Number.isInteger(usuario.id) ||
+        !usuario.correo || !['ADMIN_SISTEMA', 'ADMIN_NEGOCIO', 'CLIENTE'].includes(usuario.rol)) return null;
+    if (rolRequerido && usuario.rol !== rolRequerido) return null;
+    const partes = token.split('.');
+    if (partes.length !== 3) return null;
+    const base64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()) return null;
+    return usuario;
+  } catch {
+    return null;
+  }
+}
