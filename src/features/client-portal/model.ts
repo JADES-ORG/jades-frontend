@@ -1,4 +1,4 @@
-import type { Compra, CuentaCliente, Obligacion } from "./types";
+import type { CompraCuentaCorriente, CuentaCorrienteResponse, ObligacionCuentaCorriente } from "../../types/finanzas";
 
 export const hoyLima = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima" }).format(
@@ -29,13 +29,13 @@ export function dinero(
 }
 export const porcentaje = (value: number | null | undefined) =>
   value == null ? "—" : `${(value * 100).toFixed(7)}%`;
-export const codigo = (compra: Compra) =>
+export const codigo = (compra: CompraCuentaCorriente) =>
   compra.codigoCredito || `Venta #${compra.idVenta}`;
-export const anulada = (compra: Compra) =>
+export const anulada = (compra: CompraCuentaCorriente) =>
   ["ANULADA", "ANULADO"].includes(compra.estado?.toUpperCase());
-export const cuotasDe = (cuenta: CuentaCliente, idVenta: number) =>
+export const cuotasDe = (cuenta: CuentaCorrienteResponse, idVenta: number) =>
   cuenta.obligaciones.filter((o) => o.idVenta === idVenta);
-export function pendientes(cuenta: CuentaCliente): Obligacion[] {
+export function pendientes(cuenta: CuentaCorrienteResponse): ObligacionCuentaCorriente[] {
   const ventasAnuladas = new Set(
     cuenta.compras.filter(anulada).map((c) => c.idVenta),
   );
@@ -48,8 +48,8 @@ export function pendientes(cuenta: CuentaCliente): Obligacion[] {
     );
 }
 export function estadoCompra(
-  cuenta: CuentaCliente,
-  compra: Compra,
+  cuenta: CuentaCorrienteResponse,
+  compra: CompraCuentaCorriente,
   hoy = hoyLima(),
 ): string {
   if (anulada(compra)) return "Anulada";
@@ -66,15 +66,15 @@ export function estadoCompra(
     return "En mora";
   return "Pendiente";
 }
-export function estadoObligacion(o: Obligacion, hoy = hoyLima()): string {
+export function estadoObligacion(o: ObligacionCuentaCorriente, hoy = hoyLima()): string {
   if (o.importePendiente <= 0) return "Pagado";
   if (o.vencida || o.fechaVencimiento < hoy) return "En mora";
   if (o.fechaVencimiento === hoy) return "Vence hoy";
   return o.numeroCuota === 1 ? "Programada" : "Próxima";
 }
 export function capitalCompra(
-  cuenta: CuentaCliente,
-  compra: Compra,
+  cuenta: CuentaCorrienteResponse,
+  compra: CompraCuentaCorriente,
 ): number | null {
   if (anulada(compra)) return 0;
   const cuotas = cuotasDe(cuenta, compra.idVenta);
@@ -85,7 +85,7 @@ export function capitalCompra(
     : null;
 }
 export function capitalPorMoneda(
-  cuenta: CuentaCliente,
+  cuenta: CuentaCorrienteResponse,
 ): [string, number | null][] {
   const map = new Map<string, number | null>();
   for (const c of cuenta.compras.filter((c) => !anulada(c))) {
@@ -105,7 +105,7 @@ export function capitalPorMoneda(
   }
   return [...map];
 }
-export function coincide(compra: Compra, busqueda: string): boolean {
+export function coincide(compra: CompraCuentaCorriente, busqueda: string): boolean {
   const normalize = (s: string) =>
     s
       .normalize("NFD")

@@ -9,7 +9,7 @@ import {
   estadoCompra,
   fecha,
 } from "./model";
-import type { Compra, CuentaCliente } from "./types";
+import type { CompraCuentaCorriente, CuentaCorrienteResponse } from "../../types/finanzas";
 
 export function FigmaIcon({
   frame = "14-2",
@@ -118,8 +118,8 @@ export function ComprasTable({
   onVerPlan,
   resumen = false,
 }: {
-  cuenta: CuentaCliente;
-  compras: Compra[];
+  cuenta: CuentaCorrienteResponse;
+  compras: CompraCuentaCorriente[];
   onVerPlan: (id: number) => void;
   resumen?: boolean;
 }) {

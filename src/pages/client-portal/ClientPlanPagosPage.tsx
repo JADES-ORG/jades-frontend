@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
-import type { CronogramaResponse } from "../../types/finanzas";
-import type { PagoUnico } from "../../features/client-portal/types";
-import {
-  consultarCronograma,
-  consultarPagoUnico,
-  mensajeError,
-} from "../../features/client-portal/api";
+import type { CronogramaResponse, PagoUnicoResponse } from "../../types/finanzas";
+import { consultarCronograma, consultarPagoUnico } from "../../api/finanzas";
+import { obtenerMensajeError } from "../../api/errores";
 import { useCuentaCliente } from "../../features/client-portal/state";
 import {
   capitalCompra,
@@ -25,7 +21,7 @@ export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
   const compra = cuenta?.compras.find((c) => c.idVenta === idVenta);
   const unico = compra?.modalidadPago === "UNICO";
   const [plan, setPlan] = useState<CronogramaResponse | null>(null);
-  const [pagoUnico, setPagoUnico] = useState<PagoUnico | null>(null);
+  const [pagoUnico, setPagoUnico] = useState<PagoUnicoResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
@@ -41,7 +37,7 @@ export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
         });
     request
       .catch((e) => {
-        if (!controller.signal.aborted) setError(mensajeError(e));
+        if (!controller.signal.aborted) setError(obtenerMensajeError(e));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);

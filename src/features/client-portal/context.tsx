@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import { consultarCuenta, mensajeError } from "./api";
-import type { CuentaCliente } from "./types";
+import { consultarMiCuenta } from "../../api/clientes";
+import { obtenerMensajeError } from "../../api/errores";
+import type { CuentaCorrienteResponse } from "../../types/finanzas";
 
 import { CuentaClienteContext as Context } from "./state";
 
 export function CuentaClienteProvider({ children }: { children: ReactNode }) {
-  const [cuenta, setCuenta] = useState<CuentaCliente | null>(null);
+  const [cuenta, setCuenta] = useState<CuentaCorrienteResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -17,14 +18,14 @@ export function CuentaClienteProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    consultarCuenta(controller.signal)
+    consultarMiCuenta(controller.signal)
       .then((data) => {
         if (!controller.signal.aborted) setCuenta(data);
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
           setCuenta(null);
-          setError(mensajeError(error));
+          setError(obtenerMensajeError(error));
         }
       })
       .finally(() => {

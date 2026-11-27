@@ -1,9 +1,8 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { AuthLayout } from "../../layouts/AuthLayout";
-import { api } from "../../api/client";
-import { mensajeError } from "../../features/client-portal/api";
-import type { LoginResponse } from "../../types/finanzas";
+import React, { useState } from 'react';
+import { AuthLayout } from '../../layouts/AuthLayout';
+import { iniciarSesion } from '../../api/autenticacion';
+import { obtenerMensajeError } from '../../api/errores';
+import type { LoginResponse } from '../../types/finanzas';
 
 interface LoginPageProps {
   onLoginSuccess?: (data: LoginResponse) => void;
@@ -14,8 +13,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onLoginSuccess,
   onForgotPassword,
 }) => {
-  const [usuarioOCorreo, setUsuarioOCorreo] = useState("");
-  const [contrasena, setContrasena] = useState("");
+  const [usuarioOCorreo, setUsuarioOCorreo] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -25,28 +24,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsLoading(true);
 
     try {
-      // Intenta conectar al backend si está disponible
-      const response = await api.post<LoginResponse>(
-        "/autenticacion/iniciar-sesion",
-        {
-          correo: usuarioOCorreo,
-          contrasena,
-        },
-      );
-
-      const data = response.data;
-      localStorage.setItem("token", data.tokenAcceso);
-      localStorage.setItem("usuario", JSON.stringify(data));
-
-      if (onLoginSuccess) {
-        onLoginSuccess(data);
-      }
+      const data = await iniciarSesion({
+        correo: usuarioOCorreo.trim(),
+        contrasena,
+      });
+      onLoginSuccess?.(data);
     } catch (error) {
-      setErrorMsg(
-        axios.isAxiosError(error) && error.response?.status === 401
-          ? "Correo o contraseña incorrectos."
-          : mensajeError(error),
-      );
+      setErrorMsg(obtenerMensajeError(error));
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +48,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </p>
 
         {errorMsg && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
+          <div role="alert" className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
             {errorMsg}
           </div>
         )}
@@ -75,11 +59,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               htmlFor="usuario-correo"
               className="block text-xs font-bold text-slate-700 mb-1.5"
             >
-              Usuario o correo
+              Correo electrónico
             </label>
             <input
               id="usuario-correo"
-              type="text"
+              type="email"
+              autoComplete="username"
               required
               value={usuarioOCorreo}
               onChange={(e) => setUsuarioOCorreo(e.target.value)}
@@ -87,7 +72,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-2 focus:ring-[#139a6c]/20 outline-none transition"
             />
             <p className="text-xs text-slate-400 mt-1.5 font-normal">
-              Ingresa el usuario que te asignó el administrador.
+              Ingresa el correo registrado por el administrador.
             </p>
           </div>
 
@@ -101,6 +86,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               required
               value={contrasena}
               onChange={(e) => setContrasena(e.target.value)}
@@ -117,11 +103,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             disabled={isLoading}
             className="w-full !mt-6 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] disabled:opacity-50 text-white text-sm font-semibold py-3.5 px-4 rounded-xl shadow-md shadow-[#139a6c]/25 transition duration-150 flex items-center justify-center cursor-pointer"
           >
-            {isLoading ? "Ingresando..." : "Ingresar"}
+            {isLoading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-end">
           <button
             type="button"
             onClick={onForgotPassword}
@@ -132,8 +118,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
 
         <p className="mt-8 pt-4 border-t border-slate-100 text-[11px] text-slate-400 text-center leading-relaxed font-normal">
-          Acceso seguro. Tu rol y permisos se cargan automáticamente al
-          ingresar.
+          Acceso seguro. Tu rol y permisos se cargan automáticamente al ingresar.
         </p>
       </div>
     </AuthLayout>

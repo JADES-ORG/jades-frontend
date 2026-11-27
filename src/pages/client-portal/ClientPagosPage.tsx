@@ -40,7 +40,7 @@ export function ClientPagosPage() {
           </span>
           <div>
             <h3>Próximos pagos</h3>
-            <p>Importes totales exigibles por obligación.</p>
+            <p>Importes pendientes registrados; el cobro efectivo puede variar si pagas antes del vencimiento.</p>
           </div>
         </div>
         {!faltantes.length ? (
@@ -126,11 +126,11 @@ export function ClientPagosPage() {
                             : `Pago #${p.idPago}`}
                           <small>{p.estado}</small>
                         </td>
-                        <td>{fecha(p.fechaPago)}</td>
-                        <td>{dinero(p.capitalPagado, o?.moneda)}</td>
-                        <td>{dinero(p.interesPagado, o?.moneda)}</td>
-                        <td>{dinero(p.moraPagada, o?.moneda)}</td>
-                        <td>{dinero(p.totalExigible, o?.moneda)}</td>
+                        <td>{fecha(p.fechaPago)}{p.horaPagoEfectivo && <small>{p.horaPagoEfectivo}</small>}</td>
+                        <td>{dinero(p.capitalPagado, p.moneda ?? o?.moneda)}</td>
+                        <td>{dinero(p.interesPagado, p.moneda ?? o?.moneda)}</td>
+                        <td>{dinero(p.moraPagada, p.moneda ?? o?.moneda)}</td>
+                        <td>{dinero(p.totalExigible, p.moneda ?? o?.moneda)}</td>
                         <td>{p.medioPago}</td>
                       </tr>
                     );

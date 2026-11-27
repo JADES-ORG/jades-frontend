@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react';
+import { cerrarSesion, recuperarSesion } from './api/autenticacion';
+import { SESSION_EXPIRED_EVENT } from './api/client';
+import { listarMisTiendas } from './api/tiendas';
+import { obtenerMensajeError } from './api/errores';
+import type { TiendaResumenResponse } from './types/tiendas';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { VerifyCodePage } from './pages/auth/VerifyCodePage';
@@ -24,7 +29,6 @@ import { EditarCondicionesModal } from './components/store-admin/EditarCondicion
 import { StoreProductosListPage, initialProductos } from './pages/store-admin/StoreProductosListPage';
 import { ProductoModal, type ProductoData } from './components/store-admin/ProductoModal';
 import { StoreNuevaVentaPage } from './pages/store-admin/StoreNuevaVentaPage';
-import { CreditoRegistradoModal } from './components/store-admin/CreditoRegistradoModal';
 import { StorePagosPage, initialPagos } from './pages/store-admin/StorePagosPage';
 import { RegistrarPagoModal, type PagoItemData } from './components/store-admin/RegistrarPagoModal';
 import { PagoRegistradoModal } from './components/store-admin/PagoRegistradoModal';
@@ -34,9 +38,8 @@ import { StoreAyudaPage } from './pages/store-admin/StoreAyudaPage';
 import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPage';
 import { CambiosGuardadosModal } from './components/store-admin/CambiosGuardadosModal';
 
-// Módulo 3: Portal cliente conectado al backend.
+// Módulo 3: Portal Cliente
 import { ClientPortal } from './features/client-portal/ClientPortal';
-import { sesionClienteGuardada } from './features/client-portal/session';
 
 import type { LoginResponse } from './types/finanzas';
 
@@ -120,11 +123,49 @@ function maskEmail(email: string): string {
 }
 
 export function App() {
-  // POR SEGURIDAD ESTRICTA: Siempre arranca en 'login'
-  const [currentView, setCurrentView] = useState<MainView>(() => sesionClienteGuardada() ? 'client_portal' : 'login');
-  const [userEmail, setUserEmail] = useState<string>('luis@ejemplo.com');
+  // Conservar la restauración del portal cliente; los administradores ingresan de nuevo.
+  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion('CLIENTE'));
+  const [currentView, setCurrentView] = useState<MainView>(() => currentUser ? 'client_portal' : 'login');
+  const [userEmail, setUserEmail] = useState<string>(() => currentUser?.correo ?? '');
   const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => sesionClienteGuardada());
+  const [misTiendas, setMisTiendas] = useState<TiendaResumenResponse[]>([]);
+  const [idTiendaActiva, setIdTiendaActiva] = useState<number | null>(null);
+  const [cargandoTiendas, setCargandoTiendas] = useState(false);
+  const [errorTiendas, setErrorTiendas] = useState<string | null>(null);
+  const [recargaTiendas, setRecargaTiendas] = useState(0);
+
+  useEffect(() => {
+    if (currentUser?.rol !== 'ADMIN_NEGOCIO') return;
+    const controller = new AbortController();
+    listarMisTiendas(controller.signal).then((resultado) => {
+      if (controller.signal.aborted) return;
+      setMisTiendas(resultado);
+      setIdTiendaActiva((anterior) => resultado.some(t => t.idTienda === anterior)
+        ? anterior : resultado[0]?.idTienda ?? null);
+      setCargandoTiendas(false);
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setMisTiendas([]);
+      setIdTiendaActiva(null);
+      setErrorTiendas(obtenerMensajeError(error));
+      setCargandoTiendas(false);
+    });
+    return () => controller.abort();
+  }, [currentUser, recargaTiendas]);
+
+  useEffect(() => {
+    const expirar = () => {
+      cerrarSesion();
+      setCurrentUser(null);
+      setMisTiendas([]);
+      setIdTiendaActiva(null);
+      setCargandoTiendas(false);
+      setErrorTiendas(null);
+      setCurrentView('login');
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, expirar);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expirar);
+  }, []);
 
   // Estados del Administrador del Sistema
   const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
@@ -149,8 +190,6 @@ export function App() {
   const [editingProducto, setEditingProducto] = useState<ProductoData | null>(null);
 
   // Estados de Nueva Venta a Crédito (Bodega San Blas)
-  const [isCreditoRegistradoModalOpen, setIsCreditoRegistradoModalOpen] = useState(false);
-  const [registeredCreditoCode, setRegisteredCreditoCode] = useState('CR-001285');
 
   const handleOpenNewProducto = () => {
     setProductoModalMode('nuevo');
@@ -241,10 +280,13 @@ export function App() {
     } else if (user.rol === 'ADMIN_SISTEMA') {
       setCurrentView('admin_system');
       setAdminTab('resumen');
-    } else {
-      // Por defecto entra al Administrador del Negocio (Bodega San Blas)
+    } else if (user.rol === 'ADMIN_NEGOCIO') {
+      setMisTiendas([]);
+      setIdTiendaActiva(null);
+      setErrorTiendas(null);
+      setCargandoTiendas(true);
       setCurrentView('store_admin');
-      setStoreTab('inicio');
+      setStoreTab('clientes');
       setStoreSubView('lista');
     }
   };
@@ -263,7 +305,7 @@ export function App() {
     if (isRecoveringPassword) {
       setCurrentView('reset_password');
     } else {
-      setCurrentView('store_admin');
+      setCurrentView('login');
     }
   };
 
@@ -272,21 +314,19 @@ export function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
+    cerrarSesion();
     setCurrentUser(null);
+    setMisTiendas([]);
+    setIdTiendaActiva(null);
+    setErrorTiendas(null);
+    setCargandoTiendas(false);
+    setStoreSubView('lista');
+    setIsRegisterClientModalOpen(false);
+    setIsEditClientModalOpen(false);
+    setIsEditConditionsModalOpen(false);
     setIsRecoveringPassword(false);
     setCurrentView('login');
   };
-
-  useEffect(() => {
-    const cerrarSesionExpirada = () => {
-      setCurrentUser(null);
-      setCurrentView('login');
-    };
-    window.addEventListener('jades:session-expired', cerrarSesionExpirada);
-    return () => window.removeEventListener('jades:session-expired', cerrarSesionExpirada);
-  }, []);
 
   // --- Manejadores de Tiendas (Admin Sistema) ---
   const handleOpenEdit = (tienda: TiendaData) => {
@@ -306,60 +346,15 @@ export function App() {
   };
 
   // --- Renderizado Condicional de Vistas ---
-  const renderRoleDemoBar = (currentRoleLabel: string) => import.meta.env.VITE_ENABLE_DEMO_CONTROLS !== 'true' ? null : (
-    <div className="bg-slate-900 text-white text-xs px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-white/10">
-      <div className="flex items-center space-x-2">
-        <span className="text-slate-400 font-medium hidden sm:inline">Demostración académica JADES:</span>
-        <span className="text-emerald-400 font-bold">{currentRoleLabel}</span>
-      </div>
-
-      <div className="flex items-center space-x-1.5 text-xs">
-        <span className="text-slate-400 mr-1 hidden md:inline">Cambiar vista:</span>
-        <button
-          onClick={() => {
-            setCurrentView('admin_system');
-            setAdminTab('resumen');
-          }}
-          className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-xs ${
-            currentView === 'admin_system'
-              ? 'bg-[#139a6c] text-white font-bold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          Admin Sistema
-        </button>
-
-        <button
-          onClick={() => {
-            setCurrentView('store_admin');
-            setStoreTab('inicio');
-          }}
-          className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-xs ${
-            currentView === 'store_admin'
-              ? 'bg-[#139a6c] text-white font-bold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          Bodega San Blas
-        </button>
-
-        <button
-          onClick={() => {
-            setCurrentView('client_portal');
-          }}
-          className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-xs ${
-            currentView === 'client_portal'
-              ? 'bg-[#139a6c] text-white font-bold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          Portal Cliente (María)
-        </button>
-      </div>
-    </div>
+  // La navegación protegida depende exclusivamente del rol autenticado.
+  const vistaProtegida = currentView === 'admin_system' || currentView === 'store_admin' || currentView === 'client_portal';
+  const vistaAutorizada = currentUser && (
+    (currentView === 'admin_system' && currentUser.rol === 'ADMIN_SISTEMA') ||
+    (currentView === 'store_admin' && currentUser.rol === 'ADMIN_NEGOCIO') ||
+    (currentView === 'client_portal' && currentUser.rol === 'CLIENTE')
   );
 
-  if (currentView === 'login') {
+  if (currentView === 'login' || (vistaProtegida && !vistaAutorizada)) {
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
@@ -409,7 +404,6 @@ export function App() {
   if (currentView === 'admin_system') {
     return (
       <>
-        {renderRoleDemoBar('Vista activa: Administrador del Sistema')}
 
         <AdminSystemLayout
           currentTab={adminTab}
@@ -453,9 +447,20 @@ export function App() {
   if (currentView === 'store_admin') {
     return (
       <>
-        {renderRoleDemoBar('Vista activa: Bodega San Blas (Administrador del Negocio)')}
 
       <StoreAdminLayout
+        tiendas={misTiendas}
+        idTiendaActiva={idTiendaActiva}
+        cargandoTiendas={cargandoTiendas}
+        correoUsuario={currentUser?.correo ?? ''}
+        onSelectTienda={(id) => {
+          setIdTiendaActiva(id);
+          setStoreSubView('lista');
+          setStoreTab('clientes');
+          setIsRegisterClientModalOpen(false);
+          setIsEditClientModalOpen(false);
+          setIsEditConditionsModalOpen(false);
+        }}
         currentTab={storeTab}
         onSelectTab={(tab) => {
           setStoreTab(tab);
@@ -463,6 +468,24 @@ export function App() {
         }}
         onLogout={handleLogout}
       >
+        {cargandoTiendas ? (
+          <p role="status" className="text-sm text-slate-500">Cargando tiendas autorizadas...</p>
+        ) : errorTiendas ? (
+          <div role="alert" className="rounded-2xl bg-white border border-red-200 p-5 space-y-3">
+            <p className="text-sm text-red-700">{errorTiendas}</p>
+            <button type="button" className="text-sm font-semibold text-[#139a6c]" onClick={() => {
+              setErrorTiendas(null);
+              setCargandoTiendas(true);
+              setRecargaTiendas(n => n + 1);
+            }}>Reintentar</button>
+          </div>
+        ) : idTiendaActiva === null ? (
+          <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas activas asignadas.</p>
+        ) : (
+          <>
+        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && (
+          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Vista de demostración: esta sección aún no está conectada completamente al backend.</p>
+        )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
         {storeTab === 'inicio' && (
           <StoreDashboardPage
@@ -479,10 +502,7 @@ export function App() {
           <>
             {/* 1. Lista de Clientes */}
             {storeSubView === 'lista' && (
-              <StoreClientesListPage
-                onSelectCliente={() => setStoreSubView('detalle_cliente')}
-                onNewClient={() => setIsRegisterClientModalOpen(true)}
-              />
+              <StoreClientesListPage key={idTiendaActiva} idTienda={idTiendaActiva} />
             )}
 
             {/* 2. Detalle del Cliente (María Quispe) */}
@@ -521,13 +541,9 @@ export function App() {
         {/* Pestaña: Nueva venta a crédito */}
         {storeTab === 'nueva_venta' && (
           <StoreNuevaVentaPage
-            productosCatalogo={productos}
-            onCancel={() => setStoreTab('inicio')}
-            onConfirmSale={(datosVenta) => {
-              console.log('Venta confirmada:', datosVenta);
-              setRegisteredCreditoCode('CR-001285');
-              setIsCreditoRegistradoModalOpen(true);
-            }}
+            key={idTiendaActiva}
+            idTienda={idTiendaActiva}
+            onCancel={() => { setStoreTab('clientes'); setStoreSubView('lista'); }}
           />
         )}
 
@@ -557,6 +573,8 @@ export function App() {
           <StoreConfiguracionPage
             onSaveSuccess={() => setIsCambiosGuardadosModalOpen(true)}
           />
+        )}
+          </>
         )}
       </StoreAdminLayout>
 
@@ -596,22 +614,6 @@ export function App() {
         onSave={handleSaveProducto}
       />
 
-      <CreditoRegistradoModal
-        isOpen={isCreditoRegistradoModalOpen}
-        operacionCodigo={registeredCreditoCode}
-        clienteNombre="María Quispe"
-        onClose={() => setIsCreditoRegistradoModalOpen(false)}
-        onGoToClientDetail={() => {
-          setIsCreditoRegistradoModalOpen(false);
-          setStoreTab('clientes');
-          setStoreSubView('detalle_cliente');
-        }}
-        onGoToHome={() => {
-          setIsCreditoRegistradoModalOpen(false);
-          setStoreTab('inicio');
-        }}
-      />
-
       <RegistrarPagoModal
         isOpen={isRegistrarPagoModalOpen}
         pagoItem={selectedPagoForRegister}
@@ -640,11 +642,9 @@ export function App() {
   );
 }
 
-// VISTA: PORTAL CLIENTE. Los permisos reales se validan también en la API.
-if (currentUser?.rol !== 'CLIENTE') {
-  return <div className="p-8"><p>Inicia sesión con una cuenta de cliente para consultar tus obligaciones.</p><button onClick={handleLogout}>Volver a iniciar sesión</button></div>;
-}
-return <ClientPortal key={currentUser.id} onLogout={handleLogout} />;
+  // El portal gestiona su propia navegación y cuenta; la autorización sigue en App y el servidor.
+  if (currentUser?.rol !== 'CLIENTE') return null;
+  return <ClientPortal key={currentUser.id} onLogout={handleLogout} />;
 }
 
 export default App;

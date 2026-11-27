@@ -65,8 +65,7 @@ export function ClientAyudaPage({
         <p>
           Desde aquí puedes revisar cuánto debes, cuándo vence tu próximo pago y
           el detalle de cada compra sin modificar las condiciones pactadas. Los
-          pagos los registra el negocio desde la fecha pactada; el alcance
-          actual no contempla pagos anticipados.
+          pagos los registra el negocio. El pago único puede cancelarse antes del vencimiento; en créditos mensuales se permite adelantar la cuota correspondiente y liquidar según las reglas del backend.
         </p>
       </div>
       <h3>Dónde encontrar cada información</h3>

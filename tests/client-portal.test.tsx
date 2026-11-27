@@ -12,9 +12,12 @@ import userEvent from "@testing-library/user-event";
 import { AxiosError } from "axios";
 import { ClientPortal } from "../src/features/client-portal/ClientPortal";
 import { App } from "../src/App";
-import { api } from "../src/api/client";
+import { api, SESSION_EXPIRED_EVENT } from "../src/api/client";
 
-vi.mock("../src/api/client", () => ({ api: { get: vi.fn(), post: vi.fn() } }));
+vi.mock("../src/api/client", () => ({
+  api: { get: vi.fn(), post: vi.fn() },
+  SESSION_EXPIRED_EVENT: "jades:session-expired",
+}));
 const compra = (idVenta: number, modalidadPago = "MENSUAL") => ({
   idVenta,
   fechaCompra: "2025-04-05",
@@ -55,6 +58,13 @@ const cuenta = {
       idCuota: 1,
       fechaPago: "2025-05-15",
       fechaCancelacion: "2025-05-15",
+      horaPagoEfectivo: "15:30:00",
+      idVenta: 10,
+      numeroCuota: 1,
+      fechaCompra: "2025-04-05",
+      fechaPagoPactada: "2030-06-15",
+      moneda: "PEN",
+      detalles: [],
       medioPago: "EFECTIVO",
       diasAtraso: 0,
       capitalPagado: 100,
@@ -306,6 +316,23 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     );
     expect(logout).toHaveBeenCalledOnce();
   });
+  it("restaura una sesión cliente vigente desde la autenticación compartida", async () => {
+    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }));
+    const token = "header." + payload + ".signature";
+    localStorage.setItem("token", token);
+    localStorage.setItem("usuario", JSON.stringify({ tokenAcceso: token, id: 3, correo: "cliente@example.com", rol: "CLIENTE" }));
+    render(<App />);
+    await screen.findByText("Hola, María");
+    expect(post).not.toHaveBeenCalled();
+  });
+  it("no restaura una sesión cliente vencida", () => {
+    const token = "header." + btoa(JSON.stringify({ exp: 1 })) + ".signature";
+    localStorage.setItem("token", token);
+    localStorage.setItem("usuario", JSON.stringify({ tokenAcceso: token, id: 3, correo: "cliente@example.com", rol: "CLIENTE" }));
+    render(<App />);
+    expect(screen.getByRole("button", { name: "Ingresar", exact: true })).toBeVisible();
+    expect(get).not.toHaveBeenCalled();
+  });
   it("un login rechazado no usa el fallback de demostración", async () => {
     post.mockRejectedValueOnce(
       new AxiosError("unauthorized", "ERR_BAD_REQUEST", undefined, undefined, {
@@ -318,7 +345,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     );
     render(<App />);
     await userEvent.type(
-      screen.getByLabelText("Usuario o correo"),
+      screen.getByLabelText("Correo electrónico"),
       "maria@example.com",
     );
     await userEvent.type(
@@ -328,7 +355,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Ingresar", exact: true }),
     );
-    await screen.findByText("Correo o contraseña incorrectos.");
+    await screen.findByText("La sesión no es válida. Inicia sesión nuevamente.");
     expect(localStorage.getItem("token")).toBeNull();
     expect(screen.queryByText("Hola, María")).not.toBeInTheDocument();
   });
@@ -342,7 +369,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     post.mockResolvedValueOnce({ data: login });
     render(<App />);
     await userEvent.type(
-      screen.getByLabelText("Usuario o correo"),
+      screen.getByLabelText("Correo electrónico"),
       "cliente@example.com",
     );
     await userEvent.type(
@@ -354,7 +381,8 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     );
     await screen.findByText("Hola, María");
     expect(localStorage.getItem("token")).toBe("test.jwt.token");
-    fireEvent(window, new Event("jades:session-expired"));
+    fireEvent(window, new Event(SESSION_EXPIRED_EVENT));
+    expect(localStorage.getItem("token")).toBeNull();
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Ingresar", exact: true }),

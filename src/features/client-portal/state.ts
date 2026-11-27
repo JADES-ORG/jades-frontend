@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
-import type { CuentaCliente } from "./types";
+import type { CuentaCorrienteResponse } from "../../types/finanzas";
 interface CuentaState {
-  cuenta: CuentaCliente | null;
+  cuenta: CuentaCorrienteResponse | null;
   loading: boolean;
   error: string | null;
   recargar: () => void;
