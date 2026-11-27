@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { cerrarSesion } from './api/autenticacion';
+import { cerrarSesion, recuperarSesion } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
 import { listarMisTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
@@ -38,13 +38,8 @@ import { StoreAyudaPage } from './pages/store-admin/StoreAyudaPage';
 import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPage';
 import { CambiosGuardadosModal } from './components/store-admin/CambiosGuardadosModal';
 
-// Módulo 3: Portal Cliente (María Quispe)
-import { ClientPortalLayout, type ClientTab } from './layouts/ClientPortalLayout';
-import { ClientDashboardPage } from './pages/client-portal/ClientDashboardPage';
-import { ClientComprasPage } from './pages/client-portal/ClientComprasPage';
-import { ClientPlanPagosPage } from './pages/client-portal/ClientPlanPagosPage';
-import { ClientPagosPage } from './pages/client-portal/ClientPagosPage';
-import { ClientAyudaPage } from './pages/client-portal/ClientAyudaPage';
+// Módulo 3: Portal Cliente
+import { ClientPortal } from './features/client-portal/ClientPortal';
 
 import type { LoginResponse } from './types/finanzas';
 
@@ -128,11 +123,11 @@ function maskEmail(email: string): string {
 }
 
 export function App() {
-  // POR SEGURIDAD ESTRICTA: Siempre arranca en 'login'
-  const [currentView, setCurrentView] = useState<MainView>('login');
-  const [userEmail, setUserEmail] = useState<string>('luis@ejemplo.com');
+  // Conservar la restauración del portal cliente; los administradores ingresan de nuevo.
+  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion('CLIENTE'));
+  const [currentView, setCurrentView] = useState<MainView>(() => currentUser ? 'client_portal' : 'login');
+  const [userEmail, setUserEmail] = useState<string>(() => currentUser?.correo ?? '');
   const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(null);
   const [misTiendas, setMisTiendas] = useState<TiendaResumenResponse[]>([]);
   const [idTiendaActiva, setIdTiendaActiva] = useState<number | null>(null);
   const [cargandoTiendas, setCargandoTiendas] = useState(false);
@@ -160,6 +155,7 @@ export function App() {
 
   useEffect(() => {
     const expirar = () => {
+      cerrarSesion();
       setCurrentUser(null);
       setMisTiendas([]);
       setIdTiendaActiva(null);
@@ -274,11 +270,6 @@ export function App() {
   // Estados de Configuración
   const [isCambiosGuardadosModalOpen, setIsCambiosGuardadosModalOpen] = useState(false);
 
-  // Estados del Portal Cliente (María Quispe)
-  const [clientTab, setClientTab] = useState<ClientTab>('resumen');
-  const [clientSubView, setClientSubView] = useState<'dashboard' | 'plan_pagos'>('dashboard');
-  const [clientActiveCredito, setClientActiveCredito] = useState<string>('CR-001284');
-
   // --- Manejadores de Autenticación ---
   const handleLoginSuccess = (user: LoginResponse) => {
     setCurrentUser(user);
@@ -286,8 +277,6 @@ export function App() {
 
     if (user.rol === 'CLIENTE') {
       setCurrentView('client_portal');
-      setClientTab('resumen');
-      setClientSubView('dashboard');
     } else if (user.rol === 'ADMIN_SISTEMA') {
       setCurrentView('admin_system');
       setAdminTab('resumen');
@@ -653,59 +642,9 @@ export function App() {
   );
 }
 
-// VISTA: PORTAL CLIENTE (MARÍA QUISPE)
-return (
-  <>
-
-    <ClientPortalLayout
-      currentTab={clientTab}
-      onSelectTab={(tab) => {
-        setClientTab(tab);
-        setClientSubView('dashboard');
-      }}
-      onLogout={handleLogout}
-    >
-      {clientSubView === 'dashboard' && (
-        <>
-          {clientTab === 'resumen' && (
-            <ClientDashboardPage
-              onVerPlan={(codigo) => {
-                setClientActiveCredito(codigo);
-                setClientTab('compras');
-                setClientSubView('plan_pagos');
-              }}
-              onVerMisCompras={() => setClientTab('compras')}
-            />
-          )}
-
-          {clientTab === 'compras' && (
-            <ClientComprasPage
-              onVerPlan={(codigo) => {
-                setClientActiveCredito(codigo);
-                setClientTab('compras');
-                setClientSubView('plan_pagos');
-              }}
-            />
-          )}
-
-          {clientTab === 'pagos' && <ClientPagosPage />}
-
-          {clientTab === 'ayuda' && <ClientAyudaPage />}
-        </>
-      )}
-
-      {clientSubView === 'plan_pagos' && (
-        <ClientPlanPagosPage
-          codigoCredito={clientActiveCredito}
-          onBackToCompras={() => {
-            setClientSubView('dashboard');
-            setClientTab('compras');
-          }}
-        />
-      )}
-    </ClientPortalLayout>
-  </>
-);
+  // El portal gestiona su propia navegación y cuenta; la autorización sigue en App y el servidor.
+  if (currentUser?.rol !== 'CLIENTE') return null;
+  return <ClientPortal key={currentUser.id} onLogout={handleLogout} />;
 }
 
 export default App;

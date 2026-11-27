@@ -26,3 +26,9 @@ export async function consultarCreditoDisponible(idTienda: number, idCliente: nu
   const { data } = await api.get<CreditoDisponibleResponse>(`/tiendas/${idTienda}/clientes/${idCliente}/condicion-crediticia/credito-disponible`, { signal });
   return data;
 }
+
+/** Cuenta del cliente autenticado; el servidor obtiene su identidad desde el JWT. */
+export async function consultarMiCuenta(signal?: AbortSignal): Promise<CuentaCorrienteResponse> {
+  const { data } = await api.get<CuentaCorrienteResponse>('/portal/mi-cuenta', { signal, timeout: 20000 });
+  return data;
+}
