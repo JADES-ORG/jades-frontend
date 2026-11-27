@@ -48,17 +48,14 @@ export function ClientDashboardPage({
           ) : (
             <h3>Sin deuda registrada</h3>
           )}
-          <small title="El endpoint del portal no devuelve el límite autorizado.">
-            Crédito disponible: no informado por el negocio
-          </small>
+          <small>Para conocer tu crédito disponible, consulta con tu negocio.</small>
           {cuenta.compras.some(
             (c) =>
               !cuenta.obligaciones.some((o) => o.idVenta === c.idVenta) &&
               c.estado === "VIGENTE",
           ) && (
             <small>
-              Hay compras sin obligaciones generadas; su saldo está por
-              confirmar.
+              Algunas compras todavía no tienen un plan de pagos. Consulta con tu negocio para confirmar el saldo.
             </small>
           )}
         </div>

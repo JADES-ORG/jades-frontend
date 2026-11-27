@@ -342,7 +342,7 @@ export function App() {
       <VerifyCodePage
         emailMasked={maskEmail(userEmail)}
         onVerify={handleCodeVerified}
-        onResend={() => alert(`Nuevo código de 6 dígitos enviado a ${maskEmail(userEmail)}`)}
+        onResend={() => alert('Por el momento no podemos reenviar el código. Comunícate con el administrador para recuperar tu acceso.')}
         onBackToLogin={handleLogout}
       />
     );
@@ -448,8 +448,13 @@ export function App() {
           <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas activas asignadas.</p>
         ) : (
           <>
-        {storeTab !== 'clientes' && storeTab !== 'ayuda' && storeTab !== 'nueva_venta' && storeTab !== 'productos' && (
-          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Vista de demostración: esta sección aún no está conectada completamente al backend.</p>
+        {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes' || storeTab === 'configuracion') && (
+          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
+            {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
+            {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
+            {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
+            {storeTab === 'configuracion' && 'Los cambios de esta sección aún no se guardan en tu tienda.'}
+          </p>
         )}
         {/* Pestaña: Inicio (Dashboard de la Bodega) */}
         {storeTab === 'inicio' && (

@@ -162,7 +162,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(screen.getAllByText("María Quispe").length).toBeGreaterThan(0);
-    expect(screen.getByText(/no informado por el negocio/)).toBeVisible();
+    expect(screen.getByText(/Para conocer tu crédito disponible, consulta con tu negocio/)).toBeVisible();
     expect(screen.queryByText("Canasta familiar")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Demostración académica JADES:"),
