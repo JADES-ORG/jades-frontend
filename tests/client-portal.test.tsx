@@ -89,6 +89,7 @@ const plan = {
   idCredito: 10,
   codigoCredito: "CR-10",
   moneda: "PEN",
+  fechaCorte: "2025-04-20",
   fechaFinGracia: "2025-05-15",
   capitalVenta: 600,
   interesGracia: 10,
@@ -129,13 +130,15 @@ const pagoUnico = {
 const get = vi.mocked(api.get);
 const post = vi.mocked(api.post);
 function server(data: unknown = cuenta) {
-  get.mockImplementation(async (url) => ({
-    data: String(url).startsWith("/cronogramas/")
-      ? plan
-      : String(url).startsWith("/deudas/")
-        ? pagoUnico
-        : data,
-  }));
+  get.mockImplementation(async (url) => {
+    if (url === "/portal/mis-tiendas") {
+      return { data: [{ idTienda: cuenta.idTienda, nombreTienda: cuenta.comercio, cuotasPendientes: 1 }] };
+    }
+    if (url === "/corte/mi-cuenta") return { data: { idTienda: cuenta.idTienda, compras: [] } };
+    if (String(url).startsWith("/cronogramas/")) return { data: plan };
+    if (String(url).startsWith("/deudas/")) return { data: pagoUnico };
+    return { data };
+  });
 }
 const tab = (name: string) =>
   within(screen.getByRole("navigation")).getByRole("button", {
@@ -155,14 +158,14 @@ beforeEach(() => {
   server();
 });
 describe("Portal cliente con contratos HTTP controlados", () => {
-  it("consulta mi-cuenta sin enviar un ID arbitrario y muestra identidad y comercio reales", async () => {
+  it("consulta mi-cuenta con una tienda vinculada y muestra identidad y comercio reales", async () => {
     await portal();
     expect(get).toHaveBeenCalledWith(
       "/portal/mi-cuenta",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({ params: { idTienda: cuenta.idTienda }, signal: expect.any(AbortSignal) }),
     );
     expect(screen.getAllByText("María Quispe").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Para conocer tu crédito disponible, consulta con tu negocio/)).toBeVisible();
+    expect(screen.queryByText("Condiciones vigentes")).not.toBeInTheDocument();
     expect(screen.queryByText("Canasta familiar")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Demostración académica JADES:"),
@@ -270,7 +273,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
     await screen.findByRole("alert");
     expect(screen.queryByText("Hola, María")).not.toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole("button", { name: "Volver a intentar" }),
+      screen.getByRole("button", { name: "Reintentar" }),
     );
     await screen.findByText("Hola, María");
   });
@@ -361,7 +364,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
   });
   it("login de cliente conecta el portal y un 401 global cierra la sesión", async () => {
     const login = {
-      tokenAcceso: "test.jwt.token",
+      tokenAcceso: "header." + btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })) + ".signature",
       id: 3,
       correo: "cliente@example.com",
       rol: "CLIENTE",
@@ -380,7 +383,7 @@ describe("Portal cliente con contratos HTTP controlados", () => {
       screen.getByRole("button", { name: "Ingresar", exact: true }),
     );
     await screen.findByText("Hola, María");
-    expect(localStorage.getItem("token")).toBe("test.jwt.token");
+    expect(localStorage.getItem("token")).toBe(login.tokenAcceso);
     fireEvent(window, new Event(SESSION_EXPIRED_EVENT));
     expect(localStorage.getItem("token")).toBeNull();
     await waitFor(() =>

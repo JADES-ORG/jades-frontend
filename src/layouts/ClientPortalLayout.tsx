@@ -1,3 +1,4 @@
+import type { TiendaClienteResponse } from "../types/finanzas";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { useCuentaCliente } from "../features/client-portal/state";
@@ -13,6 +14,9 @@ import "../features/client-portal/client-portal.css";
 export type ClientTab = "resumen" | "compras" | "pagos" | "ayuda";
 interface Props {
   currentTab: ClientTab;
+  tiendas: TiendaClienteResponse[];
+  idTienda: number;
+  onSelectTienda: (id: number) => void;
   onSelectTab: (tab: ClientTab) => void;
   onLogout: () => void;
   children: ReactNode;
@@ -22,6 +26,9 @@ interface Props {
 }
 export function ClientPortalLayout({
   currentTab,
+  tiendas,
+  idTienda,
+  onSelectTienda,
   onSelectTab,
   onLogout,
   children,
@@ -79,6 +86,14 @@ export function ClientPortalLayout({
             <strong>Portal cliente</strong>
             <small>{nombre}</small>
           </div>
+        </div>
+        <div className="mx-4 my-3 grid gap-1 text-xs font-semibold text-white">
+          <label htmlFor="establecimiento-cliente">Establecimiento</label>
+          <select id="establecimiento-cliente" className="min-h-11 w-full rounded-lg border border-white/20 bg-[#124435] px-2 text-sm text-white" value={idTienda} onChange={e => onSelectTienda(Number(e.target.value))}>
+            {tiendas.map(tienda => <option key={tienda.idTienda} value={tienda.idTienda}>
+              {tienda.nombreTienda}{tienda.cuotasPendientes > 0 ? ` · ${tienda.cuotasPendientes} pendientes` : ''}{tienda.estadoTienda === 'INACTIVO' ? ' · Inactiva' : ''}
+            </option>)}
+          </select>
         </div>
         <p className="client-menu-label">MENÚ PRINCIPAL</p>
         <nav aria-label="Menú del cliente">

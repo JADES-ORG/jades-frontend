@@ -1,3 +1,4 @@
+import { porcentaje } from '../../features/client-portal/model';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
@@ -18,6 +19,7 @@ export interface VentaItem {
 
 interface StoreNuevaVentaPageProps {
   idTienda: number;
+  idClienteInicial?: number | null;
   onCancel: () => void;
 }
 
@@ -37,8 +39,8 @@ function cantidadValida(item: VentaItem) {
 }
 
 // Precio (dos decimales) por cantidad (hasta tres decimales), redondeado por línea.
-function subtotalCentavos(item: VentaItem): number {
-  const precio = Math.round(item.producto.precioCredito * 100);
+function subtotalCentavos(item: VentaItem, precioCredito: number): number {
+  const precio = Math.round(precioCredito * 100);
   const cantidad = Math.round(Number(item.cantidad) * 1000);
   return Math.round(precio * cantidad / 1000);
 }
@@ -58,7 +60,7 @@ function Cronograma({ plan, definitivo = false }: { plan: CronogramaResponse; de
       ['Fin de gracia', plan.fechaFinGracia ?? '—'], ['Días de gracia', plan.diasGracia ?? '—'],
       ['Capital inicial', m(plan.capitalVenta)], ['Interés de gracia', m(plan.interesGracia)],
       ['Capital capitalizado', m(plan.capitalCapitalizado)], ['Cuota base', m(plan.cuotaBase)],
-      ['TEM', plan.tasaEfectivaMensual === null ? '—' : `${(plan.tasaEfectivaMensual * 100).toFixed(6)}%`],
+      ['TEM', porcentaje(plan.tasaEfectivaMensual)],
       ['Intereses de cuotas', m(plan.interesesTotales)], ['Interés total (incluye gracia)', m(plan.totalFinanciamiento - plan.capitalVenta)],
       ['Total a pagar', m(plan.totalFinanciamiento)],
     ]}/>
@@ -90,15 +92,15 @@ function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaRespo
     {s.cronograma && <Cronograma plan={s.cronograma}/>}
     {u && <><h4 className="font-bold text-sm">Simulación de pago único</h4><Datos datos={[
       ['Capital', m(u.capital)], ['Días de financiamiento', u.diasFinanciamiento],
-      ['TED', `${(u.tasaEfectivaDiaria * 100).toFixed(6)}%`],
-      ['Tasa efectiva del periodo', `${(u.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['TED', porcentaje(u.tasaEfectivaDiaria)],
+      ['Tasa efectiva del periodo', porcentaje(u.tasaEfectivaPeriodo)],
       ['Interés compensatorio', m(u.interesCompensatorio)], ['Total sin mora', m(u.totalSinMora)],
     ]}/></>}
     <div className="text-xs text-slate-600 divide-y divide-slate-100">{s.detalles.map(d => <div key={d.idProducto} className="flex justify-between p-2"><span>{d.cantidad} × {d.nombreProducto} · {m(d.precioUnitario)}</span><strong>{m(d.subtotal)}</strong></div>)}</div>
   </section>;
 }
 
-export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTienda, onCancel }) => {
+export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTienda, idClienteInicial, onCancel }) => {
   const [paso, setPaso] = useState<1 | 2 | 3 | 4>(1);
   const [clientes, setClientes] = useState<ClienteResponse[]>([]);
   const [productos, setProductos] = useState<ProductoResponse[]>([]);
@@ -137,10 +139,20 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([listarClientes(idTienda, true, controller.signal), listarProductos(idTienda, true, controller.signal)])
-      .then(([cs, ps]) => { if (!controller.signal.aborted) { setClientes(cs); setProductos(ps); setCarga(false); } })
+      .then(([cs, ps]) => {
+        if (controller.signal.aborted) return;
+        setClientes(cs);
+        setProductos(ps);
+        const inicial = cs.find(c => c.id === idClienteInicial);
+        if (inicial) {
+          setCliente(inicial);
+          setCargaCondicion(true);
+        }
+        setCarga(false);
+      })
       .catch((e: unknown) => { if (!controller.signal.aborted) { setErrorCarga(obtenerMensajeError(e)); setCarga(false); } });
     return () => controller.abort();
-  }, [idTienda, recarga]);
+  }, [idTienda, idClienteInicial, recarga]);
 
   useEffect(() => {
     if (!cliente) return;
@@ -181,8 +193,12 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
 
   const moneda = condicion?.monedaCredito ?? 'PEN';
   const m = (v: number) => dinero(v, moneda);
-  const validas = items.length > 0 && items.every(i => cantidadValida(i) && Number.isSafeInteger(Math.round(i.producto.precioCredito * 100) * Math.round(Number(i.cantidad) * 1000)));
-  const centavos = validas ? items.reduce((s, i) => s + subtotalCentavos(i), 0) : 0;
+  const precioCredito = (producto: ProductoResponse) => moneda === 'USD' ? producto.precioCreditoUsd : producto.precioCredito;
+  const validas = items.length > 0 && items.every(item => {
+    const precio = precioCredito(item.producto);
+    return precio != null && cantidadValida(item) && Number.isSafeInteger(Math.round(precio * 100) * Math.round(Number(item.cantidad) * 1000));
+  });
+  const centavos = validas ? items.reduce((s, i) => s + subtotalCentavos(i, precioCredito(i.producto) ?? 0), 0) : 0;
   const capital = centavos / 100;
   const unicoPermitido = items.length > 0 && items.every(i => ['AMBAS', 'UNICO'].includes(i.producto.modalidad));
   const mensualPermitido = items.length > 0 && items.every(i => ['AMBAS', 'MENSUAL'].includes(i.producto.modalidad));
@@ -277,7 +293,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
       ['Capital', dinero(unicoFinal.capital, unicoFinal.moneda)], ['Fecha de pago', unicoFinal.fechaPago],
       ['Días de financiamiento', unicoFinal.diasFinanciamiento], ['Interés compensatorio', dinero(unicoFinal.interesCompensatorio, unicoFinal.moneda)],
-      ['Tasa efectiva del periodo', unicoFinal.tasaEfectivaPeriodo == null ? '—' : `${(unicoFinal.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['Tasa efectiva del periodo', porcentaje(unicoFinal.tasaEfectivaPeriodo)],
       ['Total sin mora', dinero(unicoFinal.totalSinMora, unicoFinal.moneda)], ['Estado', unicoFinal.estadoCuota],
       ['Fecha de pago efectivo', unicoFinal.fechaPagoEfectivo ?? '—'], ['Total pagado', unicoFinal.totalPagado == null ? '—' : dinero(unicoFinal.totalPagado, unicoFinal.moneda)],
     ]}/></>}
@@ -287,7 +303,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const q = busquedaCliente.trim().toLocaleLowerCase('es-PE');
   const encontrados = clientes.filter(c => c.dniCliente.includes(q) || c.nombreCliente.toLocaleLowerCase('es-PE').includes(q));
   const qp = busquedaProducto.trim().toLocaleLowerCase('es-PE');
-  const catalogo = productos.filter(p => p.nombreProducto.toLocaleLowerCase('es-PE').includes(qp));
+  const catalogo = productos.filter(p => (moneda !== 'USD' || p.precioContadoUsd != null) && precioCredito(p) != null && p.nombreProducto.toLocaleLowerCase('es-PE').includes(qp));
   const aviso = (mensaje: string) => <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><Info className="w-4 h-4 shrink-0"/><span>{mensaje}</span></div>;
 
   return <div className="space-y-6">
@@ -306,10 +322,10 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       {errorCondicion && <div role="alert" className="text-xs text-red-700 space-y-2"><p>{errorCondicion}</p><button className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
       {condicion && <><Datos datos={[
         ['Límite pactado', m(condicion.limiteCredito)], ['Crédito utilizado', saldoVigente ? m(condicion.creditoUtilizado) : '—'], ['Crédito disponible', saldoVigente ? m(condicion.creditoDisponible) : '—'],
-        ['Tasa de interés', `${condicion.tipoTasa} · ${(condicion.tasaInteres*100).toFixed(6)}% ${condicion.periodoTasa}`],
+        ['Tasa de interés', `${condicion.tipoTasa} · ${porcentaje(condicion.tasaInteres)} ${condicion.periodoTasa}`],
         ['Capitalización', condicion.capitalizacionTasa ?? 'No aplica'],
         ['Plazo máximo', `${condicion.plazoMaximo} cuotas`], ['Corte', `Día ${condicion.diaCorte} · ${condicion.horaCorte}`], ['Pago', `Día ${condicion.diaPago}`],
-        ['Mora', `${condicion.tipoTasaMora} · ${(condicion.tasaMoratoria*100).toFixed(6)}% ${condicion.periodoTasaMora}`],
+        ['Mora', `${condicion.tipoTasaMora} · ${porcentaje(condicion.tasaMoratoria)} ${condicion.periodoTasaMora}`],
         ['Capitalización mora', condicion.capitalizacionMora ?? 'No aplica'], ['Moneda', moneda],
       ]}/>
         {!saldoVigente && <div role="alert" className="space-y-2">
@@ -323,12 +339,12 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       <h3 className="font-bold">2. Agrega productos o servicios</h3>
       <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
       <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-2 p-3 text-xs hover:bg-slate-50 disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(p.precioCredito)}</strong></button>)}
-        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
+        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-2 p-3 text-xs hover:bg-slate-50 disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(precioCredito(p)!)}</strong></button>)}
+        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos disponibles en la moneda del crédito.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
       </div>
       <div className="overflow-x-auto border border-slate-200 rounded-xl"><table className="w-full text-left text-xs">
         <thead className="bg-slate-50 text-slate-500"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(i.producto.precioCredito)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 border border-slate-200 rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
+        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(precioCredito(i.producto)!)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 border border-slate-200 rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i, precioCredito(i.producto) ?? 0)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
       </table></div>
       <p className="text-sm font-bold">Capital estimado: {validas ? m(capital) : '—'}</p>
       {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}

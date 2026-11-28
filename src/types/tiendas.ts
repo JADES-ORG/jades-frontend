@@ -13,7 +13,8 @@ export interface RegistrarTiendaRequest {
   direccion: string;
   telefonoTienda: string | null;
   correoTienda: string | null;
-  administrador: {
+  idAdministradorExistente?: number;
+  administrador?: {
     nombreUsuario: string;
     correoUsuario: string;
     telefonoUsuario: string | null;

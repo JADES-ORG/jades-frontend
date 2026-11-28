@@ -1,3 +1,4 @@
+import type { CondicionCrediticiaResponse } from './clientes';
 import type { DetalleVentaResponse } from './ventas';
 
 export type Moneda = 'PEN' | 'USD';
@@ -165,12 +166,26 @@ export interface PagoCuentaCorriente {
   detalles: DetalleVentaResponse[];
 }
 
+export interface TiendaClienteResponse {
+  idTienda: number;
+  idCliente: number;
+  nombreTienda: string;
+  estadoTienda: string;
+  estadoCliente: string;
+  monedaCredito: Moneda | null;
+  capitalPendiente: number;
+  totalPendiente: number;
+  cuotasPendientes: number;
+  cuotasVencidas: number;
+}
+
 export interface CuentaCorrienteResponse {
   idCliente: number;
   nombreCliente: string;
   documentoCliente: string;
   idTienda: number;
   comercio: string;
+  condicionCrediticia?: CondicionCrediticiaResponse | null;
   compras: CompraCuentaCorriente[];
   obligaciones: ObligacionCuentaCorriente[];
   pagos: PagoCuentaCorriente[];

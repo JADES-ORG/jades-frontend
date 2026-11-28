@@ -5,41 +5,35 @@ import {
   Calendar,
   Search,
   ChevronDown,
-  Info,
 } from 'lucide-react';
-import type { PagoItemData } from '../../components/store-admin/RegistrarPagoModal';
-
-export const initialPagos: PagoItemData[] = [];
+import { RegistrarPagoModal } from '../../components/store-admin/RegistrarPagoModal';
+import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
+import { obligacionesPendientes, proximosSieteDias, useCuentasTienda, type ObligacionCobro } from '../../features/cobranzas/cuentas';
 
 interface StorePagosPageProps {
-  pagos: PagoItemData[];
-  onOpenRegistrarPago: (pago: PagoItemData) => void;
+  idTienda: number;
+  revision: number;
+  onPagoRegistrado: () => void;
 }
 
 export const StorePagosPage: React.FC<StorePagosPageProps> = ({
-  pagos,
-  onOpenRegistrarPago,
+  idTienda,
+  revision,
+  onPagoRegistrado,
 }) => {
+  const { cuentas, cargando, error, recargar } = useCuentasTienda(idTienda, revision);
   const [searchTerm, setSearchTerm] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('Estados pendientes');
-
-  const exigibleHoy = pagos
-    .filter((p) => p.estado === 'Pendiente' && p.diasAtraso === 0)
-    .reduce((acc, p) => acc + p.total, 0);
-
-  const countExigibleHoy = pagos.filter(
-    (p) => p.estado === 'Pendiente' && p.diasAtraso === 0
-  ).length;
-
-  const enMora = pagos
-    .filter((p) => p.estado === 'En mora')
-    .reduce((acc, p) => acc + p.total, 0);
-
-  const proximos7Dias = pagos
-    .filter((p) => p.estado === 'Por vencer')
-    .reduce((acc, p) => acc + p.total, 0);
-
-  const countProximos7Dias = pagos.filter((p) => p.estado === 'Por vencer').length;
+  const [estadoFilter, setEstadoFilter] = useState('TODOS');
+  const [seleccionada, setSeleccionada] = useState<ObligacionCobro | null>(null);
+  const [aviso, setAviso] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const pagos = cargando || error ? [] : obligacionesPendientes(cuentas);
+  const hoy = hoyLima();
+  const indicadores = [
+    { titulo: 'Vence hoy', icono: Clock, filas: pagos.filter(p => p.fechaVencimiento === hoy) },
+    { titulo: 'En mora', icono: AlertTriangle, filas: pagos.filter(p => p.estado === 'En mora') },
+    { titulo: 'Próximos 7 días', icono: Calendar, filas: pagos.filter(p => proximosSieteDias(p.fechaVencimiento, hoy)) },
+  ];
 
   const filteredPagos = pagos.filter((item) => {
     const term = searchTerm.toLowerCase();
@@ -47,11 +41,11 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
       item.cliente.toLowerCase().includes(term) ||
       item.obligacion.toLowerCase().includes(term);
 
-    if (estadoFilter === 'Estados pendientes') {
-      return matchSearch;
-    }
     return matchSearch && (estadoFilter === 'TODOS' || item.estado === estadoFilter);
   });
+
+  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filteredPagos.length / 10)));
+  const visibles = filteredPagos.slice((paginaActual - 1) * 10, paginaActual * 10);
 
   return (
     <div className="space-y-6">
@@ -65,46 +59,20 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
         </p>
       </div>
 
-      {/* 3 Tarjetas de Métricas KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Exigible hoy */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 font-medium">Exigible hoy</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {exigibleHoy.toFixed(2)}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">{countExigibleHoy} obligaciones pendientes</p>
+      {aviso && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{aviso}</p>}
+      {cargando && <p role="status" className="text-sm text-slate-600">Cargando obligaciones…</p>}
+      {error && <p role="alert" className="text-sm text-red-700">{error} <button onClick={recargar} className="font-semibold underline">Reintentar</button></p>}
+      {!cargando && !error && <div className="grid gap-4 md:grid-cols-3">
+        {indicadores.map(({ titulo, icono: Icono, filas }) => (
+          <div key={titulo} className="rounded-xl border border-slate-200 bg-white p-5 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600">{titulo}</p>
+              <p className="text-2xl font-bold text-slate-900">{filas.length}</p>
+            </div>
+            <Icono aria-hidden="true" className="size-5 text-[#139a6c]" />
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0 border border-amber-100/60">
-            <Clock className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Card 2: En mora */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 font-medium">En mora</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {enMora.toFixed(2)}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {enMora > 0 ? 'Con recargo de mora' : 'Sin deudas en mora'}
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0 border border-rose-100/60">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Card 3: Próximos 7 días */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 font-medium">Próximos 7 días</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">S/ {proximos7Dias.toFixed(2)}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">{countProximos7Dias} obligaciones por vencer</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
+        ))}
+      </div>}
 
       {/* Contenedor de Tabla con Buscador y Filtro */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -116,7 +84,8 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               type="text"
               placeholder="Buscar cliente u obligación"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar cliente u obligación"
+              onChange={(e) => { setSearchTerm(e.target.value); setPagina(1); }}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
             />
           </div>
@@ -124,10 +93,10 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
           <div className="relative w-full sm:w-auto">
             <select
               value={estadoFilter}
-              onChange={(e) => setEstadoFilter(e.target.value)}
+              aria-label="Estado de la obligación"
+              onChange={(e) => { setEstadoFilter(e.target.value); setPagina(1); }}
               className="w-full sm:w-48 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
             >
-              <option value="Estados pendientes">Estados pendientes</option>
               <option value="TODOS">Todos</option>
               <option value="Pendiente">Pendiente</option>
               <option value="En mora">En mora</option>
@@ -153,8 +122,8 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filteredPagos.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/60 transition">
+              {visibles.map((item) => (
+                <tr key={item.idCuota} className="hover:bg-slate-50/60 transition">
                   {/* Cliente y Obligación */}
                   <td className="py-4 px-6">
                     <p className="font-bold text-slate-900">{item.cliente}</p>
@@ -163,27 +132,27 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
 
                   {/* Vence */}
                   <td className="py-4 px-4 text-slate-600 font-normal">
-                    {item.vence}
+                    {fecha(item.fechaVencimiento)}
                   </td>
 
                   {/* Capital */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
-                    S/ {item.capital.toFixed(2)}
+                    {dinero(item.capital, item.moneda)}
                   </td>
 
                   {/* Interés Compensatorio */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
-                    S/ {item.interesCompensatorio.toFixed(2)}
+                    {dinero(item.interesCompensatorio, item.moneda)}
                   </td>
 
                   {/* Mora */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
-                    S/ {item.mora.toFixed(2)}
+                    {dinero(item.moraPendiente, item.moneda)}
                   </td>
 
                   {/* Total */}
                   <td className="py-4 px-4 font-bold text-slate-900">
-                    S/ {item.total.toFixed(2)}
+                    {dinero(item.importePendiente, item.moneda)}
                   </td>
 
                   {/* Estado */}
@@ -207,21 +176,18 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
 
                   {/* Botón Registrar */}
                   <td className="py-4 px-6 text-right">
-                    <button
-                      onClick={() => onOpenRegistrarPago(item)}
-                      className={`px-4 py-1.5 border rounded-xl text-xs font-semibold transition cursor-pointer ${
-                        item.estado === 'Por vencer'
-                          ? 'border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50'
-                          : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
+                    {item.gestionable && <button
+                      type="button"
+                      onClick={() => { setAviso(''); setSeleccionada(item); }}
+                      className="min-h-11 px-4 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50"
                     >
-                      Registrar
-                    </button>
+                      Gestionar pago
+                    </button>}
                   </td>
                 </tr>
               ))}
 
-              {filteredPagos.length === 0 && (
+              {!cargando && !error && filteredPagos.length === 0 && (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
                     No hay obligaciones pendientes registradas.
@@ -232,14 +198,20 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
           </table>
         </div>
 
-        {/* Banner Informativo al pie de la tabla */}
-        <div className="bg-[#f0fdf4] border-t border-slate-100 p-4 px-6 flex items-center space-x-2.5 text-xs text-slate-600">
-          <Info className="w-4 h-4 text-[#139a6c] shrink-0" />
-          <p>
-            Importes en PEN. Solo se admiten pagos por el total exigible. Fecha de consulta: 15/06/2025.
-          </p>
-        </div>
+        {filteredPagos.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 text-sm">
+          <span>{filteredPagos.length} obligaciones</span>
+          <div className="flex items-center gap-3">
+            <button type="button" disabled={paginaActual <= 1} onClick={() => setPagina(paginaActual - 1)} className="min-h-11 px-3 disabled:opacity-40">Anterior</button>
+            <span>{paginaActual} de {Math.ceil(filteredPagos.length / 10)}</span>
+            <button type="button" disabled={paginaActual * 10 >= filteredPagos.length} onClick={() => setPagina(paginaActual + 1)} className="min-h-11 px-3 disabled:opacity-40">Siguiente</button>
+          </div>
+        </div>}
       </div>
+      {seleccionada && <RegistrarPagoModal obligacion={seleccionada} onClose={() => setSeleccionada(null)} onRegistrado={mensaje => {
+        setSeleccionada(null);
+        setAviso(mensaje);
+        onPagoRegistrado();
+      }} />}
     </div>
   );
 };

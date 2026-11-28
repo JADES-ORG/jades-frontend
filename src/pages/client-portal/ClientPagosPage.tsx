@@ -131,7 +131,15 @@ export function ClientPagosPage() {
                         <td>{dinero(p.interesPagado, p.moneda ?? o?.moneda)}</td>
                         <td>{dinero(p.moraPagada, p.moneda ?? o?.moneda)}</td>
                         <td>{dinero(p.totalExigible, p.moneda ?? o?.moneda)}</td>
-                        <td>{p.medioPago}</td>
+                        <td>
+                          {p.medioPago}
+                          {p.detalles?.length > 0 && <details className="mt-2 text-xs">
+                            <summary className="cursor-pointer font-semibold">Ver productos y servicios</summary>
+                            <ul className="mt-1">
+                              {p.detalles.map(item => <li key={item.idProducto}>{item.cantidad} × {item.nombreProducto} · {dinero(item.subtotal, p.moneda)}</li>)}
+                            </ul>
+                          </details>}
+                        </td>
                       </tr>
                     );
                   })}

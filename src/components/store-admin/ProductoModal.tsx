@@ -15,13 +15,15 @@ export interface ProductoData {
   descripcion?: string;
   precioContado: number;
   precioCredito: number;
+  precioContadoUsd: number | null;
+  precioCreditoUsd: number | null;
   modalidad: 'Ambas modalidades' | 'Pago único' | 'En meses';
   imagenProducto?: string | null;
 }
 
 interface ProductoModalProps {
   isOpen: boolean;
-  mode: 'nuevo' | 'editar';
+  mode: 'nuevo' | 'editar' | 'detalle';
   initialData?: ProductoData | null;
   onClose: () => void;
   idTienda: number;
@@ -49,13 +51,15 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [precioContado, setPrecioContado] = useState('');
   const [precioCredito, setPrecioCredito] = useState('');
+  const [contadoUsd, setContadoUsd] = useState('');
+  const [creditoUsd, setCreditoUsd] = useState('');
   const [modalidad, setModalidad] = useState<'Ambas modalidades' | 'Pago único' | 'En meses'>('Ambas modalidades');
 
   useEffect(() => {
     if (isOpen) {
       setArchivo(undefined);
       setError(null);
-      if (mode === 'editar' && initialData) {
+      if (mode !== 'nuevo' && initialData) {
         setNombre(initialData.nombre || '');
         setTipo(initialData.tipo || 'Producto');
         setProveedor(initialData.proveedor || '');
@@ -64,6 +68,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         setDescripcion(initialData.descripcion || '');
         setPrecioContado(initialData.precioContado !== undefined ? initialData.precioContado.toFixed(2) : '00.00');
         setPrecioCredito(initialData.precioCredito !== undefined ? initialData.precioCredito.toFixed(2) : '00.00');
+        setContadoUsd(initialData.precioContadoUsd?.toFixed(2) ?? '');
+        setCreditoUsd(initialData.precioCreditoUsd?.toFixed(2) ?? '');
         setModalidad(initialData.modalidad || 'Ambas modalidades');
       } else {
         // Reset para nuevo producto
@@ -75,6 +81,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         setDescripcion('');
         setPrecioContado('00.00');
         setPrecioCredito('00.00');
+        setContadoUsd('');
+        setCreditoUsd('');
         setModalidad('Ambas modalidades');
       }
     }
@@ -94,12 +102,17 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (guardando) return;
+    if (guardando || mode === 'detalle') return;
     setError(null);
     if (!nombre.trim() || !/^\d+(\.\d{1,2})?$/.test(precioContado) || !/^\d+(\.\d{1,2})?$/.test(precioCredito)
         || !Number.isFinite(Number(precioContado)) || !Number.isFinite(Number(precioCredito))
         || Number(precioContado) <= 0 || Number(precioCredito) <= 0) {
       setError('Ingresa el nombre y precios mayores a cero con hasta dos decimales.');
+      return;
+    }
+    const preciosUsd = [contadoUsd, creditoUsd];
+    if (preciosUsd.some(Boolean) && !preciosUsd.every(precio => /^\d{1,16}(\.\d{1,2})?$/.test(precio) && Number(precio) > 0)) {
+      setError('Ingresa ambos precios en dólares con hasta dos decimales, o deja ambos campos vacíos.');
       return;
     }
     if (!archivo && (mode === 'nuevo' || !initialData?.imagenProducto)) {
@@ -119,6 +132,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
       descripcion,
       precioContado: Number(precioContado),
       precioCredito: Number(precioCredito),
+      precioContadoUsd: contadoUsd ? Number(contadoUsd) : null,
+      precioCreditoUsd: creditoUsd ? Number(creditoUsd) : null,
       modalidad,
     }, archivo);
       onClose();
@@ -136,7 +151,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         <div className="p-6 sm:p-7 border-b border-slate-100 flex items-start justify-between">
           <div>
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-              {mode === 'nuevo' ? 'Nuevo producto o servicio' : 'Editar producto o servicio'}
+              {mode === 'nuevo' ? 'Nuevo producto o servicio' : mode === 'detalle' ? 'Detalle de producto o servicio' : 'Editar producto o servicio'}
             </h3>
             <p className="text-xs text-slate-500 mt-1">
               Define los datos y modalidades disponibles para ventas a crédito.
@@ -154,7 +169,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-6 max-h-[80vh] overflow-y-auto">
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
-          <fieldset disabled={guardando} className="space-y-6">
+          <fieldset disabled={guardando || mode === 'detalle'} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div>
             <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
@@ -379,6 +394,14 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 </p>
               </div>
 
+              {([
+                ['Precio contado USD (opcional)', contadoUsd, setContadoUsd],
+                ['Precio crédito USD (opcional)', creditoUsd, setCreditoUsd],
+              ] as const).map(([label, valor, cambiar]) => <label key={label} className="block text-xs font-semibold text-slate-700">
+                {label}
+                <input type="text" inputMode="decimal" maxLength={19} value={valor} onChange={e => cambiar(e.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-slate-200 px-3" />
+              </label>)}
+
               {/* Modalidades permitidas */}
               <div className="sm:col-span-1">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -405,6 +428,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
 
           </fieldset>
           {/* Footer Botones */}
+          {mode !== 'detalle' && (
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
             <button
               type="button"
@@ -422,6 +446,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               {guardando ? 'Guardando...' : 'Guardar producto'}
             </button>
           </div>
+          )}
         </form>
       </div>
     </div>

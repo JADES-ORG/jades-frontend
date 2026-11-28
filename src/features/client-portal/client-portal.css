@@ -67,10 +67,11 @@
   padding: 24px 16px 16px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
   position: sticky;
   top: 0;
-  height: 100vh;
+  align-self: flex-start;
+  height: 100dvh;
+  overflow-y: auto;
   color: #fff;
 }
 .client-brand {
@@ -189,7 +190,7 @@
   min-width: 0;
 }
 .client-topbar {
-  height: 78px;
+  height: 64px;
   background: #fff;
   display: flex;
   align-items: center;

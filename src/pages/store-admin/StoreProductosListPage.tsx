@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, ChevronDown, Package, ExternalLink } from 'lucide-react';
 import { ImagenProducto, ProductoModal, type ProductoData } from '../../components/store-admin/ProductoModal';
-import { actualizarProducto, desactivarProducto, listarProductos, registrarProducto } from '../../api/productos';
+import { actualizarProducto, desactivarProducto, listarProductos, reactivarProducto, registrarProducto } from '../../api/productos';
 import { obtenerMensajeError } from '../../api/errores';
 import { UNIDADES_PRODUCTO, type ProductoRequest, type ProductoResponse } from '../../types/productos';
 
@@ -15,6 +15,8 @@ function convertirProducto(p: ProductoResponse): ProductoData {
     unidad: UNIDADES_PRODUCTO[p.unidadMedida as keyof typeof UNIDADES_PRODUCTO] ?? p.unidadMedida,
     precioContado: Number(p.precioContado),
     precioCredito: Number(p.precioCredito),
+    precioContadoUsd: p.precioContadoUsd ?? null,
+    precioCreditoUsd: p.precioCreditoUsd ?? null,
     modalidad: p.modalidad === 'UNICO' ? 'Pago único' : p.modalidad === 'MENSUAL' ? 'En meses' : 'Ambas modalidades',
     estado: p.estadoProducto === 'ACTIVO' ? 'Activo' : 'Inactivo',
     descripcion: p.descripcion ?? '',
@@ -32,7 +34,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
-  const [modal, setModal] = useState<{ mode: 'nuevo' | 'editar'; producto?: ProductoData } | null>(null);
+  const [modal, setModal] = useState<{ mode: 'nuevo' | 'editar' | 'detalle'; producto?: ProductoData } | null>(null);
   const [desactivando, setDesactivando] = useState<number | null>(null);
 
   useEffect(() => {
@@ -58,6 +60,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
       descripcion: producto.descripcion?.trim() || null,
       precioContado: producto.precioContado,
       precioCredito: producto.precioCredito,
+      precioContadoUsd: producto.precioContadoUsd,
+      precioCreditoUsd: producto.precioCreditoUsd,
       tipoProducto: producto.tipo === 'Producto' ? 'PRODUCTO' : 'SERVICIO',
       proveedor: producto.tipo === 'Producto' ? producto.proveedor || null : null,
       marca: producto.tipo === 'Producto' ? producto.marca || null : null,
@@ -74,13 +78,14 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
       : [guardado, ...prev]);
   };
 
-  const desactivar = async (producto: ProductoData) => {
+  const cambiarEstado = async (producto: ProductoData) => {
     if (soloConsulta || producto.id === undefined || desactivando !== null) return;
-    if (!window.confirm(`¿Desactivar ${producto.nombre}? No estará disponible para nuevas ventas.`)) return;
+    const activo = producto.estado === 'Activo';
+    if (!window.confirm(`¿${activo ? 'Desactivar' : 'Reactivar'} ${producto.nombre}?`)) return;
     setDesactivando(producto.id);
     setError(null);
     try {
-      const guardado = convertirProducto(await desactivarProducto(idTienda, producto.id));
+      const guardado = convertirProducto(await (activo ? desactivarProducto(idTienda, producto.id) : reactivarProducto(idTienda, producto.id)));
       setProductos(prev => prev.map(p => p.id === guardado.id ? guardado : p));
     } catch (e) {
       setError(obtenerMensajeError(e));
@@ -90,7 +95,9 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   };
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [tipoFilter, setTipoFilter] = useState<string>('TODOS');
+  const [tipoFilter, setTipoFilter] = useState('TODOS');
+  const [estadoFiltro, setEstadoFiltro] = useState('TODOS');
+  const [pagina, setPagina] = useState(1);
 
   // Métricas calculadas dinámicamente
   const totalRegistrados = productos.length;
@@ -105,8 +112,10 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
       p.marca.toLowerCase().includes(term) ||
       (p.proveedor && p.proveedor.toLowerCase().includes(term));
     const matchTipo = tipoFilter === 'TODOS' || p.tipo === tipoFilter;
-    return matchSearch && matchTipo;
+    return matchSearch && matchTipo && (estadoFiltro === 'TODOS' || p.estado === estadoFiltro);
   });
+
+  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filtered.length / 10)));
 
   return (
     <div className="space-y-6">
@@ -168,7 +177,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
               type="text"
               placeholder="Buscar nombre, marca o proveedor"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar en el catálogo"
+                onChange={(e) => { setSearchTerm(e.target.value); setPagina(1); }}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
             />
           </div>
@@ -176,7 +186,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
           <div className="relative w-full sm:w-auto">
             <select
               value={tipoFilter}
-              onChange={(e) => setTipoFilter(e.target.value)}
+              aria-label="Tipo de producto o servicio"
+              onChange={(e) => { setTipoFilter(e.target.value); setPagina(1); }}
               className="w-full sm:w-44 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
             >
               <option value="TODOS">Todos los tipos</option>
@@ -185,6 +196,11 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
+          <select aria-label="Estado del producto o servicio" value={estadoFiltro} onChange={e => { setEstadoFiltro(e.target.value); setPagina(1); }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-xs">
+            <option value="TODOS">Todos los estados</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
         </div>
 
         {/* Tabla */}
@@ -204,7 +220,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filtered.map((item) => (
+              {filtered.slice((paginaActual - 1) * 10, paginaActual * 10).map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/60 transition">
                   {/* Nombre con icono representativo */}
                   <td className="py-4 px-6 font-bold text-slate-900">
@@ -232,11 +248,13 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                   {/* Contado */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
                     S/ {item.precioContado.toFixed(2)}
+                    {item.precioContadoUsd != null && <span className="block text-slate-600">US$ {item.precioContadoUsd.toFixed(2)}</span>}
                   </td>
 
                   {/* Crédito */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
                     S/ {item.precioCredito.toFixed(2)}
+                    {item.precioCreditoUsd != null && <span className="block text-slate-600">US$ {item.precioCreditoUsd.toFixed(2)}</span>}
                   </td>
 
                   {/* Modalidad */}
@@ -260,13 +278,13 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                   {/* Botón Editar */}
                   <td className="py-4 px-6 text-right">
                     <button
-                      disabled={soloConsulta || desactivando !== null}
-                      onClick={() => setModal({ mode: 'editar', producto: item })}
+                      disabled={desactivando !== null}
+                      onClick={() => setModal({ mode: soloConsulta ? 'detalle' : 'editar', producto: item })}
                       className="px-4 py-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
                     >
-                      Editar
+                      {soloConsulta ? 'Ver detalle' : 'Editar'}
                     </button>
-                    {item.estado === 'Activo' && !soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => void desactivar(item)} className="ml-2 text-xs font-semibold text-red-700 disabled:opacity-50">{desactivando === item.id ? 'Desactivando...' : 'Desactivar'}</button>}
+                    {!soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => void cambiarEstado(item)} className="ml-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{desactivando === item.id ? 'Guardando…' : item.estado === 'Activo' ? 'Desactivar' : 'Reactivar'}</button>}
                   </td>
                 </tr>
               ))}
@@ -281,8 +299,16 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-2 text-sm">
+          <span>{filtered.length} resultados</span>
+          {filtered.length > 10 && <div className="flex items-center gap-3">
+            <button type="button" disabled={paginaActual === 1} onClick={() => setPagina(paginaActual - 1)} className="min-h-11 disabled:opacity-40">Anterior</button>
+            <span>{paginaActual} de {Math.ceil(filtered.length / 10)}</span>
+            <button type="button" disabled={paginaActual * 10 >= filtered.length} onClick={() => setPagina(paginaActual + 1)} className="min-h-11 disabled:opacity-40">Siguiente</button>
+          </div>}
+        </div>}
       </div>
-      {modal && !soloConsulta && <ProductoModal isOpen mode={modal.mode} initialData={modal.producto} idTienda={idTienda} onClose={() => setModal(null)} onSave={guardarProducto} />}
+      {modal && (!soloConsulta || modal.mode === 'detalle') && <ProductoModal isOpen mode={modal.mode} initialData={modal.producto} idTienda={idTienda} onClose={() => setModal(null)} onSave={guardarProducto} />}
     </div>
   );
 };

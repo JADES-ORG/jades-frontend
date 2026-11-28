@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
-import { registrarTienda } from '../../api/tiendas';
+import { listarAdministradoresNegocio, registrarTienda } from '../../api/tiendas';
 import { obtenerMensajeError } from '../../api/errores';
-import type { TiendaRegistradaResponse } from '../../types/tiendas';
+import type { AdministradorTiendaResponse, TiendaRegistradaResponse } from '../../types/tiendas';
 
 interface RegistrarTiendaPageProps {
   onCancel: () => void;
@@ -25,6 +25,21 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
   const [adminCorreo, setAdminCorreo] = useState('');
   const [adminContrasena, setAdminContrasena] = useState('');
   const [adminTelefono, setAdminTelefono] = useState('');
+  const [existente, setExistente] = useState(false);
+  const [idAdministrador, setIdAdministrador] = useState('');
+  const [lista, setLista] = useState<{ datos: AdministradorTiendaResponse[]; error: string } | null>(null);
+  const [intento, setIntento] = useState(0);
+
+  useEffect(() => {
+    if (!existente) return;
+    const controller = new AbortController();
+    listarAdministradoresNegocio(controller.signal)
+      .then(datos => { if (!controller.signal.aborted) setLista({ datos, error: '' }); })
+      .catch((causa: unknown) => {
+        if (!controller.signal.aborted) setLista({ datos: [], error: obtenerMensajeError(causa) });
+      });
+    return () => controller.abort();
+  }, [existente, intento]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +48,13 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
     e.preventDefault();
     if (isLoading) return;
     setError(null);
-    if (!nombreComercial.trim() || !razonSocial.trim() || !direccion.trim() || !adminNombre.trim()
-        || !/^\d{11}$/.test(documento.trim()) || adminContrasena.length < 12
-        || new TextEncoder().encode(adminContrasena).length > 72) {
-      setError('Completa los campos obligatorios, el documento de 11 dígitos y una contraseña de 12 a 72 bytes (máximo).');
+    if (!nombreComercial.trim() || !razonSocial.trim() || !direccion.trim() || !/^\d{11}$/.test(documento.trim())) {
+      setError('Completa los datos obligatorios de la tienda y su documento de 11 dígitos.');
+      return;
+    }
+    if (existente ? !lista?.datos.some(admin => admin.idUsuario === Number(idAdministrador))
+      : !adminNombre.trim() || adminContrasena.length < 12 || new TextEncoder().encode(adminContrasena).length > 72) {
+      setError(existente ? 'Selecciona un administrador existente.' : 'Completa los datos del administrador. La contraseña requiere 12 caracteres y un máximo de 72 bytes.');
       return;
     }
     setIsLoading(true);
@@ -49,12 +67,12 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
         direccion: direccion.trim(),
         telefonoTienda: telefono.trim() || null,
         correoTienda: correo.trim() || null,
-        administrador: {
+        ...(existente ? { idAdministradorExistente: Number(idAdministrador) } : { administrador: {
           nombreUsuario: adminNombre.trim(),
           correoUsuario: adminCorreo.trim(),
           telefonoUsuario: adminTelefono.trim() || null,
           contrasena: adminContrasena,
-        },
+        } }),
       });
       setAdminContrasena('');
       onRegisterSuccess(nueva);
@@ -215,6 +233,21 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
               ADMINISTRADOR DEL NEGOCIO
             </p>
 
+            <div className="mb-4 flex flex-wrap gap-4 text-sm">
+              <label><input type="radio" name="tipoAdmin" checked={!existente} onChange={() => setExistente(false)} /> Crear administrador</label>
+              <label><input type="radio" name="tipoAdmin" checked={existente} onChange={() => { setLista(null); setExistente(true); }} /> Usar administrador existente</label>
+            </div>
+            {existente ? (
+              <label className="grid max-w-md gap-2 text-sm font-medium">
+                Administrador de negocio
+                <select required disabled={!lista || !!lista.error} value={idAdministrador} onChange={e => setIdAdministrador(e.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3">
+                  <option value="">{lista ? 'Selecciona un administrador' : 'Cargando administradores…'}</option>
+                  {lista?.datos.map(admin => <option value={admin.idUsuario} key={admin.idUsuario}>{admin.nombreUsuario} · {admin.correoUsuario}</option>)}
+                </select>
+                {lista?.error && <span role="alert" className="text-red-700">{lista.error} <button type="button" className="font-semibold underline" onClick={() => { setLista(null); setIntento(n => n + 1); }}>Reintentar</button></span>}
+                {lista && !lista.error && !lista.datos.length && <span>No hay administradores activos disponibles.</span>}
+              </label>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -279,6 +312,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <p className="text-[10px] text-slate-400 mt-1.5">Contacto del responsable de la cuenta.</p>
               </div>
             </div>
+            )}
           </div>
 
           {/* Banner de Info */}

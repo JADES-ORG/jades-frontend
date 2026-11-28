@@ -5,7 +5,6 @@ import {
   PlusCircle,
   ReceiptText,
   Search,
-  Bell,
   LogOut,
 } from 'lucide-react';
 
@@ -31,7 +30,7 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
       {/* SIDEBAR IZQUIERDO */}
-      <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0">
+      <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
         <div>
           {/* Logo JADES */}
           <div className="p-6 border-b border-white/10 flex items-center space-x-3">
@@ -134,19 +133,8 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
       {/* CONTENEDOR PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Barra Superior Header */}
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-800 leading-tight">
-              {currentTab === 'resumen' && 'Administración'}
-              {currentTab === 'tiendas' && 'Tiendas'}
-              {currentTab === 'registrar' && 'Registrar tienda'}
-            </h2>
-            <p className="text-xs text-slate-400 font-normal">
-              {currentTab === 'resumen' && 'Vista general del sistema'}
-              {currentTab === 'tiendas' && 'Gestión de tiendas'}
-              {currentTab === 'registrar' && 'Nueva cuenta independiente'}
-            </p>
-          </div>
+        <header className="h-16 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold text-slate-700">Administrador del sistema</span>
 
           <div className="flex items-center space-x-3">
             {/* Buscador rápido */}
@@ -161,11 +149,6 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
                 className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
               />
             </div>
-
-            {/* Campana de Notificaciones */}
-            <button className="p-2 text-slate-400 hover:text-slate-600 transition cursor-pointer rounded-lg hover:bg-slate-50">
-              <Bell className="w-4 h-4" />
-            </button>
 
             {/* Avatar AS */}
             <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700">

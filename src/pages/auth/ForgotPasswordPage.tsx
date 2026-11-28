@@ -1,29 +1,35 @@
 import React, { useState } from 'react';
 import { AuthLayout } from '../../layouts/AuthLayout';
+import { solicitarRecuperacion, type CodigoRecuperacionResponse } from '../../api/autenticacion';
+import { obtenerMensajeError } from '../../api/errores';
 
 interface ForgotPasswordPageProps {
-  onCodeSent?: (email: string) => void;
-  onBackToLogin?: () => void;
+  onCodeSent: (email: string, respuesta: CodigoRecuperacionResponse) => void;
+  onBackToLogin: () => void;
 }
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
   onCodeSent,
   onBackToLogin,
 }) => {
-  const [email, setEmail] = useState('luis@ejemplo.com');
+  const [email, setEmail] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (isLoading || !email.trim()) return;
+    setErrorMsg(null);
     setIsLoading(true);
-
-    setTimeout(() => {
+    try {
+      const correo = email.trim();
+      const respuesta = await solicitarRecuperacion(correo);
+      onCodeSent(correo, respuesta);
+    } catch (error) {
+      setErrorMsg(obtenerMensajeError(error));
+    } finally {
       setIsLoading(false);
-      if (onCodeSent) {
-        onCodeSent(email);
-      }
-    }, 400);
+    }
   };
 
   return (
@@ -34,8 +40,10 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
         </h2>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
-          Te enviaremos un código para verificar tu cuenta.
+          Generaremos un código para recuperar tu cuenta en el modo demostración.
         </p>
+
+        {errorMsg && <p role="alert" className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">{errorMsg}</p>}
 
         <form onSubmit={handleSubmit} className="mt-8">
           <div>
@@ -48,6 +56,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
             <input
               id="recovery-email"
               type="email"
+              autoComplete="email"
+              maxLength={150}
+              disabled={isLoading}
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -72,6 +83,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
           <button
             type="button"
             onClick={onBackToLogin}
+            disabled={isLoading}
             className="text-sm font-semibold text-[#139a6c] hover:text-[#0f825b] hover:underline cursor-pointer transition"
           >
             Volver al inicio de sesión

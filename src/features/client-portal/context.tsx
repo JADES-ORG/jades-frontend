@@ -6,7 +6,7 @@ import type { CuentaCorrienteResponse } from "../../types/finanzas";
 
 import { CuentaClienteContext as Context } from "./state";
 
-export function CuentaClienteProvider({ children }: { children: ReactNode }) {
+export function CuentaClienteProvider({ idTienda, children }: { idTienda: number; children: ReactNode }) {
   const [cuenta, setCuenta] = useState<CuentaCorrienteResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +18,9 @@ export function CuentaClienteProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    consultarMiCuenta(controller.signal)
+    consultarMiCuenta(idTienda, controller.signal)
       .then((data) => {
+        if (data.idTienda !== idTienda) throw new Error('La cuenta recibida no corresponde al establecimiento seleccionado.');
         if (!controller.signal.aborted) setCuenta(data);
       })
       .catch((error) => {
@@ -32,7 +33,7 @@ export function CuentaClienteProvider({ children }: { children: ReactNode }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [revision]);
+  }, [idTienda, revision]);
   return (
     <Context.Provider value={{ cuenta, loading, error, recargar }}>
       {children}

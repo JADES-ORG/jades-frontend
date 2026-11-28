@@ -4,6 +4,8 @@ export interface ProductoResponse {
   descripcion: string | null;
   precioContado: number;
   precioCredito: number;
+  precioContadoUsd: number | null;
+  precioCreditoUsd: number | null;
   tipoProducto: string;
   proveedor: string | null;
   marca: string | null;
@@ -18,6 +20,8 @@ export interface ProductoRequest {
   descripcion: string | null;
   precioContado: number;
   precioCredito: number;
+  precioContadoUsd: number | null;
+  precioCreditoUsd: number | null;
   tipoProducto: 'PRODUCTO' | 'SERVICIO';
   proveedor: string | null;
   marca: string | null;

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ActualizarTiendaRequest, BajaTiendaResponse, ConfiguracionTiendaRequest, RegistrarTiendaRequest, TiendaDetalleResponse, TiendaRegistradaResponse, TiendaResumenResponse } from '../types/tiendas';
+import type { ActualizarTiendaRequest, AdministradorTiendaResponse, BajaTiendaResponse, ConfiguracionTiendaRequest, RegistrarTiendaRequest, TiendaDetalleResponse, TiendaRegistradaResponse, TiendaResumenResponse } from '../types/tiendas';
 
 export async function listarMisTiendas(signal?: AbortSignal): Promise<TiendaResumenResponse[]> {
   const { data } = await api.get<TiendaResumenResponse[]>('/tiendas/mis-tiendas', { signal });
@@ -8,6 +8,11 @@ export async function listarMisTiendas(signal?: AbortSignal): Promise<TiendaResu
 
 export async function registrarTienda(solicitud: RegistrarTiendaRequest): Promise<TiendaRegistradaResponse> {
   const { data } = await api.post<TiendaRegistradaResponse>('/tiendas', solicitud);
+  return data;
+}
+
+export async function listarAdministradoresNegocio(signal?: AbortSignal): Promise<AdministradorTiendaResponse[]> {
+  const { data } = await api.get<AdministradorTiendaResponse[]>('/tiendas/administradores', { signal });
   return data;
 }
 
