@@ -13,7 +13,6 @@ import {
   HelpCircle,
   Settings,
   Search,
-  Bell,
   LogOut,
 } from 'lucide-react';
 
@@ -32,6 +31,7 @@ interface StoreAdminLayoutProps {
   idTiendaActiva: number | null;
   cargandoTiendas: boolean;
   correoUsuario: string;
+  nombreUsuario?: string;
   onSelectTienda: (idTienda: number) => void;
   currentTab: StoreTab;
   onSelectTab: (tab: StoreTab) => void;
@@ -46,6 +46,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                                                                     idTiendaActiva,
                                                                     cargandoTiendas,
                                                                     correoUsuario,
+                                                                    nombreUsuario,
                                                                     onSelectTienda,
                                                                     currentTab,
                                                                     onSelectTab,
@@ -57,7 +58,9 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
   const tiendaActiva = tiendas.find(tienda => tienda.idTienda === idTiendaActiva);
   const [selectorAbierto, setSelectorAbierto] = useState(false);
   const botonTiendas = useRef<HTMLButtonElement>(null);
-  const inicialUsuario = correoUsuario.slice(0, 2).toUpperCase();
+  const nombreVisible = nombreUsuario?.trim() || correoUsuario || 'Mi cuenta';
+  const partesNombre = nombreUsuario?.trim().split(/\s+/).filter(Boolean) ?? [];
+  const inicialUsuario = (partesNombre.length > 1 ? partesNombre.slice(0, 2).map(parte => parte[0]).join('') : nombreVisible.slice(0, 2)).toUpperCase();
   return (
       <div className="min-h-screen bg-[#f3f6f5] flex flex-col md:flex-row font-sans">
         {/* SIDEBAR IZQUIERDO */}
@@ -221,12 +224,12 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
 
             <div className="jades-profile flex items-center justify-between">
               <div className="flex min-w-0 items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold text-xs text-white">
+                <div className="size-9 shrink-0 rounded-full bg-[#edf1f6] flex items-center justify-center font-bold text-xs text-jades-navy">
                   {inicialUsuario}
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-white leading-tight">
-                    {correoUsuario}
+                <div className="min-w-0">
+                  <p title={nombreVisible} className="truncate text-xs font-bold text-white leading-tight">
+                    {nombreVisible}
                   </p>
                   <button
                       onClick={onLogout}
@@ -246,7 +249,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
           {/* Header Superior */}
           <header className="jades-topbar h-16 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between gap-3">
             <span className="truncate text-sm font-semibold text-slate-700">{tiendaActiva?.nombreTienda}</span>
-            <div className="flex items-center space-x-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Buscador */}
               <div className="relative hidden sm:block w-[255px]">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -261,14 +264,12 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                 />
               </div>
 
-              {/* Campana */}
-              <button type="button" aria-label="Ver próximos cobros" disabled={!tiendaActiva} onClick={() => onSelectTab('pagos')} className="grid size-11 place-items-center text-slate-600 rounded-lg hover:bg-slate-50">
-                <Bell className="w-4 h-4" />
-              </button>
-
-              {/* Avatar LA */}
-              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700">
-                {inicialUsuario}
+              <div className="flex min-w-0 items-center gap-2.5 border-l border-jades-line pl-3" title={nombreVisible}>
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-[#edf1f6] text-xs font-bold text-jades-navy">{inicialUsuario}</span>
+                <div className="hidden min-w-0 max-w-[200px] sm:block">
+                  <p className="truncate text-[13px] font-semibold leading-tight text-jades-ink">{nombreVisible}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-jades-muted">Administrador del negocio</p>
+                </div>
               </div>
             </div>
           </header>

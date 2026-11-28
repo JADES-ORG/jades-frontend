@@ -423,6 +423,7 @@ export function App() {
               idTiendaActiva={idTiendaActiva}
               cargandoTiendas={cargandoTiendas}
               correoUsuario={currentUser?.correo ?? ''}
+              nombreUsuario={currentUser?.nombre}
               onSelectTienda={(id) => {
                 setIdTiendaActiva(id);
                 setStoreSubView('lista');
