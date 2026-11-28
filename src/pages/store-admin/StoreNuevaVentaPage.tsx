@@ -1,3 +1,4 @@
+import { porcentaje } from '../../features/client-portal/model';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
@@ -59,7 +60,7 @@ function Cronograma({ plan, definitivo = false }: { plan: CronogramaResponse; de
       ['Fin de gracia', plan.fechaFinGracia ?? '—'], ['Días de gracia', plan.diasGracia ?? '—'],
       ['Capital inicial', m(plan.capitalVenta)], ['Interés de gracia', m(plan.interesGracia)],
       ['Capital capitalizado', m(plan.capitalCapitalizado)], ['Cuota base', m(plan.cuotaBase)],
-      ['TEM', plan.tasaEfectivaMensual === null ? '—' : `${(plan.tasaEfectivaMensual * 100).toFixed(6)}%`],
+      ['TEM', porcentaje(plan.tasaEfectivaMensual)],
       ['Intereses de cuotas', m(plan.interesesTotales)], ['Interés total (incluye gracia)', m(plan.totalFinanciamiento - plan.capitalVenta)],
       ['Total a pagar', m(plan.totalFinanciamiento)],
     ]}/>
@@ -91,8 +92,8 @@ function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaRespo
     {s.cronograma && <Cronograma plan={s.cronograma}/>}
     {u && <><h4 className="font-bold text-sm">Simulación de pago único</h4><Datos datos={[
       ['Capital', m(u.capital)], ['Días de financiamiento', u.diasFinanciamiento],
-      ['TED', `${(u.tasaEfectivaDiaria * 100).toFixed(6)}%`],
-      ['Tasa efectiva del periodo', `${(u.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['TED', porcentaje(u.tasaEfectivaDiaria)],
+      ['Tasa efectiva del periodo', porcentaje(u.tasaEfectivaPeriodo)],
       ['Interés compensatorio', m(u.interesCompensatorio)], ['Total sin mora', m(u.totalSinMora)],
     ]}/></>}
     <div className="text-xs text-slate-600 divide-y divide-slate-100">{s.detalles.map(d => <div key={d.idProducto} className="flex justify-between p-2"><span>{d.cantidad} × {d.nombreProducto} · {m(d.precioUnitario)}</span><strong>{m(d.subtotal)}</strong></div>)}</div>
@@ -292,7 +293,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
       ['Capital', dinero(unicoFinal.capital, unicoFinal.moneda)], ['Fecha de pago', unicoFinal.fechaPago],
       ['Días de financiamiento', unicoFinal.diasFinanciamiento], ['Interés compensatorio', dinero(unicoFinal.interesCompensatorio, unicoFinal.moneda)],
-      ['Tasa efectiva del periodo', unicoFinal.tasaEfectivaPeriodo == null ? '—' : `${(unicoFinal.tasaEfectivaPeriodo * 100).toFixed(6)}%`],
+      ['Tasa efectiva del periodo', porcentaje(unicoFinal.tasaEfectivaPeriodo)],
       ['Total sin mora', dinero(unicoFinal.totalSinMora, unicoFinal.moneda)], ['Estado', unicoFinal.estadoCuota],
       ['Fecha de pago efectivo', unicoFinal.fechaPagoEfectivo ?? '—'], ['Total pagado', unicoFinal.totalPagado == null ? '—' : dinero(unicoFinal.totalPagado, unicoFinal.moneda)],
     ]}/></>}
@@ -321,10 +322,10 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       {errorCondicion && <div role="alert" className="text-xs text-red-700 space-y-2"><p>{errorCondicion}</p><button className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
       {condicion && <><Datos datos={[
         ['Límite pactado', m(condicion.limiteCredito)], ['Crédito utilizado', saldoVigente ? m(condicion.creditoUtilizado) : '—'], ['Crédito disponible', saldoVigente ? m(condicion.creditoDisponible) : '—'],
-        ['Tasa de interés', `${condicion.tipoTasa} · ${(condicion.tasaInteres*100).toFixed(6)}% ${condicion.periodoTasa}`],
+        ['Tasa de interés', `${condicion.tipoTasa} · ${porcentaje(condicion.tasaInteres)} ${condicion.periodoTasa}`],
         ['Capitalización', condicion.capitalizacionTasa ?? 'No aplica'],
         ['Plazo máximo', `${condicion.plazoMaximo} cuotas`], ['Corte', `Día ${condicion.diaCorte} · ${condicion.horaCorte}`], ['Pago', `Día ${condicion.diaPago}`],
-        ['Mora', `${condicion.tipoTasaMora} · ${(condicion.tasaMoratoria*100).toFixed(6)}% ${condicion.periodoTasaMora}`],
+        ['Mora', `${condicion.tipoTasaMora} · ${porcentaje(condicion.tasaMoratoria)} ${condicion.periodoTasaMora}`],
         ['Capitalización mora', condicion.capitalizacionMora ?? 'No aplica'], ['Moneda', moneda],
       ]}/>
         {!saldoVigente && <div role="alert" className="space-y-2">
