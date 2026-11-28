@@ -45,6 +45,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
   const [proveedor, setProveedor] = useState('');
   const [marca, setMarca] = useState('');
   const [unidad, setUnidad] = useState('Unidad');
+  const [estado, setEstado] = useState<ProductoData['estado']>('Activo');
 
   const [descripcion, setDescripcion] = useState('');
   const [archivo, setArchivo] = useState<File>();
@@ -67,6 +68,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         setProveedor(initialData.proveedor || '');
         setMarca(initialData.marca || '');
         setUnidad(initialData.unidad || 'Unidad');
+        setEstado(initialData.estado);
         setDescripcion(initialData.descripcion || '');
         setPrecioContado(initialData.precioContado !== undefined ? initialData.precioContado.toFixed(2) : '00.00');
         setPrecioCredito(initialData.precioCredito !== undefined ? initialData.precioCredito.toFixed(2) : '00.00');
@@ -80,6 +82,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
         setProveedor('');
         setMarca('');
         setUnidad('Unidad');
+        setEstado('Activo');
         setDescripcion('');
         setPrecioContado('00.00');
         setPrecioCredito('00.00');
@@ -117,7 +120,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
       setError('Ingresa ambos precios en dólares con hasta dos decimales, o deja ambos campos vacíos.');
       return;
     }
-    if (!archivo && (mode === 'nuevo' || !initialData?.imagenProducto)) {
+    if (!archivo && mode === 'nuevo') {
       setError('Selecciona una imagen PNG o JPEG.');
       return;
     }
@@ -130,7 +133,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
       proveedor: tipo === 'Producto' ? proveedor.trim() : '',
       marca: tipo === 'Producto' ? marca.trim() : '',
       unidad,
-      estado: initialData?.estado ?? 'Activo',
+      estado,
       descripcion,
       precioContado: Number(precioContado),
       precioCredito: Number(precioCredito),
@@ -233,11 +236,12 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
 
               {/* Estado */}
               <div>
-                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-estado">Estado</label><AyudaCampo etiqueta="Estado" texto="Inactivo impide agregarlo a nuevas ventas." /></div>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-estado">Estado</label><AyudaCampo etiqueta="Estado" texto="Los nuevos registros se crean activos. En edición puedes cambiar el estado; un producto inactivo no estará disponible para nuevas ventas." /></div>
                 <div className="relative">
                   <select id="pc-estado"
-                    value={initialData?.estado ?? 'Activo'}
-                    disabled
+                    value={estado}
+                    onChange={e => setEstado(e.target.value as ProductoData['estado'])}
+                    disabled={mode === 'nuevo'}
                     className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary cursor-pointer"
                   >
                     <option value="Activo">Activo</option>

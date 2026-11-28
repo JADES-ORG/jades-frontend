@@ -1,5 +1,5 @@
-import { ConfirmarEstado } from '../../components/shared/ConfirmarEstado';
-import React, { useEffect, useState } from 'react';
+import { Paginacion } from '../../components/shared/Paginacion';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Search, ChevronDown, Package, ExternalLink } from 'lucide-react';
 import { ImagenProducto, ProductoModal, type ProductoData } from '../../components/store-admin/ProductoModal';
 import { actualizarProducto, desactivarProducto, listarProductos, reactivarProducto, registrarProducto } from '../../api/productos';
@@ -36,9 +36,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
   const [modal, setModal] = useState<{ mode: 'nuevo' | 'editar' | 'detalle'; producto?: ProductoData } | null>(null);
-  const [confirmar, setConfirmar] = useState<ProductoData | null>(null);
-  const [errorEstado, setErrorEstado] = useState<string | null>(null);
-  const [desactivando, setDesactivando] = useState<number | null>(null);
+  const inicioListado = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,46 +52,60 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
     return () => controller.abort();
   }, [idTienda, recarga]);
 
-  const guardarProducto = async (producto: ProductoData, archivo?: File) => {
-    if (soloConsulta) throw new Error('La tienda está inactiva.');
+  const prepararSolicitud = (producto: ProductoData): ProductoRequest => {
     const unidad = Object.entries(UNIDADES_PRODUCTO).find(([, etiqueta]) => etiqueta === producto.unidad)?.[0];
     if (!unidad) throw new Error('Unidad de medida no válida.');
-    const solicitud: ProductoRequest = {
-      nombreProducto: producto.nombre,
+    return {
+      nombreProducto: producto.nombre.trim(),
       descripcion: producto.descripcion?.trim() || null,
       precioContado: producto.precioContado,
       precioCredito: producto.precioCredito,
       precioContadoUsd: producto.precioContadoUsd,
       precioCreditoUsd: producto.precioCreditoUsd,
       tipoProducto: producto.tipo === 'Producto' ? 'PRODUCTO' : 'SERVICIO',
-      proveedor: producto.tipo === 'Producto' ? producto.proveedor || null : null,
-      marca: producto.tipo === 'Producto' ? producto.marca || null : null,
+      proveedor: producto.tipo === 'Producto' ? producto.proveedor?.trim() || null : null,
+      marca: producto.tipo === 'Producto' ? producto.marca.trim() || null : null,
       unidadMedida: unidad,
       modalidad: producto.modalidad === 'Pago único' ? 'UNICO' : producto.modalidad === 'En meses' ? 'MENSUAL' : 'AMBAS',
     };
-    if (producto.id === undefined && !archivo) throw new Error('Selecciona una imagen.');
-    const data = producto.id === undefined
-      ? await registrarProducto(idTienda, solicitud, archivo!)
-      : await actualizarProducto(idTienda, producto.id, solicitud, archivo);
-    const guardado = convertirProducto(data);
-    setProductos(prev => prev.some(p => p.id === guardado.id)
-      ? prev.map(p => p.id === guardado.id ? guardado : p)
-      : [guardado, ...prev]);
   };
 
-  const cambiarEstado = async (producto: ProductoData) => {
-    if (soloConsulta || producto.id === undefined || desactivando !== null) return;
-    const activo = producto.estado === 'Activo';
-    setDesactivando(producto.id);
-    setErrorEstado(null);
-    try {
-      const guardado = convertirProducto(await (activo ? desactivarProducto(idTienda, producto.id) : reactivarProducto(idTienda, producto.id)));
-      setProductos(prev => prev.map(p => p.id === guardado.id ? guardado : p));
-      setConfirmar(null);
-    } catch (e) {
-      setErrorEstado(obtenerMensajeError(e));
-    } finally {
-      setDesactivando(null);
+  const guardarProducto = async (producto: ProductoData, archivo?: File) => {
+    if (soloConsulta) throw new Error('La tienda está inactiva.');
+    const solicitud = prepararSolicitud(producto);
+    const reflejar = (guardado: ProductoData) => {
+      setProductos(prev => prev.some(p => p.id === guardado.id)
+        ? prev.map(p => p.id === guardado.id ? guardado : p)
+        : [guardado, ...prev]);
+    };
+
+    if (producto.id === undefined) {
+      if (!archivo) throw new Error('Selecciona una imagen.');
+      reflejar(convertirProducto(await registrarProducto(idTienda, solicitud, archivo)));
+      setPagina(1);
+      return;
+    }
+
+    const anterior = productos.find(p => p.id === producto.id);
+    if (!anterior) throw new Error('No se encontró el producto en el catálogo.');
+    let guardado = anterior;
+    const cambioDatos = !!archivo || JSON.stringify(solicitud) !== JSON.stringify(prepararSolicitud(anterior));
+    if (cambioDatos) {
+      if (!archivo && !anterior.imagenProducto) throw new Error('Selecciona una imagen para guardar los cambios de los datos del producto.');
+      guardado = convertirProducto(await actualizarProducto(idTienda, producto.id, solicitud, archivo));
+      reflejar(guardado);
+    }
+
+    if (guardado.estado !== producto.estado) {
+      try {
+        const respuesta = producto.estado === 'Inactivo'
+          ? await desactivarProducto(idTienda, producto.id)
+          : await reactivarProducto(idTienda, producto.id);
+        reflejar(convertirProducto(respuesta));
+      } catch (e) {
+        if (cambioDatos) throw new Error('Los datos se guardaron, pero no se pudo cambiar el estado. ' + obtenerMensajeError(e));
+        throw e;
+      }
     }
   };
 
@@ -118,7 +130,14 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
     return matchSearch && matchTipo && (estadoFiltro === 'TODOS' || p.estado === estadoFiltro);
   });
 
-  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filtered.length / 10)));
+  const totalPaginas = Math.max(1, Math.ceil(filtered.length / 10));
+  const paginaActual = Math.max(1, Math.min(pagina, totalPaginas));
+
+  const cambiarPagina = (nuevaPagina: number) => {
+    const destino = Math.max(1, Math.min(nuevaPagina, totalPaginas));
+    setPagina(destino);
+    inicioListado.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  };
 
   return (
     <div className="space-y-[18px]">
@@ -171,10 +190,10 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
       </div>
 
       {/* Contenedor de Tabla con Buscador y Filtro */}
-      <div className="bg-white rounded-[13px] border border-jades-line overflow-hidden">
+      <div ref={inicioListado} className="bg-white rounded-[13px] border border-jades-line overflow-hidden scroll-mt-4">
         {/* Buscador y Dropdown */}
         <div className="p-4 sm:p-5 border-b border-jades-line flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full min-w-0 sm:max-w-80">
             <Search className="w-4 h-4 text-jades-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -186,24 +205,34 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
             />
           </div>
 
-          <div className="relative w-full sm:w-auto">
-            <select
-              value={tipoFilter}
-              aria-label="Tipo de producto o servicio"
-              onChange={(e) => { setTipoFilter(e.target.value); setPagina(1); }}
-              className="w-full sm:w-44 appearance-none px-3.5 py-2 pr-9 bg-white border border-jades-line rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-jades-primary cursor-pointer"
-            >
-              <option value="TODOS">Todos los tipos</option>
-              <option value="Producto">Producto</option>
-              <option value="Servicio">Servicio</option>
-            </select>
-            <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="grid w-full grid-cols-2 gap-3 sm:ml-auto sm:w-auto sm:flex sm:items-center">
+            <div className="relative min-w-0 sm:w-44">
+              <select
+                value={tipoFilter}
+                aria-label="Tipo de producto o servicio"
+                onChange={e => { setTipoFilter(e.target.value); setPagina(1); }}
+                className="w-full appearance-none px-3.5 py-2 pr-9 bg-white border border-jades-line rounded-lg text-sm text-jades-ink font-medium focus:outline-none focus:border-jades-primary cursor-pointer"
+              >
+                <option value="TODOS">Todos los tipos</option>
+                <option value="Producto">Producto</option>
+                <option value="Servicio">Servicio</option>
+              </select>
+              <ChevronDown aria-hidden="true" className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            <div className="relative min-w-0 sm:w-44">
+              <select
+                aria-label="Estado del producto o servicio"
+                value={estadoFiltro}
+                onChange={e => { setEstadoFiltro(e.target.value); setPagina(1); }}
+                className="w-full appearance-none px-3.5 py-2 pr-9 bg-white border border-jades-line rounded-lg text-sm text-jades-ink font-medium focus:outline-none focus:border-jades-primary cursor-pointer"
+              >
+                <option value="TODOS">Todos los estados</option>
+                <option value="Activo">Activos</option>
+                <option value="Inactivo">Inactivos</option>
+              </select>
+              <ChevronDown aria-hidden="true" className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
-          <select aria-label="Estado del producto o servicio" value={estadoFiltro} onChange={e => { setEstadoFiltro(e.target.value); setPagina(1); }} className="min-h-11 rounded-lg border border-jades-line bg-white px-3 text-xs">
-            <option value="TODOS">Todos los estados</option>
-            <option value="Activo">Activos</option>
-            <option value="Inactivo">Inactivos</option>
-          </select>
         </div>
 
         {/* Tabla */}
@@ -281,13 +310,12 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                   {/* Botón Editar */}
                   <td className="py-4 px-6 text-right">
                     <button
-                      disabled={desactivando !== null}
+                      type="button"
                       onClick={() => setModal({ mode: soloConsulta ? 'detalle' : 'editar', producto: item })}
                       className="px-4 py-1.5 border border-jades-line text-slate-700 hover:bg-jades-subtle text-xs font-semibold rounded-xl transition cursor-pointer"
                     >
                       {soloConsulta ? 'Ver detalle' : 'Editar'}
                     </button>
-                    {!soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => { setErrorEstado(null); setConfirmar(item); }} className="ml-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{desactivando === item.id ? 'Guardando…' : item.estado === 'Activo' ? 'Desactivar' : 'Reactivar'}</button>}
                   </td>
                 </tr>
               ))}
@@ -302,19 +330,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
             </tbody>
           </table>
         </div>
-        {filtered.length > 0 && <div className="jades-pagination flex flex-wrap items-center justify-between gap-3 border-t border-jades-line px-4 py-2 text-sm">
-          <span>{filtered.length} resultados</span>
-          {filtered.length > 10 && <div className="flex items-center gap-3">
-            <button type="button" disabled={paginaActual === 1} onClick={() => setPagina(paginaActual - 1)} className="min-h-11 disabled:opacity-40">Anterior</button>
-            <span>{paginaActual} de {Math.ceil(filtered.length / 10)}</span>
-            <button type="button" disabled={paginaActual * 10 >= filtered.length} onClick={() => setPagina(paginaActual + 1)} className="min-h-11 disabled:opacity-40">Siguiente</button>
-          </div>}
-        </div>}
+        <Paginacion total={filtered.length} pagina={paginaActual} onCambiar={cambiarPagina} etiqueta="resultados" />
       </div>
-      {confirmar && <ConfirmarEstado titulo={confirmar.estado === 'Activo' ? 'Desactivar producto o servicio' : 'Reactivar producto o servicio'}
-        descripcion={confirmar.estado === 'Activo' ? `${confirmar.nombre} dejará de estar disponible para nuevas ventas.` : `${confirmar.nombre} volverá a estar disponible para ventas.`}
-        accion={confirmar.estado === 'Activo' ? 'Desactivar' : 'Reactivar'} guardando={desactivando !== null}
-        error={errorEstado} onCancelar={() => setConfirmar(null)} onConfirmar={() => void cambiarEstado(confirmar)} />}
       {modal && (!soloConsulta || modal.mode === 'detalle') && <ProductoModal isOpen mode={modal.mode} initialData={modal.producto} idTienda={idTienda} onClose={() => setModal(null)} onSave={guardarProducto} />}
     </div>
   );
