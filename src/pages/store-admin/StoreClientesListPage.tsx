@@ -98,18 +98,18 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
     const visibles = filtrados.slice(inicio, inicio + POR_PAGINA);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-[18px]">
             {/* Encabezado y botón Nuevo cliente */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">Clientes</h2>
-                    <p className="text-xs text-slate-500 mt-1">Gestiona límites, condiciones y deudas de tus clientes.</p>
+                    <h2 className="text-xl font-bold text-jades-ink tracking-tight">Clientes</h2>
+                    <p className="text-xs text-jades-muted mt-1">Gestiona límites, condiciones y deudas de tus clientes.</p>
                 </div>
                 {!soloConsulta && (
                     <button
                         type="button"
                         onClick={onNewClient}
-                        className="inline-flex items-center justify-center space-x-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                        className="inline-flex items-center justify-center space-x-2 bg-jades-primary hover:bg-jades-hover active:bg-jades-active text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
                     >
                         <Plus className="w-4 h-4 stroke-[2.5]" />
                         <span>Nuevo cliente</span>
@@ -118,7 +118,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
             </div>
 
             {/* Resumen */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-y-4 sm:divide-x divide-slate-100">
+            <div className="jades-compact-metrics grid grid-cols-2 gap-3 xl:grid-cols-4">
                 {[
                     { etiqueta: 'Clientes activos', valor: cargando || error ? '—' : String(activos.length), alerta: false },
                     { etiqueta: 'Con crédito activo', valor: metrica(deudas.filter((d) => d.deudaActual > 0).length), alerta: false },
@@ -126,8 +126,8 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                     { etiqueta: 'En mora', valor: metrica(deudas.filter((d) => d.estado === 'En mora').length), alerta: true },
                 ].map((m) => (
                     <div key={m.etiqueta} className="px-2 sm:px-4">
-                        <p className="text-[11px] text-slate-400 font-medium">{m.etiqueta}</p>
-                        <p className={`text-2xl font-bold mt-1 ${m.alerta && m.valor !== '0' && /^\d+$/.test(m.valor) ? 'text-rose-600' : 'text-slate-900'}`}>
+                        <p className="text-[11px] text-jades-muted font-medium">{m.etiqueta}</p>
+                        <p className={`text-2xl font-bold mt-1 ${m.alerta && m.valor !== '0' && /^\d+$/.test(m.valor) ? 'text-rose-600' : 'text-jades-ink'}`}>
                             {m.valor}
                         </p>
                     </div>
@@ -135,10 +135,10 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
             </div>
 
             {/* Tabla con buscador y filtro */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="bg-white rounded-[13px] border border-jades-line overflow-hidden">
                 <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="relative sm:w-72">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Search className="w-4 h-4 text-jades-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                             type="search"
                             aria-label="Buscar por nombre o DNI"
@@ -148,7 +148,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                 setPagina(1);
                             }}
                             placeholder="Buscar por nombre o DNI"
-                            className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+                            className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-jades-line rounded-xl text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary"
                         />
                     </div>
                     <div className="relative sm:w-48">
@@ -159,7 +159,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                 setFiltro(e.target.value as Filtro);
                                 setPagina(1);
                             }}
-                            className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] pr-8 cursor-pointer"
+                            className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-jades-line rounded-xl text-slate-700 font-medium focus:outline-none focus:border-jades-primary pr-8 cursor-pointer"
                         >
                             <option value="TODOS">Todos los estados</option>
                             <option value="Al día">Al día</option>
@@ -168,20 +168,20 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                             <option value="Sin deuda">Sin deuda</option>
                             <option value="INACTIVOS">Inactivos</option>
                         </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                 </div>
 
                 {cargando ? (
-                    <p role="status" className="px-6 py-10 text-center text-sm text-slate-500 border-t border-slate-100">
+                    <p role="status" className="px-6 py-10 text-center text-sm text-jades-muted border-t border-jades-line">
                         Cargando clientes...
                     </p>
                 ) : error ? (
-                    <div role="alert" className="px-6 py-8 text-center text-sm text-red-700 space-y-3 border-t border-slate-100">
+                    <div role="alert" className="px-6 py-8 text-center text-sm text-red-700 space-y-3 border-t border-jades-line">
                         <p>{error}</p>
                         <button
                             type="button"
-                            className="font-semibold text-[#139a6c] cursor-pointer"
+                            className="font-semibold text-jades-primary cursor-pointer"
                             onClick={() => {
                                 setError(null);
                                 setCargando(true);
@@ -194,8 +194,8 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                 ) : (
                     <>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-slate-50/70 border-y border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <table className="w-full text-left text-[13px]">
+                                <thead className="bg-jades-subtle border-y border-jades-line text-[10px] font-bold text-jades-muted uppercase tracking-wider">
                                 <tr>
                                     <th className="py-3 px-6">Cliente</th>
                                     <th className="py-3 px-6">DNI</th>
@@ -207,7 +207,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                     </th>
                                 </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                <tbody className="divide-y divide-jades-line text-slate-700">
                                 {visibles.map((c) => {
                                     const datos = finanzas[c.id];
                                     const deuda = datos?.deuda;
@@ -216,26 +216,26 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                         <tr
                                             key={c.id}
                                             onClick={() => onSelectCliente(c.id)}
-                                            className="hover:bg-slate-50/60 transition cursor-pointer"
+                                            className="hover:bg-jades-subtle transition cursor-pointer"
                                         >
                                             <td className="py-4 px-6">
                                                 <div className="flex items-center space-x-3">
                                                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-700 shrink-0">
                                                         {iniciales(c.nombreCliente)}
                                                     </div>
-                                                    <span className="font-semibold text-slate-900">{c.nombreCliente}</span>
+                                                    <span className="font-semibold text-jades-ink">{c.nombreCliente}</span>
                                                     {c.estadoCliente !== 'ACTIVO' && (
-                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-jades-muted">
                                 Inactivo
                               </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-6 text-slate-600">{c.dniCliente}</td>
-                                            <td className="py-4 px-6 font-bold text-slate-900">
+                                            <td className="py-4 px-6 text-jades-muted">{c.dniCliente}</td>
+                                            <td className="py-4 px-6 font-bold text-jades-ink">
                                                 {!datos ? '…' : deuda ? dinero(deuda.deudaActual, deuda.moneda ?? condicion?.monedaCredito ?? 'PEN') : '—'}
                                             </td>
-                                            <td className="py-4 px-6 text-slate-600">
+                                            <td className="py-4 px-6 text-jades-muted">
                                                 {!datos ? '…' : condicion ? dinero(condicion.creditoDisponible, condicion.monedaCredito) : 'Sin condiciones'}
                                             </td>
                                             <td className="py-4 px-6">{deuda ? <EstadoBadge estado={deuda.estado} /> : datos ? '—' : '…'}</td>
@@ -247,9 +247,9 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                                         e.stopPropagation();
                                                         onSelectCliente(c.id);
                                                     }}
-                                                    className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                                                    className="grid size-10 place-items-center rounded-lg hover:bg-jades-soft cursor-pointer"
                                                 >
-                                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                                    <ChevronRight className="w-4 h-4 text-jades-muted" />
                                                 </button>
                                             </td>
                                         </tr>
@@ -257,7 +257,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                 })}
                                 {visibles.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="py-10 text-center text-slate-400">
+                                        <td colSpan={6} className="py-10 text-center text-jades-muted">
                                             {clientes.length === 0
                                                 ? 'Aún no hay clientes registrados en esta tienda.'
                                                 : 'No se encontraron clientes con esos filtros.'}
@@ -267,7 +267,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                 </tbody>
                             </table>
                         </div>
-                        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                        <div className="jades-pagination flex flex-wrap items-center justify-between gap-3 border-t border-jades-line px-4 py-2">
               <span>
                 {filtrados.length === 0
                     ? 'Mostrando 0 clientes'
@@ -278,7 +278,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                     type="button"
                                     disabled={paginaActual <= 1}
                                     onClick={() => setPagina(paginaActual - 1)}
-                                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-3 py-1.5 border border-jades-line rounded-lg text-jades-muted hover:bg-jades-subtle font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     Anterior
                                 </button>
@@ -286,7 +286,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                     type="button"
                                     disabled={paginaActual >= totalPaginas}
                                     onClick={() => setPagina(paginaActual + 1)}
-                                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-3 py-1.5 border border-jades-line rounded-lg text-jades-muted hover:bg-jades-subtle font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     Siguiente
                                 </button>

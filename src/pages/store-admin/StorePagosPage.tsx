@@ -75,56 +75,56 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
   const visibles = filteredPagos.slice((paginaActual - 1) * 10, paginaActual * 10);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px]">
       {/* Encabezado Principal */}
       <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+        <h2 className="text-xl font-bold text-jades-ink tracking-tight">
           Pagos
         </h2>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-jades-muted mt-1">
           Obligaciones exigibles y próximas de tus clientes.
         </p>
       </div>
 
 
-      {cargando && <p role="status" className="text-sm text-slate-600">Cargando obligaciones…</p>}
+      {cargando && <p role="status" className="text-sm text-jades-muted">Cargando obligaciones…</p>}
       {error && <p role="alert" className="text-sm text-red-700">{error} <button onClick={recargar} className="font-semibold underline">Reintentar</button></p>}
-      {!cargando && !error && <div className="grid gap-4 md:grid-cols-3">
+      {!cargando && !error && <div className="grid gap-[14px] md:grid-cols-3">
         {indicadores.map(({ titulo, icono: Icono, filas }) => (
-          <div key={titulo} className="rounded-xl border border-slate-200 bg-white p-5 flex items-center justify-between">
+          <div key={titulo} className="rounded-xl border border-jades-line bg-white p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600">{titulo}</p>
-              <p className="text-2xl font-bold text-slate-900">{dinero(filas.reduce((suma, fila) => suma + fila.importePendiente, 0), moneda)}</p>
-              <p className="text-sm text-slate-600">{filas.length} obligaciones</p>
+              <p className="text-sm text-jades-muted">{titulo}</p>
+              <p className="text-2xl font-bold text-jades-ink">{dinero(filas.reduce((suma, fila) => suma + fila.importePendiente, 0), moneda)}</p>
+              <p className="text-sm text-jades-muted">{filas.length} obligaciones</p>
             </div>
-            <Icono aria-hidden="true" className="size-5 text-[#139a6c]" />
+            <Icono aria-hidden="true" className="size-5 text-jades-primary" />
           </div>
         ))}
       </div>}
 
       {/* Contenedor de Tabla con Buscador y Filtro */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="flex flex-wrap justify-between gap-3 border-b border-slate-100 p-4">
+      <div className="bg-white rounded-[13px] border border-jades-line overflow-hidden">
+        <div className="flex flex-wrap justify-between gap-3 border-b border-jades-line p-4">
           <div className="flex flex-wrap gap-2" aria-label="Vista de pagos">
             {([['pendientes', 'Obligaciones pendientes'], ['programadas', 'Obligaciones programadas'], ['historial', 'Historial de pagos']] as const).map(([valor, etiqueta]) => (
-              <button key={valor} type="button" aria-pressed={vista === valor} className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm aria-pressed:border-emerald-700 aria-pressed:bg-emerald-50" onClick={() => { setVista(valor); setEstadoFilter('TODOS'); setPagina(1); }}>{etiqueta}</button>
+              <button key={valor} type="button" aria-pressed={vista === valor} className="min-h-11 rounded-lg border border-jades-line px-3 text-sm aria-pressed:border-emerald-700 aria-pressed:bg-emerald-50" onClick={() => { setVista(valor); setEstadoFilter('TODOS'); setPagina(1); }}>{etiqueta}</button>
             ))}
           </div>
-          <select aria-label="Moneda" value={moneda} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm" onChange={e => { setMoneda(e.target.value as Moneda); setPagina(1); }}>
+          <select aria-label="Moneda" value={moneda} className="min-h-11 rounded-lg border border-jades-line bg-white px-3 text-sm" onChange={e => { setMoneda(e.target.value as Moneda); setPagina(1); }}>
             <option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
           </select>
         </div>
         {/* Buscador y Dropdown */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-b border-jades-line flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-jades-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar cliente u obligación"
               value={searchTerm}
               aria-label="Buscar cliente u obligación"
               onChange={(e) => { setSearchTerm(e.target.value); setPagina(1); }}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl min-h-11 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-jades-line rounded-xl min-h-11 text-sm text-slate-700 placeholder-jades-muted focus:outline-none focus:border-jades-primary"
             />
           </div>
 
@@ -133,21 +133,21 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               value={estadoFilter}
               aria-label="Estado de la obligación"
               onChange={(e) => { setEstadoFilter(e.target.value); setPagina(1); }}
-              className="w-full sm:w-48 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl min-h-11 text-sm text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
+              className="w-full sm:w-48 appearance-none px-3.5 py-2 pr-9 bg-white border border-jades-line rounded-xl min-h-11 text-sm text-slate-700 font-medium focus:outline-none focus:border-jades-primary cursor-pointer"
             >
               <option value="TODOS">Todos</option>
               <option value="Pendiente">Pendiente</option>
               <option value="En mora">En mora</option>
               <option value="Por vencer">Por vencer</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>}
         </div>
 
         {/* Tabla */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <table className="w-full text-left text-[13px]">
+            <thead className="bg-jades-subtle border-b border-jades-line text-[10px] font-bold uppercase tracking-wider text-jades-muted">
               <tr>
                 <th className="py-3 px-6">CLIENTE / OBLIGACIÓN</th>
                 <th className="py-3 px-4">{esHistorial ? 'PAGO EFECTIVO' : 'VENCE'}</th>
@@ -159,26 +159,26 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
                 <th className="py-3 px-6 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-jades-line text-slate-700">
               {esHistorial && historial.slice((paginaActual - 1) * 10, paginaActual * 10).map(pago => (
                 <tr key={pago.id}>
                   <td className="px-6 py-4"><strong className="block">{pago.cliente}</strong>{pago.obligacion}</td>
-                  <td className="px-4 py-4">{fecha(pago.fechaPagoEfectivo)} {pago.fechaPagoEfectivo.split('T')[1]}<span className="block text-slate-600">Pactado {fecha(pago.fechaPago)} · {pago.medioPago} · Mora {pago.diasAtraso} d</span></td>
+                  <td className="px-4 py-4">{fecha(pago.fechaPagoEfectivo)} {pago.fechaPagoEfectivo.split('T')[1]}<span className="block text-jades-muted">Pactado {fecha(pago.fechaPago)} · {pago.medioPago} · Mora {pago.diasAtraso} d</span></td>
                   {[pago.capital, pago.interesCompensatorio, pago.mora, pago.totalPagar].map((importe, indice) => <td className="px-4 py-4" key={indice}>{dinero(importe, pago.moneda)}</td>)}
                   <td className="px-4 py-4"><EstadoBadge estado="Pagado" /></td>
-                  <td className="px-6 py-4 text-right"><button type="button" className="min-h-11 rounded-lg border border-slate-200 px-3" onClick={() => setDetalle(pago)}>Ver detalle</button></td>
+                  <td className="px-6 py-4 text-right"><button type="button" className="min-h-11 rounded-lg border border-jades-line px-3" onClick={() => setDetalle(pago)}>Ver detalle</button></td>
                 </tr>
               ))}
               {!esHistorial && visibles.map((item) => (
-                <tr key={item.idCuota} className="hover:bg-slate-50/60 transition">
+                <tr key={item.idCuota} className="hover:bg-jades-subtle transition">
                   {/* Cliente y Obligación */}
                   <td className="py-4 px-6">
-                    <p className="font-bold text-slate-900">{item.cliente}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{item.obligacion}</p>
+                    <p className="break-words font-bold tabular-nums text-jades-ink">{item.cliente}</p>
+                    <p className="text-[11px] text-jades-muted mt-0.5">{item.obligacion}</p>
                   </td>
 
                   {/* Vence */}
-                  <td className="py-4 px-4 text-slate-600 font-normal">
+                  <td className="py-4 px-4 text-jades-muted font-normal">
                     {fecha(item.fechaVencimiento)}
                   </td>
 
@@ -198,7 +198,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
                   </td>
 
                   {/* Total */}
-                  <td className="py-4 px-4 font-bold text-slate-900">
+                  <td className="py-4 px-4 font-bold text-jades-ink">
                     {dinero(item.importePendiente, item.moneda)}
                   </td>
 
@@ -212,17 +212,17 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
                     {item.gestionable ? <button
                       type="button"
                       onClick={() => { setSeleccionada(item); }}
-                      className="min-h-11 whitespace-nowrap px-4 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-50"
+                      className="min-h-11 whitespace-nowrap px-4 border border-jades-line rounded-lg text-sm font-semibold hover:bg-jades-subtle"
                     >
                       Gestionar pago
-                    </button> : <span className="text-slate-600">{item.inicioCobro > hoy.slice(0, 7) ? 'Disponible desde ' + item.inicioCobro : 'Cancela primero la cuota pendiente más antigua'}</span>}
+                    </button> : <span className="text-jades-muted">{item.inicioCobro > hoy.slice(0, 7) ? 'Disponible desde ' + item.inicioCobro : 'Cancela primero la cuota pendiente más antigua'}</span>}
                   </td>
                 </tr>
               ))}
 
               {!cargando && !error && total === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={8} className="py-12 text-center text-jades-muted text-xs">
                     {esHistorial ? 'No se encontraron pagos registrados.' : 'No se encontraron obligaciones.'}
                   </td>
                 </tr>
@@ -255,7 +255,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
                 ['Mora', dinero(liquidado ? pago.mora : pago.moraPagada, pago.moneda)],
                 ['Total cobrado', dinero(liquidado ? pago.totalPagar : pago.totalExigible, pago.moneda)],
                 ['Saldo del crédito', dinero(liquidado ? pago.saldoCapitalRestante : pago.saldoCredito, pago.moneda)],
-              ].map(([titulo, valor]) => <div key={titulo}><dt className="text-slate-600">{titulo}</dt><dd className="font-semibold">{valor}</dd></div>);
+              ].map(([titulo, valor]) => <div key={titulo}><dt className="text-jades-muted">{titulo}</dt><dd className="font-semibold">{valor}</dd></div>);
             })()}
           </dl>
           {credito && <p className="rounded-lg bg-emerald-50 p-3 text-sm">Disponible <strong>{dinero(credito.creditoDisponible, credito.monedaCredito)}</strong> · Utilizado <strong>{dinero(credito.creditoUtilizado, credito.monedaCredito)}</strong></p>}

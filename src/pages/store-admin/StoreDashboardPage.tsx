@@ -52,78 +52,78 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
   });
   const escala = Math.max(1, ...meses.flatMap(mes => [mes.esperado, mes.recibido]));
 
-  return <div className="space-y-6">
+  return <div className="space-y-[18px]">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Inicio</h2>
-        <p className="text-sm text-slate-600">{fecha(hoy)}</p>
+        <h2 className="text-xl font-bold text-jades-ink">Inicio</h2>
+        <p className="text-sm text-jades-muted">{fecha(hoy)}</p>
       </div>
-      {!soloConsulta && <button type="button" onClick={onGoToSales} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#137b57] px-4 text-sm font-semibold text-white hover:bg-[#0f6648]">
+      {!soloConsulta && <button type="button" onClick={onGoToSales} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-jades-primary px-4 text-sm font-semibold text-white hover:bg-jades-hover">
         <Plus aria-hidden="true" className="size-4" /> Registrar venta
       </button>}
     </div>
-    {cargando && <p role="status" className="text-sm text-slate-600">Cargando indicadores…</p>}
+    {cargando && <p role="status" className="text-sm text-jades-muted">Cargando indicadores…</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error} <button className="font-semibold underline" onClick={recargar}>Reintentar</button></p>}
     {!cargando && !error && <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {indicadores.map(({ titulo, icono: Icono, filas }) => <div key={titulo} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="rounded-lg bg-emerald-50 p-3 text-[#137b57]"><Icono aria-hidden="true" className="size-5" /></div>
+      <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
+        {indicadores.map(({ titulo, icono: Icono, filas }) => <div key={titulo} className="jades-dashboard-metric flex min-w-0 items-start gap-3 rounded-xl border border-jades-line bg-white p-5">
+          <div className="rounded-lg bg-emerald-50 p-3 text-jades-primary"><Icono aria-hidden="true" className="size-5" /></div>
           <div>
-            <p className="text-sm font-medium text-slate-600">{titulo}</p>
-            {(['PEN', 'USD'] as const).map(moneda => <p key={moneda} className="mt-1 font-bold text-slate-900">
+            <p className="text-sm font-medium text-jades-muted">{titulo}</p>
+            {(['PEN', 'USD'] as const).map(moneda => <p key={moneda} className="mt-1 break-words text-lg font-bold tabular-nums text-jades-ink">
               {dinero(filas.filter(fila => fila.moneda === moneda).reduce((total, fila) => total + fila.monto, 0), moneda)}
             </p>)}
           </div>
         </div>)}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="grid gap-[18px] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section className="min-w-0 rounded-[13px] border border-jades-line bg-white p-5">
           <div className="flex flex-wrap justify-between gap-3">
-            <div><h3 className="font-bold">Cobros de los últimos seis meses</h3><p className="text-sm text-slate-600">Pagos recibidos y esperados</p></div>
-            <select aria-label="Moneda de cobros" value={monedaGrafico} onChange={e => setMonedaGrafico(e.target.value as Moneda)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm">
+            <div><h3 className="text-[15px] font-bold">Cobros de los últimos seis meses</h3><p className="text-sm text-jades-muted">Pagos recibidos y esperados</p></div>
+            <select aria-label="Moneda de cobros" value={monedaGrafico} onChange={e => setMonedaGrafico(e.target.value as Moneda)} className="min-h-11 rounded-lg border border-jades-line bg-white px-3 text-sm">
               <option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
             </select>
           </div>
-          <ol className="mt-4 grid grid-cols-6 gap-2 border-b border-slate-200 text-center text-xs">
+          <ol className="mt-4 grid grid-cols-6 gap-2 border-b border-jades-line text-center text-xs">
             {meses.map(mes => <li key={mes.periodo}>
-              <div className="flex h-28 items-end justify-center gap-1" role="img" aria-label={`${mes.etiqueta}, esperado ${dinero(mes.esperado, monedaGrafico)}, recibido ${dinero(mes.recibido, monedaGrafico)}`}>
-                <span aria-hidden="true" title={`Esperado ${dinero(mes.esperado, monedaGrafico)}`} className="w-3 rounded-t bg-emerald-200 sm:w-5" style={{ height: `${mes.esperado / escala * 100}%` }} />
-                <span aria-hidden="true" title={`Recibido ${dinero(mes.recibido, monedaGrafico)}`} className="w-3 rounded-t bg-emerald-700 sm:w-5" style={{ height: `${mes.recibido / escala * 100}%` }} />
+              <div className="flex h-40 items-end justify-center gap-1.5" role="img" aria-label={`${mes.etiqueta}, esperado ${dinero(mes.esperado, monedaGrafico)}, recibido ${dinero(mes.recibido, monedaGrafico)}`}>
+                <span aria-hidden="true" title={`Esperado ${dinero(mes.esperado, monedaGrafico)}`} className="w-3 rounded-t bg-[#c9eadd] sm:w-5" style={{ height: `${mes.esperado / escala * 100}%` }} />
+                <span aria-hidden="true" title={`Recibido ${dinero(mes.recibido, monedaGrafico)}`} className="w-3 rounded-t bg-jades-primary sm:w-5" style={{ height: `${mes.recibido / escala * 100}%` }} />
               </div>
               <p className="py-2 capitalize">{mes.etiqueta}</p>
             </li>)}
           </ol>
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-emerald-200" /> Esperado</span>
-            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-emerald-700" /> Recibido</span>
+            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-[#c9eadd]" /> Esperado</span>
+            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-jades-primary" /> Recibido</span>
             <AyudaCampo etiqueta="el resumen de cobros" texto="Esperado agrupa las cuotas por vencimiento. Recibido agrupa los pagos registrados por fecha efectiva." />
           </div>
         </section>
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="rounded-xl border border-jades-line bg-white p-5">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-bold">Próximos cobros</h3>
-            <button type="button" onClick={onGoToPayments} className="flex items-center gap-1 text-sm font-semibold text-[#137b57]">Ver pagos <ChevronRight className="size-4" aria-hidden="true" /></button>
+            <h3 className="text-[15px] font-bold">Próximos cobros</h3>
+            <button type="button" onClick={onGoToPayments} className="flex items-center gap-1 text-sm font-semibold text-jades-primary">Ver pagos <ChevronRight className="size-4" aria-hidden="true" /></button>
           </div>
-          <ul className="mt-2 divide-y divide-slate-100">
+          <ul className="mt-2 divide-y divide-jades-line">
             {proximos.slice(0, 6).map(o => <li className="flex justify-between gap-3 py-3 text-sm" key={o.idCuota}>
               <span><strong className="block">{o.cliente}</strong>{o.obligacion}</span>
               <span className="text-right"><strong className="block">{dinero(o.importePendiente, o.moneda)}</strong>{fecha(o.fechaVencimiento)}</span>
             </li>)}
           </ul>
-          {!proximos.length && <p className="py-4 text-sm text-slate-600">No hay vencimientos próximos.</p>}
+          {!proximos.length && <p className="py-4 text-sm text-jades-muted">No hay vencimientos próximos.</p>}
         </section>
-        <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
+        <section className="rounded-xl border border-jades-line bg-white p-5 xl:col-span-2">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-bold">Actividad reciente</h3>
-            <button type="button" onClick={onGoToClients} className="flex items-center gap-1 text-sm font-semibold text-[#137b57]">Ver clientes <ChevronRight className="size-4" aria-hidden="true" /></button>
+            <h3 className="text-[15px] font-bold">Actividad reciente</h3>
+            <button type="button" onClick={onGoToClients} className="flex items-center gap-1 text-sm font-semibold text-jades-primary">Ver clientes <ChevronRight className="size-4" aria-hidden="true" /></button>
           </div>
-          <ul className="mt-2 divide-y divide-slate-100">
+          <ul className="mt-2 divide-y divide-jades-line">
             {actividad.map(item => <li className="flex justify-between gap-3 py-3 text-sm" key={item.id}>
               <span><strong className="block">{item.etiqueta}</strong>{item.cliente}</span>
               <span className="text-right"><strong className="block">{item.monto}</strong>{fecha(item.dia)}</span>
             </li>)}
           </ul>
-          {!actividad.length && <p className="py-4 text-sm text-slate-600">No hay movimientos registrados.</p>}
+          {!actividad.length && <p className="py-4 text-sm text-jades-muted">No hay movimientos registrados.</p>}
         </section>
       </div>
     </>}

@@ -25,10 +25,10 @@ interface StoreNuevaVentaPageProps {
   onCancel: () => void;
 }
 
-const principal = 'px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed';
-const secundario = 'px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl disabled:opacity-50';
-const campo = 'w-full min-h-11 px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c]';
-const panel = 'bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-5';
+const principal = 'min-h-11 px-5 py-2.5 bg-jades-primary hover:bg-jades-hover text-white text-sm font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed';
+const secundario = 'min-h-11 px-5 py-2.5 border border-jades-line text-jades-ink hover:bg-jades-subtle text-sm font-semibold rounded-lg disabled:opacity-50';
+const campo = 'w-full min-h-11 px-3 py-2 bg-white border border-jades-line rounded-xl text-sm text-jades-ink focus:outline-none focus:border-jades-primary';
+const panel = 'jades-sale-panel bg-white rounded-[13px] border border-jades-line p-5 sm:p-6 space-y-5';
 
 function dinero(valor: number, moneda: Moneda | string) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: moneda }).format(valor);
@@ -48,8 +48,8 @@ function subtotalCentavos(item: VentaItem, precioCredito: number): number {
 }
 
 function Datos({ datos }: { datos: [string, React.ReactNode][] }) {
-  return <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 border border-slate-200 rounded-2xl p-4 text-xs">
-    {datos.map(([label, valor]) => <div key={label}><dt className="text-slate-500 mb-1">{label}</dt><dd className="font-semibold text-slate-900 break-words">{valor}</dd></div>)}
+  return <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 border border-jades-line rounded-2xl p-4 text-xs">
+    {datos.map(([label, valor]) => <div key={label}><dt className="text-jades-muted mb-1">{label}</dt><dd className="font-semibold text-jades-ink break-words">{valor}</dd></div>)}
   </dl>;
 }
 
@@ -71,7 +71,7 @@ function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaRespo
       ['Tasa efectiva del periodo', porcentaje(u.tasaEfectivaPeriodo)],
       ['Interés compensatorio', m(u.interesCompensatorio)], ['Total sin mora', m(u.totalSinMora)],
     ]}/></>}
-    <div className="text-xs text-slate-600 divide-y divide-slate-100">{s.detalles.map(d => <div key={d.idProducto} className="flex justify-between p-2"><span>{d.cantidad} × {d.nombreProducto} · {m(d.precioUnitario)}</span><strong>{m(d.subtotal)}</strong></div>)}</div>
+    <div className="text-xs text-jades-muted divide-y divide-jades-line">{s.detalles.map(d => <div key={d.idProducto} className="flex justify-between p-2"><span>{d.cantidad} × {d.nombreProducto} · {m(d.precioUnitario)}</span><strong>{m(d.subtotal)}</strong></div>)}</div>
   </section>;
 }
 
@@ -260,7 +260,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   }
 
   if (venta) return <div className={panel}>
-    <div className="flex gap-3 items-center"><CheckCircle className="w-8 h-8 text-[#139a6c]"/><div><h2 className="text-lg font-bold">Venta registrada</h2><p className="text-xs text-slate-500">Venta N.° {venta.id} · {venta.nombreCliente}</p></div></div>
+    <div className="flex gap-3 items-center"><CheckCircle className="w-8 h-8 text-jades-primary"/><div><h2 className="text-lg font-bold">Venta registrada</h2><p className="text-xs text-jades-muted">Venta N.° {venta.id} · {venta.nombreCliente}</p></div></div>
     <Datos datos={[
       ['Capital registrado', dinero(venta.totalVenta, venta.monedaVenta)], ['Modalidad', venta.modalidadPago],
       ['Fecha de venta', venta.fechaVenta], ['Corte asignado', venta.fechaCorteAsignada],
@@ -269,7 +269,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
       ['Crédito disponible actual', saldoFinal ? dinero(saldoFinal.creditoDisponible, saldoFinal.monedaCredito) : '—'],
     ]}/>
     {errorSaldoFinal && <div role="alert" className="text-xs text-red-700"><p>No se pudo consultar el saldo actualizado: {errorSaldoFinal}</p><button className={secundario} onClick={() => { setErrorSaldoFinal(''); setRecargaSaldoFinal(n => n + 1); }}>Reconsultar saldo</button></div>}
-    {cargaFinal && <p role="status" className="text-xs text-slate-500">Consultando obligaciones registradas...</p>}
+    {cargaFinal && <p role="status" className="text-xs text-jades-muted">Consultando obligaciones registradas...</p>}
     {errorFinal && <div role="alert" className="text-sm text-red-700 space-y-2"><p>La venta ya fue registrada. No vuelvas a enviarla. {errorFinal}</p><button className={secundario} onClick={() => { setErrorFinal(''); setCargaFinal(true); setRecargaFinal(n => n + 1); }}>Consultar nuevamente</button></div>}
     {planFinal && <CronogramaCredito plan={planFinal} definitivo/>}
     {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
@@ -288,18 +288,18 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const catalogo = productos.filter(p => (moneda !== 'USD' || p.precioContadoUsd != null) && precioCredito(p) != null && p.nombreProducto.toLocaleLowerCase('es-PE').includes(qp));
   const aviso = (mensaje: string) => <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><Info className="w-4 h-4 shrink-0"/><span>{mensaje}</span></div>;
 
-  return <div className="space-y-6">
-    <div><h2 className="text-xl font-bold text-slate-900">Nueva venta a crédito</h2><p className="text-xs text-slate-500 mt-1">Selecciona un cliente, agrega productos y confirma el financiamiento.</p></div>
-    <div className="flex flex-wrap gap-4 text-xs font-semibold">{['Cliente','Productos / servicios','Modalidad de pago','Confirmación'].map((t,i) => <div key={t} className={`flex gap-2 items-center ${paso === i+1 ? 'text-[#139a6c]' : 'text-slate-500'}`}><span className={`w-6 h-6 rounded-full flex items-center justify-center ${paso === i+1 ? 'bg-[#139a6c] text-white' : 'bg-slate-100'}`}>{i+1}</span>{t}</div>)}</div>
+  return <div className="space-y-[18px]">
+    <div><h2 className="text-xl font-bold text-jades-ink">Nueva venta a crédito</h2><p className="text-xs text-jades-muted mt-1">Selecciona un cliente, agrega productos y confirma el financiamiento.</p></div>
+    <div className="jades-sale-steps grid grid-cols-2 gap-3 rounded-xl border border-jades-line bg-white p-4 text-[13px] font-semibold lg:grid-cols-4">{['Cliente','Productos / servicios','Modalidad de pago','Confirmación'].map((t,i) => <div key={t} className={`flex gap-2 items-center ${paso === i+1 ? 'text-jades-primary' : paso > i+1 ? 'text-jades-ink' : 'text-jades-muted'}`}><span className={`size-7 shrink-0 rounded-full flex items-center justify-center border ${paso >= i+1 ? 'border-jades-primary bg-jades-primary text-white' : 'border-jades-line bg-white'}`}>{i+1}</span>{t}</div>)}</div>
     {carga ? <p role="status" className={panel}>Cargando clientes y catálogo...</p> : errorCarga ? <div role="alert" className={panel}><p className="text-red-700">{errorCarga}</p><button className={secundario} onClick={() => { setErrorCarga(''); setCarga(true); setRecarga(n => n+1); }}>Reintentar</button></div> : <>
     {paso === 1 && <section className={panel}>
       <div className="flex items-baseline gap-1"><h3 className="font-bold">1. Selecciona el cliente</h3><AyudaCampo etiqueta="el cliente" texto="Busca por nombre o DNI. Selecciona un cliente activo con condiciones de crédito." /></div>
-      <div className="relative"><Search className="absolute left-3 top-3 w-4 h-4 text-slate-400"/><input className={campo + ' pl-10'} aria-label="Buscar cliente por nombre o DNI" placeholder="Buscar por nombre o DNI" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)}/></div>
-      <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-        {encontrados.map(c => <button key={c.id} type="button" onClick={() => seleccionarCliente(c)} className={`block w-full p-3 text-left text-xs ${cliente?.id === c.id ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-slate-50'}`}><strong>{c.nombreCliente}</strong><span className="ml-3">DNI {c.dniCliente}</span></button>)}
-        {!encontrados.length && <p className="p-4 text-xs text-slate-500">No se encontraron clientes activos.</p>}
+      <div className="relative"><Search className="absolute left-3 top-3 w-4 h-4 text-jades-muted"/><input className={campo + ' pl-10'} aria-label="Buscar cliente por nombre o DNI" placeholder="Buscar por nombre o DNI" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)}/></div>
+      <div className="max-h-64 overflow-auto border border-jades-line rounded-lg divide-y divide-jades-line">
+        {encontrados.map(c => <button key={c.id} type="button" onClick={() => seleccionarCliente(c)} className={`block min-h-11 w-full p-3 text-left text-sm ${cliente?.id === c.id ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-jades-subtle'}`}><strong>{c.nombreCliente}</strong><span className="ml-3">DNI {c.dniCliente}</span></button>)}
+        {!encontrados.length && <p className="p-4 text-xs text-jades-muted">No se encontraron clientes activos.</p>}
       </div>
-      {cliente && <p className="font-semibold text-sm text-[#139a6c]">{cliente.nombreCliente} · DNI {cliente.dniCliente}</p>}
+      {cliente && <p className="font-semibold text-sm text-jades-primary">{cliente.nombreCliente} · DNI {cliente.dniCliente}</p>}
       {cargaCondicion && <p role="status" className="text-xs">Consultando condiciones crediticias...</p>}
       {errorCondicion && <div role="alert" className="text-xs text-red-700 space-y-2"><p>{errorCondicion}</p><button className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
       {condicion && <><Datos datos={[
@@ -315,20 +315,20 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
           <button type="button" className={secundario} disabled={cargaCondicion} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n + 1); }}>Volver a consultar</button>
         </div>}
       </>}
-      <div className="flex justify-end gap-3"><button className={secundario} onClick={onCancel}>Cancelar</button><button className={principal} disabled={!condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button></div>
+      <div className="flex flex-wrap justify-end gap-3 border-t border-jades-line pt-4"><button className={secundario} onClick={onCancel}>Cancelar</button><button className={principal} disabled={!condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button></div>
     </section>}
     {paso === 2 && <section className={panel}>
       <div className="flex items-baseline gap-1"><h3 className="font-bold">2. Agrega productos o servicios</h3><AyudaCampo etiqueta="los productos y cantidades" texto="Elige artículos con precio de crédito en la moneda del cliente. Usa decimales solo cuando la unidad los admita." /></div>
       <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
-      <div className="max-h-52 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-2 p-3 text-xs hover:bg-slate-50 disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(precioCredito(p)!)}</strong></button>)}
-        {!catalogo.length && <p className="p-4 text-xs text-slate-500">{productos.length ? 'No se encontraron productos disponibles en la moneda del crédito.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
+      <div className="max-h-52 overflow-auto border border-jades-line rounded-xl divide-y divide-jades-line">
+        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-3 p-3 text-sm hover:bg-jades-subtle disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(precioCredito(p)!)}</strong></button>)}
+        {!catalogo.length && <p className="p-4 text-xs text-jades-muted">{productos.length ? 'No se encontraron productos disponibles en la moneda del crédito.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
       </div>
-      <div className="overflow-x-auto border border-slate-200 rounded-xl"><table className="w-full text-left text-xs">
-        <thead className="bg-slate-50 text-slate-500"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(precioCredito(i.producto)!)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 min-h-11 border border-slate-200 rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i, precioCredito(i.producto) ?? 0)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
+      <div className="overflow-x-auto border border-jades-line rounded-xl"><table className="w-full text-left text-[13px]">
+        <thead className="bg-jades-subtle text-jades-muted"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
+        <tbody className="divide-y divide-jades-line">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(precioCredito(i.producto)!)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 min-h-11 border border-jades-line rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i, precioCredito(i.producto) ?? 0)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
       </table></div>
-      <p className="text-sm font-bold">Capital estimado: {validas ? m(capital) : '—'}</p>
+      <p className="rounded-lg bg-jades-soft px-4 py-3 text-right text-base font-bold tabular-nums text-jades-primary">Capital estimado: {validas ? m(capital) : '—'}</p>
       {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}
       {condicion && saldoVigente && capital > condicion.creditoDisponible && aviso('Crédito insuficiente: el capital supera el crédito disponible.')} 
       {condicion && <Datos datos={[[ 'Crédito disponible', m(condicion.creditoDisponible)], ['Disponible tras capital inicial (estimado)', m(Math.max(0, condicion.creditoDisponible - capital))]]}/>}
@@ -337,19 +337,19 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {paso === 3 && <section className={panel}>
       <div className="flex items-baseline gap-1"><h3 className="font-bold">3. Modalidad de pago</h3><AyudaCampo etiqueta="la modalidad y el número de cuotas" texto="Elige una modalidad común a todos los artículos. Para un crédito mensual, el número de cuotas debe respetar el plazo pactado con el cliente." /></div>
       <div className="grid sm:grid-cols-2 gap-3">
-        {([['UNICO','Pago único del ciclo',unicoPermitido],['MENSUAL','Pago en meses · método francés',mensualPermitido]] as const).map(([v,label,permitido]) => <button key={v} disabled={!permitido} onClick={() => { setModalidad(v); invalidaSimulacion(); }} className={`p-4 border-2 rounded-2xl text-sm font-semibold text-left disabled:opacity-40 ${modalidad===v ? 'border-[#139a6c] bg-emerald-50' : 'border-slate-200'}`}>{label}</button>)}
+        {([['UNICO','Pago único del ciclo',unicoPermitido],['MENSUAL','Pago en meses · método francés',mensualPermitido]] as const).map(([v,label,permitido]) => <button key={v} disabled={!permitido} onClick={() => { setModalidad(v); invalidaSimulacion(); }} className={`p-4 border-2 rounded-2xl text-sm font-semibold text-left disabled:opacity-40 ${modalidad===v ? 'border-jades-primary bg-emerald-50' : 'border-jades-line'}`}>{label}</button>)}
       </div>
       {modalidad === 'MENSUAL' && condicion && <>
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="text-xs font-semibold">Número de cuotas<select className={campo} value={cuotas} onChange={e => { setCuotas(Number(e.target.value)); invalidaSimulacion(); }}>{Array.from({length:Math.min(condicion.plazoMaximo,120)},(_,i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></label>
-          <div className="text-xs text-slate-600">El periodo de gracia se calcula automáticamente según las fechas pactadas con el cliente.</div>
+          <div className="text-xs text-jades-muted">El periodo de gracia se calcula automáticamente según las fechas pactadas con el cliente.</div>
         </div>
       </>}
-      {modalidad === 'UNICO' && <p className="text-xs text-slate-600">El cliente realizará un solo pago en la fecha de vencimiento.</p>}
+      {modalidad === 'UNICO' && <p className="text-xs text-jades-muted">El cliente realizará un solo pago en la fecha de vencimiento.</p>}
       <button className={secundario} disabled={simulando || !modalidadValida || !puedeAvanzar} onClick={simular}>{simulando ? 'Calculando...' : 'Simular venta'}</button>
       {simulacion && <ResumenSimulacion simulacion={simulacion}/>}
       {superaLimite && aviso('El capital a reservar supera el crédito disponible del cliente.')}
-      {simulacion && <p className="text-xs text-slate-500">La simulación es referencial. El importe y el saldo se actualizarán al confirmar la venta.</p>}
+      {simulacion && <p className="text-xs text-jades-muted">La simulación es referencial. El importe y el saldo se actualizarán al confirmar la venta.</p>}
       {condicion && <Datos datos={[[ 'Crédito disponible', m(condicion.creditoDisponible)], ['Capital a reservar', reserva === undefined ? 'Simula primero' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>}
       {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
       <div className="flex justify-end gap-3"><button className={secundario} onClick={() => { invalidaSimulacion(); setPaso(2); }}>Atrás</button><button className={principal} disabled={!listo || simulando} onClick={() => setPaso(4)}>Continuar</button></div>
@@ -357,7 +357,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {paso === 4 && <section className={panel}>
       <h3 className="font-bold">4. Revisa y confirma la venta</h3>
       <Datos datos={[[ 'Cliente', cliente?.nombreCliente], ['DNI', cliente?.dniCliente], ['Modalidad', modalidad], ['Cuotas', modalidad === 'UNICO' ? 1 : cuotas], ['Capital cotizado', simulacion ? dinero(simulacion.capitalVenta, simulacion.moneda) : '—'], ['Total preliminar', simulacion ? dinero(simulacion.totalPagar, simulacion.moneda) : '—'], ['Crédito disponible', condicion ? m(condicion.creditoDisponible) : '—'], ['Capital a reservar', reserva === undefined ? '—' : m(reserva)], ['Disponible posterior estimado', restante === null ? '—' : m(restante)]]}/>
-      <div className="divide-y divide-slate-100 text-xs">{simulacion?.detalles.map(i => <div key={i.idProducto} className="flex justify-between p-2"><span>{i.cantidad} × {i.nombreProducto}</span><strong>{dinero(i.subtotal, simulacion.moneda)}</strong></div>)}</div>
+      <div className="divide-y divide-jades-line text-xs">{simulacion?.detalles.map(i => <div key={i.idProducto} className="flex justify-between p-2"><span>{i.cantidad} × {i.nombreProducto}</span><strong>{dinero(i.subtotal, simulacion.moneda)}</strong></div>)}</div>
       {simulacion && <ResumenSimulacion simulacion={simulacion}/>}
       <button className={secundario} disabled={actualizandoSaldo || registrando} onClick={actualizarSaldo}>{actualizandoSaldo ? 'Consultando saldo...' : 'Actualizar crédito disponible'}</button>
       {errorSaldo && <p role="alert" className="text-xs text-red-700">{errorSaldo}</p>}

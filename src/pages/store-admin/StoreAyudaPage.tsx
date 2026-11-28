@@ -52,25 +52,25 @@ export const StoreAyudaPage: React.FC<StoreAyudaPageProps> = ({ onNavigateTab })
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px]">
       {/* Subtítulo */}
-      <p className="text-xs text-slate-500 font-normal">
+      <p className="text-xs text-jades-muted font-normal">
         Guía rápida para gestionar clientes, ventas, pagos y cobranzas en JADES.
       </p>
 
       {/* Banner Verde Suave */}
-      <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-2xl p-5 text-left">
-        <h3 className="text-xs font-bold text-slate-900">
+      <div className="bg-jades-soft border border-jades-line rounded-2xl p-5 text-left">
+        <h3 className="text-xs font-bold text-jades-ink">
           Empieza por el módulo que necesitas
         </h3>
-        <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+        <p className="text-xs text-jades-muted mt-1 leading-relaxed">
           Cada apartado del menú corresponde a una tarea. Sigue los pasos en orden y revisa los mensajes de validación antes de confirmar una operación.
         </p>
       </div>
 
       {/* Sección: Cómo usar cada módulo */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-900">
+        <h3 className="text-[15px] font-bold text-jades-ink">
           Cómo usar cada módulo
         </h3>
 
@@ -80,16 +80,16 @@ export const StoreAyudaPage: React.FC<StoreAyudaPageProps> = ({ onNavigateTab })
             <div
               key={idx}
               onClick={() => onNavigateTab(item.tab)}
-              className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:border-[#139a6c] hover:shadow-sm transition cursor-pointer flex flex-col justify-between group"
+              className="bg-white rounded-[13px] border border-jades-line p-5 hover:border-jades-primary hover:shadow-sm transition cursor-pointer flex flex-col justify-between group"
             >
               <div>
-                <span className="text-[10px] font-bold text-[#139a6c] tracking-wider uppercase">
+                <span className="text-[10px] font-bold text-jades-primary tracking-wider uppercase">
                   {item.paso}
                 </span>
-                <h4 className="text-sm font-bold text-slate-900 mt-1 group-hover:text-[#139a6c] transition">
+                <h4 className="text-sm font-bold text-jades-ink mt-1 group-hover:text-jades-primary transition">
                   {item.titulo}
                 </h4>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed font-normal">
+                <p className="text-xs text-jades-muted mt-2 leading-relaxed font-normal">
                   {item.descripcion}
                 </p>
               </div>
@@ -99,25 +99,25 @@ export const StoreAyudaPage: React.FC<StoreAyudaPageProps> = ({ onNavigateTab })
       </div>
 
       {/* Tarjeta: Reglas importantes */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-3">
-        <h4 className="text-sm font-bold text-slate-900">
+      <div className="bg-white rounded-[13px] border border-jades-line p-6 shadow-xs space-y-3">
+        <h4 className="text-sm font-bold text-jades-ink">
           Reglas importantes
         </h4>
-        <ul className="space-y-2 text-xs text-slate-600">
+        <ul className="space-y-2 text-xs text-jades-muted">
           <li className="flex items-start">
-            <span className="text-slate-400 mr-2">•</span>
+            <span className="text-jades-muted mr-2">•</span>
             <span>El sistema trabaja con año comercial de 360 días y meses de 30 días.</span>
           </li>
           <li className="flex items-start">
-            <span className="text-slate-400 mr-2">•</span>
+            <span className="text-jades-muted mr-2">•</span>
             <span>Los planes mensuales usan método francés vencido simple ordinario.</span>
           </li>
           <li className="flex items-start">
-            <span className="text-slate-400 mr-2">•</span>
+            <span className="text-jades-muted mr-2">•</span>
             <span>No se confirma una venta si supera el crédito disponible o el plazo máximo pactado.</span>
           </li>
           <li className="flex items-start">
-            <span className="text-slate-400 mr-2">•</span>
+            <span className="text-jades-muted mr-2">•</span>
             <span>Puedes cobrar un pago único antes del vencimiento con el interés que calcule JADES, anticipar la cuota del mes sin reducir su interés pactado o liquidar el crédito completo desde el mes de la primera cuota. Los pagos parciales están restringidos.</span>
           </li>
         </ul>

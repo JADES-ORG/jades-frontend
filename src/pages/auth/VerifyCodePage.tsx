@@ -79,12 +79,12 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
 
   return (
     <AuthLayout>
-      <div inert={mostrarCorreo} className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+      <div inert={mostrarCorreo} className="bg-white rounded-[18px] p-6 sm:p-10 border border-jades-line">
+        <h1 className="text-2xl font-bold text-jades-ink tracking-tight">
           Verifica tu correo
         </h1>
 
-        <p className="text-sm text-slate-500 mt-2 font-normal">
+        <p className="text-sm text-jades-muted mt-2 font-normal">
           Código de recuperación simulado para <span className="font-medium text-slate-700">{emailMasked}</span>.
         </p>
 
@@ -109,10 +109,10 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
               placeholder="0 0 0 0 0"
               required
               disabled={ocupado || mostrarCorreo || restantes === 0}
-              className="w-full px-4 py-3 text-lg font-medium tracking-[0.4em] text-center text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-2 focus:ring-[#139a6c]/20 outline-none transition duration-150"
+              className="w-full px-4 py-3 text-lg font-medium tracking-[0.4em] text-center text-jades-ink bg-white border border-jades-line rounded-[10px] focus:border-jades-primary focus:ring-2 focus:ring-jades-primary/20 outline-none transition duration-150"
               maxLength={5}
             />
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-jades-muted mt-2">
               {restantes > 0 ? `Ingresa los cinco dígitos del código. Vence en ${Math.floor(restantes / 60)}:${String(restantes % 60).padStart(2, "0")}.` : "El código venció. Solicita uno nuevo."}
             </p>
           </div>
@@ -120,7 +120,7 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
           <button
             type="submit"
             disabled={code.length !== 5 || ocupado || mostrarCorreo || restantes === 0}
-            className="w-full mt-6 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3.5 px-4 rounded-xl shadow-md shadow-[#139a6c]/25 transition duration-150 flex items-center justify-center cursor-pointer"
+            className="w-full mt-6 bg-jades-primary hover:bg-jades-hover active:bg-jades-active disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold py-3.5 px-4 rounded-xl  transition duration-150 flex items-center justify-center cursor-pointer"
           >
             {isLoading ? 'Verificando...' : 'Verificar código'}
           </button>
@@ -131,25 +131,25 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
             type="button"
             onClick={() => void handleResend()}
             disabled={ocupado || esperaReenvio > 0 || mostrarCorreo}
-            className="text-sm font-semibold text-[#139a6c] hover:text-[#0f825b] hover:underline cursor-pointer block w-full transition"
+            className="text-sm font-semibold text-jades-primary hover:text-jades-hover hover:underline cursor-pointer block w-full transition"
           >
             {reenviando ? "Generando código..." : esperaReenvio > 0 ? `Reenviar código (${esperaReenvio}s)` : "Reenviar código"}
           </button>
 
           {restantes > 0 && <button type="button" disabled={ocupado || mostrarCorreo} onClick={() => setMostrarCorreo(true)}
-            className="text-sm font-semibold text-[#139a6c] hover:underline block w-full disabled:opacity-50">Ver correo simulado</button>}
+            className="text-sm font-semibold text-jades-primary hover:underline block w-full disabled:opacity-50">Ver correo simulado</button>}
 
           <button
             type="button"
             onClick={onBackToLogin}
             disabled={ocupado || mostrarCorreo}
-            className="text-sm font-semibold text-[#139a6c] hover:text-[#0f825b] hover:underline cursor-pointer block w-full transition"
+            className="text-sm font-semibold text-jades-primary hover:text-jades-hover hover:underline cursor-pointer block w-full transition"
           >
             Volver al inicio de sesión
           </button>
         </div>
 
-        <p className="mt-8 pt-4 border-t border-slate-100 text-[11px] text-slate-400 text-center leading-relaxed">
+        <p className="mt-8 pt-4 border-t border-jades-line text-xs text-jades-muted text-center leading-relaxed">
           Acceso seguro. Tu rol y permisos se cargan automáticamente al ingresar.
         </p>
       </div>

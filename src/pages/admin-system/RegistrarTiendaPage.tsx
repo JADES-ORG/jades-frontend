@@ -85,23 +85,23 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px]">
       <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+        <h2 className="text-xl font-bold text-jades-ink tracking-tight">
           Registrar nueva tienda
         </h2>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-jades-muted mt-1">
           Crea un espacio independiente y asigna a su Administrador del negocio.
         </p>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8">
+      <div className="bg-white rounded-[13px] border border-jades-line p-5 sm:p-6">
         <form onSubmit={handleSubmit} className="space-y-8">
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
           <fieldset disabled={isLoading} className="space-y-8">
           {/* SECCIÓN 1: DATOS DE LA TIENDA */}
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-jades-muted mb-4">
               DATOS DE LA TIENDA
             </p>
 
@@ -115,7 +115,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={nombreComercial}
                   onChange={(e) => setNombreComercial(e.target.value)}
                   placeholder="Bodega San Blas"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -128,7 +128,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={razonSocial}
                   onChange={(e) => setRazonSocial(e.target.value)}
                   placeholder="Luis Alvarez"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -137,7 +137,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                 <select id="rt-tipo-giro-del-negocio"
                   value={giro}
                   onChange={(e) => setGiro(e.target.value)}
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none cursor-pointer"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none cursor-pointer"
                 >
                   <option value="Bodega">Bodega</option>
                   <option value="Panadería">Panadería</option>
@@ -157,7 +157,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
                   placeholder="987 654 321"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -169,7 +169,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={direccion}
                   onChange={(e) => setDireccion(e.target.value)}
                   placeholder="Cusco, Perú"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -181,13 +181,13 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={correo}
                   onChange={(e) => setCorreo(e.target.value)}
                   placeholder="contacto@ejemplo.com"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
               <div>
                 <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-estado">Estado</label><AyudaCampo etiqueta="Estado" texto="Las tiendas nuevas se registran activas." /></div>
-                <input id="rt-estado" type="text" value="Activo" readOnly className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
+                <input id="rt-estado" type="text" value="Activo" readOnly className="w-full px-4 py-3 text-xs bg-jades-subtle border border-jades-line rounded-xl" />
               </div>
 
               <div>
@@ -198,15 +198,15 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={documento}
                   onChange={(e) => setDocumento(e.target.value)}
                   placeholder="Ingresa el documento"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
             </div>
           </div>
 
           {/* SECCIÓN 2: ADMINISTRADOR DEL NEGOCIO */}
-          <div className="pt-6 border-t border-slate-100">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-4">
+          <div className="pt-6 border-t border-jades-line">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-jades-muted mb-4">
               ADMINISTRADOR DEL NEGOCIO
             </p>
 
@@ -217,7 +217,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
             {existente ? (
               <div className="grid max-w-md gap-2 text-sm font-medium">
                 <div className="flex items-baseline gap-1"><label htmlFor="rt-admin-existente">Administrador de negocio</label><AyudaCampo etiqueta="Administrador de negocio" texto="Selecciona un administrador activo que ya tenga una cuenta en JADES." /></div>
-                <select id="rt-admin-existente" required disabled={!lista || !!lista.error} value={idAdministrador} onChange={e => setIdAdministrador(e.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3">
+                <select id="rt-admin-existente" required disabled={!lista || !!lista.error} value={idAdministrador} onChange={e => setIdAdministrador(e.target.value)} className="min-h-11 rounded-lg border border-jades-line bg-white px-3">
                   <option value="">{lista ? 'Selecciona un administrador' : 'Cargando administradores…'}</option>
                   {lista?.datos.map(admin => <option value={admin.idUsuario} key={admin.idUsuario}>{admin.nombreUsuario} · {admin.correoUsuario}</option>)}
                 </select>
@@ -235,7 +235,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={adminNombre}
                   onChange={(e) => setAdminNombre(e.target.value)}
                   placeholder="Luis Alvarez"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -248,7 +248,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={adminCorreo}
                   onChange={(e) => setAdminCorreo(e.target.value)}
                   placeholder="luis@ejemplo.com"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -261,7 +261,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={adminContrasena}
                   onChange={(e) => setAdminContrasena(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-sm text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
 
@@ -273,7 +273,7 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   value={adminTelefono}
                   onChange={(e) => setAdminTelefono(e.target.value)}
                   placeholder="987 654 321"
-                  className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
+                  className="w-full px-4 py-3 text-xs text-jades-ink bg-white border border-jades-line rounded-xl focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none"
                 />
               </div>
             </div>
@@ -281,8 +281,8 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
           </div>
 
           {/* Banner de Info */}
-          <div className="bg-emerald-50/70 border border-emerald-200/60 rounded-2xl p-4 flex items-center space-x-3 text-emerald-800">
-            <Info className="w-5 h-5 text-[#139a6c] shrink-0" />
+          <div className="bg-emerald-50/70 border border-emerald-200/60 rounded-xl p-4 flex items-center space-x-3 text-emerald-800">
+            <Info className="w-5 h-5 text-jades-primary shrink-0" />
             <p className="text-xs font-medium">
               Las credenciales iniciales se entregan únicamente al administrador asignado.
             </p>
@@ -290,19 +290,19 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
 
           </fieldset>
           {/* Footer de Acciones */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
+          <div className="pt-4 border-t border-jades-line flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onCancel}
               disabled={isLoading}
-              className="px-6 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
+              className="px-6 py-2.5 border border-jades-line text-slate-700 hover:bg-jades-subtle text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+              className="px-6 py-2.5 bg-jades-primary hover:bg-jades-hover active:bg-jades-active disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               {isLoading ? 'Registrando...' : 'Registrar tienda'}
             </button>

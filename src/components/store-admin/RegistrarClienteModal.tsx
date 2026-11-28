@@ -117,7 +117,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
       >
         {step === 1 ? (
             <form onSubmit={continuar} noValidate className={cuerpoModal}>
-              <fieldset className="flex flex-wrap gap-4 text-sm">
+              <fieldset className="flex flex-wrap gap-4 rounded-xl border border-jades-line bg-jades-subtle p-4 text-sm">
                 <legend className="mb-2 font-semibold">Cuenta de acceso</legend>
                 <label><input type="radio" name="cuenta-cliente" checked={!vinculacion} onChange={() => { setVinculacion(false); setError(null); }} /> Crear cuenta nueva</label>
                 <AyudaCampo etiqueta="el tipo de cuenta" texto="Crea una cuenta para quien aún no tiene acceso al portal. Si ya tiene cuenta, vincúlala con el mismo correo y DNI." />
@@ -135,7 +135,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
               </NotaInfo>
               <AvisoError mensaje={error} />
               {completado ? (
-                  <div className="pt-2 flex justify-end">
+                  <div className="flex justify-end border-t border-jades-line pt-4">
                     <button type="button" onClick={cerrar} className={botonPrincipalModal}>
                       Cerrar
                     </button>

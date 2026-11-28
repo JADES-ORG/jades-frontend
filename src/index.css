@@ -133,3 +133,54 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.jades-compact-metrics > div {
+  min-width: 0;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-jades-line);
+  border-radius: 12px;
+  background: white;
+  text-align: left;
+}
+.jades-compact-metrics > div > p:first-child {
+  font-size: 13px;
+  color: var(--color-jades-muted);
+}
+.jades-compact-metrics > div > p:nth-child(2) {
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--color-jades-ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.jades-dashboard-metric { min-height: 110px; }
+.jades-dashboard-metric > div { min-width: 0; }
+.jades-dashboard-metric .text-2xl { font-size: 26px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.jades-content .jades-sale-panel h3 { font-size: 16px; line-height: 1.4; color: var(--color-jades-ink); }
+.jades-sale-steps > div { min-width: 0; line-height: 1.4; }
+.jades-sale-steps > div > span { font-variant-numeric: tabular-nums; }
+.jades-finance-grid dt { font-size: 12px; color: var(--color-jades-muted); }
+.jades-finance-grid dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.jades-content table td:has(> button), .jades-dialog table td:has(> button) { white-space: nowrap; }
+.jades-content table :is(th,td).text-right, .jades-dialog table :is(th,td).text-right { font-variant-numeric: tabular-nums; }
+.jades-content table td > button:not(:disabled):hover { border-color: var(--color-jades-primary); }
+.jades-content .jades-pagination button { font-size: 13px; font-weight: 500; }
+.jades-content .jades-pagination button:disabled { cursor: not-allowed; }
+.jades-content :where(input, select, textarea):disabled, .jades-dialog :where(input, select, textarea):disabled { cursor: not-allowed; background-color: var(--color-jades-canvas); }
+.jades-dialog :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) { max-width: 100%; }
+.jades-content :where(input, select, textarea):focus-visible, .jades-dialog :where(input, select, textarea):focus-visible { outline-offset: 1px; }
+.jades-content .bg-jades-primary:not(:disabled):hover, .jades-dialog .bg-jades-primary:not(:disabled):hover { background-color: var(--color-jades-hover); }
+.jades-content button.bg-jades-primary, .jades-dialog button.bg-jades-primary { min-height: 44px; }
+.jades-content table th { white-space: nowrap; }
+@media (max-width: 479px) {
+  .jades-compact-metrics { grid-template-columns: minmax(0,1fr); }
+  .jades-sale-steps { gap: 8px; padding: 12px; }
+  .jades-pagination { justify-content: center; }
+  .jades-dialog { margin-block: 8px; }
+}

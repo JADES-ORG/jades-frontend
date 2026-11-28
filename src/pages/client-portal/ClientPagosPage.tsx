@@ -40,7 +40,7 @@ export function ClientPagosPage() {
           Consulta tus próximos pagos y el historial de obligaciones canceladas.
         </p>
       </div>
-      <div className="client-filters">
+      <div className="client-filters client-panel">
         <label className="client-search"><input aria-label="Buscar obligación" placeholder="Buscar por crédito o venta" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPaginaPendientes(1); setPaginaPagos(1); }} /></label>
         <label className="client-select"><select aria-label="Estado de la obligación" value={estado} onChange={e => { setEstado(e.target.value); setPaginaPendientes(1); }}>
           <option value="todos">Todas las obligaciones</option>
@@ -88,7 +88,7 @@ export function ClientPagosPage() {
                     <td>{dinero(o.capital, o.moneda)}</td>
                     <td>{dinero(o.interesCompensatorio, o.moneda)}</td>
                     <td>{dinero(o.moraPendiente, o.moneda)}</td>
-                    <td>{dinero(o.importePendiente, o.moneda)}</td>
+                    <td><strong>{dinero(o.importePendiente, o.moneda)}</strong></td>
                     <td>
                       <Estado pagos>{estadoObligacion(o)}</Estado>
                     </td>
@@ -143,7 +143,7 @@ export function ClientPagosPage() {
                         <td>{dinero(p.capitalPagado, p.moneda ?? o?.moneda)}</td>
                         <td>{dinero(p.interesPagado, p.moneda ?? o?.moneda)}</td>
                         <td>{dinero(p.moraPagada, p.moneda ?? o?.moneda)}</td>
-                        <td>{dinero(p.totalExigible, p.moneda ?? o?.moneda)}</td>
+                        <td><strong>{dinero(p.totalExigible, p.moneda ?? o?.moneda)}</strong></td>
                         <td>
                           {p.medioPago}
                           {p.detalles?.length > 0 && <details className="mt-2 text-xs">

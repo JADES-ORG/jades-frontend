@@ -60,8 +60,8 @@ interface Datos {
 
 const Dato: React.FC<{ etiqueta: string; children: React.ReactNode }> = ({ etiqueta, children }) => (
     <div className="bg-white px-4 py-3">
-      <p className="text-[11px] text-slate-400">{etiqueta}</p>
-      <div className="font-semibold text-slate-800 text-xs mt-0.5">{children}</div>
+      <p className="text-[11px] text-jades-muted">{etiqueta}</p>
+      <div className="font-semibold text-jades-ink text-xs mt-0.5">{children}</div>
     </div>
 );
 
@@ -71,11 +71,11 @@ const Tarjeta: React.FC<{ titulo: string; subtitulo: string; accion?: React.Reac
                                                                                                                          accion,
                                                                                                                          children,
                                                                                                                        }) => (
-    <section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+    <section className="bg-white rounded-[13px] border border-jades-line overflow-hidden">
       <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">{titulo}</h3>
-          <p className="text-[11px] text-slate-500 mt-0.5">{subtitulo}</p>
+          <h3 className="text-[15px] font-bold text-jades-ink">{titulo}</h3>
+          <p className="text-[11px] text-jades-muted mt-0.5">{subtitulo}</p>
         </div>
         {accion}
       </div>
@@ -84,7 +84,7 @@ const Tarjeta: React.FC<{ titulo: string; subtitulo: string; accion?: React.Reac
 );
 
 const botonSecundario =
-    'px-3.5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white';
+    'px-3.5 py-2 border border-jades-line text-slate-700 hover:bg-jades-subtle text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white';
 
 const esNoEncontrado = (e: unknown) => axios.isAxiosError(e) && e.response?.status === 404;
 
@@ -171,7 +171,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
       <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition cursor-pointer"
+          className="inline-flex items-center text-xs font-medium text-jades-muted hover:text-jades-ink transition cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
         Volver a clientes
@@ -180,13 +180,13 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
 
   if (error) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-[18px]">
           {volver}
           <div role="alert" className="p-5 bg-white rounded-2xl border border-red-200 text-sm text-red-700 space-y-3">
             <p>{error}</p>
             <button
                 type="button"
-                className="font-semibold text-[#139a6c] cursor-pointer"
+                className="font-semibold text-jades-primary cursor-pointer"
                 onClick={() => {
                   setError(null);
                   setRecarga((n) => n + 1);
@@ -201,9 +201,9 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
 
   if (!datos) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-[18px]">
           {volver}
-          <p role="status" className="p-5 bg-white rounded-2xl border border-slate-200 text-sm text-slate-500">
+          <p role="status" className="p-5 bg-white rounded-[13px] border border-jades-line text-sm text-jades-muted">
             Cargando cliente...
           </p>
         </div>
@@ -248,8 +248,8 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
 
   const tablaCreditos = (lista: CompraCuentaCorriente[]) => (
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50/70 border-y border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+        <table className="w-full text-left text-[13px]">
+          <thead className="bg-jades-subtle border-y border-jades-line text-[10px] font-bold text-jades-muted uppercase tracking-wider">
           <tr>
             <th className="py-3 px-5">Operación</th>
             <th className="py-3 px-5">Fecha</th>
@@ -262,7 +262,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
             </th>
           </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-700">
+          <tbody className="divide-y divide-jades-line text-slate-700">
           {lista.map((compra) => {
             const cuotas = cuotasDe(cuenta!, compra.idVenta).sort((a, b) => a.numeroCuota - b.numeroCuota);
             const pagadas = cuotas.filter((o) => o.importePendiente <= 0).length;
@@ -270,17 +270,17 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
             const expandido = abierto?.idVenta === compra.idVenta;
             return (
                 <React.Fragment key={compra.idVenta}>
-                  <tr className="hover:bg-slate-50/60">
+                  <tr className="hover:bg-jades-subtle">
                     <td className="py-4 px-5">
-                      <p className="font-semibold text-slate-900">{codigo(compra)}</p>
-                      {productos(compra.idVenta) && <p className="text-[11px] text-slate-400 mt-0.5">{productos(compra.idVenta)}</p>}
+                      <p className="font-semibold text-jades-ink">{codigo(compra)}</p>
+                      {productos(compra.idVenta) && <p className="text-[11px] text-jades-muted mt-0.5">{productos(compra.idVenta)}</p>}
                     </td>
                     <td className="py-4 px-5">{fecha(compra.fechaCompra)}</td>
                     <td className="py-4 px-5">
                       {compra.modalidadPago === 'UNICO' ? 'Pago único' : `${compra.numeroCuotas} cuotas`}
                     </td>
                     <td className="py-4 px-5">{cuotas.length ? `${pagadas} de ${cuotas.length} pagadas` : 'Sin cronograma'}</td>
-                    <td className="py-4 px-5 font-semibold text-slate-900">{cuotas.length ? dinero(saldo, compra.moneda) : '—'}</td>
+                    <td className="py-4 px-5 font-semibold text-jades-ink">{cuotas.length ? dinero(saldo, compra.moneda) : '—'}</td>
                     <td className="py-4 px-5">
                       <EstadoBadge estado={estadoCredito(cuenta!, compra)} />
                     </td>
@@ -294,16 +294,16 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               className="inline-grid size-11 place-items-center rounded-lg hover:bg-slate-100 cursor-pointer"
                           >
                             {expandido ? (
-                                <ChevronDown className="w-4 h-4 text-slate-500" />
+                                <ChevronDown className="w-4 h-4 text-jades-muted" />
                             ) : (
-                                <ChevronRight className="w-4 h-4 text-slate-400" />
+                                <ChevronRight className="w-4 h-4 text-jades-muted" />
                             )}
                           </button>
                       )}
                     </td>
                   </tr>
                   {expandido && (
-                      <tr className="bg-slate-50/50">
+                      <tr className="bg-jades-subtle/50">
                         <td colSpan={7} className="px-5 py-3">
                           <div className="mb-4">
                             <p className="text-sm font-semibold">Productos y servicios · {dinero(compra.total, compra.moneda)}</p>
@@ -314,7 +314,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                           <div className="mb-4 space-y-3">
                             <p className="text-sm">Total pagado registrado <strong>{dinero(cuenta!.pagos.filter(pago => pago.idVenta === compra.idVenta && pago.moneda === compra.moneda).reduce((total, pago) => total + pago.totalExigible, 0), compra.moneda)}</strong></p>
                             {plan?.idVenta === compra.idVenta ? <CronogramaCredito plan={plan} definitivo /> :
-                              pagoUnico?.idVenta === compra.idVenta ? <dl className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm sm:grid-cols-3" aria-label="Condiciones históricas de pago único">
+                              pagoUnico?.idVenta === compra.idVenta ? <dl className="grid gap-3 rounded-xl border border-jades-line bg-white p-4 text-sm sm:grid-cols-3" aria-label="Condiciones históricas de pago único">
                                 <Dato etiqueta="Corte histórico">{fecha(pagoUnico.fechaCorteAsignada)} {horaCorta(pagoUnico.fechaCorteAsignada?.split('T')[1])}</Dato>
                                 <Dato etiqueta="Pago pactado">{fecha(pagoUnico.fechaPago)}</Dato>
                                 <Dato etiqueta="Tasa efectiva del período">{pagoUnico.tasaEfectivaPeriodo == null ? '—' : porcentajeTasa(pagoUnico.tasaEfectivaPeriodo)}</Dato>
@@ -323,7 +323,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               : <p role="status" className="text-sm">Consultando condiciones históricas…</p>}
                           </div>
                           <table className="w-full text-[11px]">
-                            <thead className="text-slate-400 text-left">
+                            <thead className="text-jades-muted text-left">
                             <tr>
                               <th className="py-1.5 pr-4 font-semibold">Cuota</th>
                               <th className="py-1.5 pr-4 font-semibold">Vencimiento</th>
@@ -336,7 +336,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                             </thead>
                             <tbody>
                             {cuotas.map((o) => (
-                                <tr key={o.idCuota} className="border-t border-slate-100">
+                                <tr key={o.idCuota} className="border-t border-jades-line">
                                   <td className="py-1.5 pr-4">{compra.modalidadPago === 'UNICO' ? 'Pago único' : String(o.numeroCuota).padStart(2, '0')}</td>
                                   <td className="py-1.5 pr-4">{fecha(o.fechaVencimiento)}</td>
                                   <td className="py-1.5 pr-4">{dinero(o.capital, o.moneda)}</td>
@@ -360,7 +360,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
   );
 
   return (
-      <div className="space-y-6">
+      <div className="space-y-[18px]">
         {volver}
 
         {/* Encabezado del cliente */}
@@ -371,10 +371,10 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">{cliente.nombreCliente}</h2>
+                <h2 className="text-xl font-bold text-jades-ink tracking-tight">{cliente.nombreCliente}</h2>
                 <EstadoBadge estado={activo ? 'Activo' : 'Inactivo'} />
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-jades-muted mt-0.5">
                 DNI {cliente.dniCliente}
                 {cliente.correoCliente && ` · ${cliente.correoCliente}`}
                 {cliente.telefonoCliente && ` · ${cliente.telefonoCliente}`}
@@ -394,7 +394,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                     onClick={onNewSale}
                     disabled={!activo || !condicion}
                     title={!activo ? 'El cliente está inactivo.' : !condicion ? 'Registra primero sus condiciones de crédito.' : undefined}
-                    className="inline-flex items-center space-x-1.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center space-x-1.5 bg-jades-primary hover:bg-jades-hover text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Nueva venta a crédito</span>
@@ -408,7 +408,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
           onCancelar={() => setConfirmarEstado(false)} onConfirmar={() => void cambiarEstado()} />}
 
         {/* Resumen financiero */}
-        <div className="bg-[#0e3b2e] rounded-2xl p-6 text-white grid grid-cols-1 md:grid-cols-3 gap-6 md:divide-x divide-white/10 shadow-xs">
+        <div className="bg-[#163f35] rounded-[13px] p-6 min-h-[126px] text-white grid grid-cols-1 md:grid-cols-3 gap-6 md:divide-x divide-white/10 shadow-xs">
           <div>
             <p className="text-xs text-emerald-100/70 font-medium">Deuda actual</p>
             <p className="text-2xl font-bold mt-1">{deuda ? dinero(deuda.deudaActual, moneda) : '—'}</p>
@@ -429,7 +429,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                 aria-valuenow={Math.round(Math.min(100, usoPct))}
                 className="w-full bg-white/90 rounded-full h-1.5 overflow-hidden"
             >
-              <div className="bg-[#139a6c] h-1.5 rounded-full" style={{ width: `${Math.min(100, usoPct)}%` }} />
+              <div className="bg-jades-primary h-1.5 rounded-full" style={{ width: `${Math.min(100, usoPct)}%` }} />
             </div>
             <p className="text-[11px] text-emerald-50 mt-2.5 flex items-center font-medium">
               {condicion ? (
@@ -481,7 +481,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                 {datos.errorCondicion}
               </p>
           ) : condicion ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-100 border-t border-slate-100">
+              <div className="jades-finance-grid grid grid-cols-2 lg:grid-cols-4 gap-px bg-jades-line border-t border-jades-line">
                 <Dato etiqueta="Tipo y valor de tasa">{resumenTasaCompensatoria(condicion)}</Dato>
                 <Dato etiqueta="Moneda">{etiquetaMoneda(condicion.monedaCredito)}</Dato>
                 <Dato etiqueta="Límite máximo">{dinero(condicion.limiteCredito, condicion.monedaCredito)}</Dato>
@@ -498,14 +498,14 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                 </Dato>
               </div>
           ) : (
-              <p className="mx-5 mb-5 text-xs text-slate-500 bg-slate-50 rounded-xl p-4">
+              <p className="mx-5 mb-5 text-xs text-jades-muted bg-jades-subtle rounded-xl p-4">
                 Registra sus condiciones (tasa, límite, plazo y fechas) para poder venderle a crédito.
               </p>
           )}
         </Tarjeta>
 
         {/* Pestañas */}
-        <div role="tablist" aria-label="Información del cliente" className="flex space-x-8 border-b border-slate-200 text-xs font-medium">
+        <div role="tablist" aria-label="Información del cliente" className="flex space-x-8 border-b border-jades-line text-xs font-medium">
           {(
               [
                 ['creditos', 'Créditos y compras'],
@@ -520,7 +520,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                   aria-selected={pestana === id}
                   onClick={() => setPestana(id)}
                   className={`pb-3 -mb-px transition cursor-pointer border-b-2 ${
-                      pestana === id ? 'border-[#139a6c] text-[#139a6c] font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700'
+                      pestana === id ? 'border-jades-primary text-jades-primary font-semibold' : 'border-transparent text-jades-muted hover:text-slate-700'
                   }`}
               >
                 {texto}
@@ -534,7 +534,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                   {datos.errorCuenta}
                 </p>
             ) : (
-                <div className="space-y-6">
+                <div className="space-y-[18px]">
                   <Tarjeta titulo="Créditos activos" subtitulo="Compras pendientes de pago">
                     {comprasActivas.length ? (
                         <>
@@ -542,7 +542,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                           <Paginacion total={comprasActivas.length} pagina={paginaActual(comprasActivas, 'activos')} onCambiar={p => cambiarPagina('activos', p)} etiqueta="créditos activos" />
                         </>
                     ) : (
-                        <p className="px-5 pb-6 text-xs text-slate-400">El cliente no tiene compras pendientes de pago.</p>
+                        <p className="px-5 pb-6 text-xs text-jades-muted">El cliente no tiene compras pendientes de pago.</p>
                     )}
                   </Tarjeta>
                   {comprasCanceladas.length > 0 && (
@@ -564,8 +564,8 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                   {cuenta.pagos.length ? (
                       <>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead className="bg-slate-50/70 border-y border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <table className="w-full text-left text-[13px]">
+                            <thead className="bg-jades-subtle border-y border-jades-line text-[10px] font-bold text-jades-muted uppercase tracking-wider">
                             <tr>
                               <th className="py-3 px-5">Obligación</th>
                               <th className="py-3 px-5">Pago efectivo / pactado</th>
@@ -577,16 +577,16 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               <th className="py-3 px-5">Detalle</th>
                             </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-700">
+                            <tbody className="divide-y divide-jades-line text-slate-700">
                             {paginaDe(historial, 'pagos').map(pago => (
                               <tr key={pago.id}>
                                 <td className="px-5 py-4 font-semibold">{pago.obligacion}</td>
                                 <td className="px-5 py-4">{fecha(pago.fechaPagoEfectivo)} {horaCorta(pago.fechaPagoEfectivo.split('T')[1])}
-                                  <span className="block text-slate-600">Pactado {fecha(pago.fechaPago)} · Mora {pago.diasAtraso} d</span>
+                                  <span className="block text-jades-muted">Pactado {fecha(pago.fechaPago)} · Mora {pago.diasAtraso} d</span>
                                 </td>
                                 {[pago.capital, pago.interesCompensatorio, pago.mora, pago.totalPagar].map((importe, i) => <td key={i} className="whitespace-nowrap px-5 py-4">{dinero(importe, pago.moneda)}</td>)}
                                 <td className="px-5 py-4">{pago.medioPago}</td>
-                                <td className="px-5 py-4"><button type="button" className="min-h-11 whitespace-nowrap rounded-lg border border-slate-200 px-3" onClick={() => setDetallePago(pago)}>Ver detalle</button></td>
+                                <td className="px-5 py-4"><button type="button" className="min-h-11 whitespace-nowrap rounded-lg border border-jades-line px-3" onClick={() => setDetallePago(pago)}>Ver detalle</button></td>
                               </tr>
                             ))}
                             </tbody>
@@ -595,7 +595,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                         <Paginacion total={historial.length} pagina={paginaActual(historial, 'pagos')} onCambiar={p => cambiarPagina('pagos', p)} etiqueta="pagos" />
                       </>
                   ) : (
-                      <p className="px-5 pb-6 text-xs text-slate-400">Aún no hay pagos registrados.</p>
+                      <p className="px-5 pb-6 text-xs text-jades-muted">Aún no hay pagos registrados.</p>
                   )}
                 </Tarjeta>
             ))}
@@ -609,7 +609,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
             >
               {condicion ? (
                   <>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-100 border-y border-slate-100">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-slate-100 border-y border-jades-line">
                       <Dato etiqueta="Tipo de tasa">{etiquetaTipoTasa(condicion.tipoTasa)}</Dato>
                       <Dato etiqueta="Valor de la tasa">{porcentajeTasa(condicion.tasaInteres)}</Dato>
                       <Dato etiqueta="Periodo de referencia">{etiquetaPeriodo(condicion.periodoTasa)}</Dato>
@@ -637,7 +637,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                     </p>
                   </>
               ) : (
-                  <p className="px-5 pb-6 text-xs text-slate-400">
+                  <p className="px-5 pb-6 text-xs text-jades-muted">
                     {datos.errorCondicion ?? 'Este cliente aún no tiene condiciones de crédito registradas.'}
                   </p>
               )}

@@ -251,8 +251,8 @@ export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
       {!loading && !error && <section className="client-panel client-detail">
         <h3>Productos y servicios adquiridos</h3>
         {detalleActual?.error && !productosPagados ? <p role="alert">{detalleActual.error}</p>
-          : productos?.length ? <ul className="divide-y divide-slate-100">
-            {productos.map(producto => <li className="flex justify-between gap-3 py-2 text-sm" key={producto.idProducto}>
+          : productos?.length ? <ul className="divide-y divide-jades-line">
+            {productos.map(producto => <li className="flex flex-wrap justify-between gap-3 py-3 text-sm tabular-nums" key={producto.idProducto}>
               <span>{producto.cantidad} × {producto.nombreProducto}</span><strong>{dinero(producto.subtotal, compra.moneda)}</strong>
             </li>)}
           </ul> : <p>{ciclo && !detalleActual ? 'Consultando detalle…' : 'Esta compra no tiene un detalle disponible en el corte.'}</p>}

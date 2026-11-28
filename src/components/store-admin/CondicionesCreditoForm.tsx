@@ -12,7 +12,7 @@ import {
 import type { PeriodoTasa } from '../../types/clientes';
 
 export const inputClase =
-    'w-full min-h-11 px-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl placeholder-slate-400 focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none disabled:bg-white disabled:text-slate-400 disabled:cursor-not-allowed';
+    'w-full min-h-11 px-4 py-2 text-sm text-jades-ink bg-white border border-jades-line rounded-xl placeholder-jades-muted focus:border-jades-primary focus:ring-1 focus:ring-jades-primary outline-none disabled:bg-white disabled:text-jades-muted disabled:cursor-not-allowed';
 
 interface CampoProps {
     id: string;
@@ -24,7 +24,7 @@ interface CampoProps {
 export const Campo: React.FC<CampoProps> = ({ id, label, ayuda, children }) => (
     <div>
         <div className="mb-1 flex items-baseline gap-1">
-            <label htmlFor={id} className="text-sm font-semibold text-slate-800">{label}</label>
+            <label htmlFor={id} className="text-sm font-semibold text-jades-ink">{label}</label>
             <AyudaCampo etiqueta={label} texto={ayuda} />
         </div>
         {children}
@@ -37,12 +37,12 @@ export const Selector: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> =
         <select {...props} className={`${inputClase} appearance-none pr-10 cursor-pointer ${className}`}>
             {children}
         </select>
-        <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
     </div>
 );
 
 export const TituloSeccion: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-4">{children}</p>
+    <p className="text-xs font-bold uppercase tracking-wide text-jades-muted mb-4">{children}</p>
 );
 
 interface CondicionesCreditoFormProps {

@@ -121,14 +121,14 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filtered.length / 10)));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px]">
       {/* Encabezado y botón Nuevo producto o servicio */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h2 className="text-xl font-bold text-jades-ink tracking-tight">
             Productos y servicios
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-jades-muted mt-1">
             Catálogo de conceptos disponibles para ventas a crédito.
           </p>
         </div>
@@ -136,7 +136,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
         <button
           disabled={soloConsulta || cargando || !!error}
           onClick={() => setModal({ mode: 'nuevo' })}
-          className="inline-flex items-center justify-center space-x-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+          className="inline-flex items-center justify-center space-x-2 bg-jades-primary hover:bg-jades-hover active:bg-jades-active text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span>Nuevo producto o servicio</span>
@@ -145,44 +145,44 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
 
       {soloConsulta && <p className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">Tienda inactiva: catálogo disponible solo para consulta.</p>}
       {error && <div role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} <button type="button" onClick={() => setRecarga(n => n + 1)} className="font-semibold underline">Reintentar</button></div>}
-      {cargando && <p role="status" className="text-xs text-slate-500">Cargando productos...</p>}
+      {cargando && <p role="status" className="text-xs text-jades-muted">Cargando productos...</p>}
 
       {/* Tarjeta de Métricas (4 KPIs) */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      <div className="jades-compact-metrics grid grid-cols-2 gap-3 xl:grid-cols-4">
         <div className="p-2 sm:px-4 text-left">
-          <p className="text-[11px] text-slate-400 font-medium">Total registrados</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalRegistrados}</p>
+          <p className="text-[11px] text-jades-muted font-medium">Total registrados</p>
+          <p className="text-2xl font-bold text-jades-ink mt-1">{totalRegistrados}</p>
         </div>
 
         <div className="p-2 sm:px-4 text-left">
-          <p className="text-[11px] text-slate-400 font-medium">Productos</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{countProductos}</p>
+          <p className="text-[11px] text-jades-muted font-medium">Productos</p>
+          <p className="text-2xl font-bold text-jades-ink mt-1">{countProductos}</p>
         </div>
 
         <div className="p-2 sm:px-4 text-left">
-          <p className="text-[11px] text-slate-400 font-medium">Servicios</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{countServicios}</p>
+          <p className="text-[11px] text-jades-muted font-medium">Servicios</p>
+          <p className="text-2xl font-bold text-jades-ink mt-1">{countServicios}</p>
         </div>
 
         <div className="p-2 sm:px-4 text-left">
-          <p className="text-[11px] text-slate-400 font-medium">Inactivos</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{countInactivos}</p>
+          <p className="text-[11px] text-jades-muted font-medium">Inactivos</p>
+          <p className="text-2xl font-bold text-jades-ink mt-1">{countInactivos}</p>
         </div>
       </div>
 
       {/* Contenedor de Tabla con Buscador y Filtro */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-[13px] border border-jades-line overflow-hidden">
         {/* Buscador y Dropdown */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-b border-jades-line flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-jades-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar nombre, marca o proveedor"
               value={searchTerm}
               aria-label="Buscar en el catálogo"
                 onChange={(e) => { setSearchTerm(e.target.value); setPagina(1); }}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-jades-line rounded-xl text-xs text-slate-700 placeholder-jades-muted focus:outline-none focus:border-jades-primary"
             />
           </div>
 
@@ -191,15 +191,15 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
               value={tipoFilter}
               aria-label="Tipo de producto o servicio"
               onChange={(e) => { setTipoFilter(e.target.value); setPagina(1); }}
-              className="w-full sm:w-44 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
+              className="w-full sm:w-44 appearance-none px-3.5 py-2 pr-9 bg-white border border-jades-line rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-jades-primary cursor-pointer"
             >
               <option value="TODOS">Todos los tipos</option>
               <option value="Producto">Producto</option>
               <option value="Servicio">Servicio</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <select aria-label="Estado del producto o servicio" value={estadoFiltro} onChange={e => { setEstadoFiltro(e.target.value); setPagina(1); }} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-xs">
+          <select aria-label="Estado del producto o servicio" value={estadoFiltro} onChange={e => { setEstadoFiltro(e.target.value); setPagina(1); }} className="min-h-11 rounded-lg border border-jades-line bg-white px-3 text-xs">
             <option value="TODOS">Todos los estados</option>
             <option value="Activo">Activos</option>
             <option value="Inactivo">Inactivos</option>
@@ -208,8 +208,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
 
         {/* Tabla */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <table className="w-full text-left text-[13px]">
+            <thead className="bg-jades-subtle border-b border-jades-line text-[10px] font-bold uppercase tracking-wider text-jades-muted">
               <tr>
                 <th className="py-3 px-6">PRODUCTO / SERVICIO</th>
                 <th className="py-3 px-4">TIPO</th>
@@ -222,11 +222,11 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                 <th className="py-3 px-6 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-jades-line text-slate-700">
               {filtered.slice((paginaActual - 1) * 10, paginaActual * 10).map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/60 transition">
+                <tr key={item.id} className="hover:bg-jades-subtle transition">
                   {/* Nombre con icono representativo */}
-                  <td className="py-4 px-6 font-bold text-slate-900">
+                  <td className="py-4 px-6 font-bold text-jades-ink">
                     <div className="flex items-center space-x-3">
                       {item.id !== undefined && item.imagenProducto ? <ImagenProducto idTienda={idTienda} idProducto={item.id} imagen={item.imagenProducto} nombre={item.nombre} className="w-9 h-9 rounded-xl object-cover shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/50">
                         {item.tipo === 'Producto' ? (
@@ -235,33 +235,33 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                           <ExternalLink className="w-4 h-4" />
                         )}
                       </div>}
-                      <span className="font-bold text-slate-900">{item.nombre}</span>
+                      <span className="font-bold text-jades-ink">{item.nombre}</span>
                     </div>
                   </td>
 
                   {/* Tipo */}
-                  <td className="py-4 px-4 text-slate-600 font-normal">{item.tipo}</td>
+                  <td className="py-4 px-4 text-jades-muted font-normal">{item.tipo}</td>
 
                   {/* Marca */}
-                  <td className="py-4 px-4 text-slate-600 font-normal">{item.marca}</td>
+                  <td className="py-4 px-4 text-jades-muted font-normal">{item.marca}</td>
 
                   {/* Unidad */}
-                  <td className="py-4 px-4 text-slate-600 font-normal">{item.unidad}</td>
+                  <td className="py-4 px-4 text-jades-muted font-normal">{item.unidad}</td>
 
                   {/* Contado */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
                     S/ {item.precioContado.toFixed(2)}
-                    {item.precioContadoUsd != null && <span className="block text-slate-600">US$ {item.precioContadoUsd.toFixed(2)}</span>}
+                    {item.precioContadoUsd != null && <span className="block text-jades-muted">US$ {item.precioContadoUsd.toFixed(2)}</span>}
                   </td>
 
                   {/* Crédito */}
                   <td className="py-4 px-4 text-slate-700 font-medium">
                     S/ {item.precioCredito.toFixed(2)}
-                    {item.precioCreditoUsd != null && <span className="block text-slate-600">US$ {item.precioCreditoUsd.toFixed(2)}</span>}
+                    {item.precioCreditoUsd != null && <span className="block text-jades-muted">US$ {item.precioCreditoUsd.toFixed(2)}</span>}
                   </td>
 
                   {/* Modalidad */}
-                  <td className="py-4 px-4 text-slate-600 font-normal">
+                  <td className="py-4 px-4 text-jades-muted font-normal">
                     {item.modalidad === 'Ambas modalidades' ? 'Ambas' : item.modalidad}
                   </td>
 
@@ -271,7 +271,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                         item.estado === 'Activo'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          : 'bg-slate-100 text-jades-muted border border-jades-line'
                       }`}
                     >
                       • {item.estado}
@@ -283,7 +283,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                     <button
                       disabled={desactivando !== null}
                       onClick={() => setModal({ mode: soloConsulta ? 'detalle' : 'editar', producto: item })}
-                      className="px-4 py-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
+                      className="px-4 py-1.5 border border-jades-line text-slate-700 hover:bg-jades-subtle text-xs font-semibold rounded-xl transition cursor-pointer"
                     >
                       {soloConsulta ? 'Ver detalle' : 'Editar'}
                     </button>
@@ -294,7 +294,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
 
               {!cargando && !error && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={9} className="py-12 text-center text-jades-muted text-xs">
                     No se encontraron productos o servicios que coincidan con la búsqueda.
                   </td>
                 </tr>
@@ -302,7 +302,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
             </tbody>
           </table>
         </div>
-        {filtered.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-2 text-sm">
+        {filtered.length > 0 && <div className="jades-pagination flex flex-wrap items-center justify-between gap-3 border-t border-jades-line px-4 py-2 text-sm">
           <span>{filtered.length} resultados</span>
           {filtered.length > 10 && <div className="flex items-center gap-3">
             <button type="button" disabled={paginaActual === 1} onClick={() => setPagina(paginaActual - 1)} className="min-h-11 disabled:opacity-40">Anterior</button>

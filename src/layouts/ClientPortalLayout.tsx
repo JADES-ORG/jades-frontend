@@ -87,9 +87,9 @@ export function ClientPortalLayout({
             <small>{nombre}</small>
           </div>
         </div>
-        <div className="mx-4 my-3 grid gap-1 text-xs font-semibold text-white">
+        <div className="my-3 grid gap-1 text-xs font-semibold text-white">
           <label htmlFor="establecimiento-cliente">Establecimiento</label>
-          <select id="establecimiento-cliente" className="min-h-11 w-full rounded-lg border border-white/20 bg-[#124435] px-2 text-sm text-white" value={idTienda} onChange={e => onSelectTienda(Number(e.target.value))}>
+          <select id="establecimiento-cliente" className="min-h-11 w-full rounded-lg border border-white/20 bg-jades-navy-soft px-2 text-sm text-white" value={idTienda} onChange={e => onSelectTienda(Number(e.target.value))}>
             {tiendas.map(tienda => <option key={tienda.idTienda} value={tienda.idTienda}>
               {tienda.nombreTienda}{tienda.cuotasPendientes > 0 ? ` · ${tienda.cuotasPendientes} pendientes` : ''}{tienda.estadoTienda === 'INACTIVO' ? ' · Inactiva' : ''}
             </option>)}

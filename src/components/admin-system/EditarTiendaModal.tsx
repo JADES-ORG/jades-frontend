@@ -112,38 +112,38 @@ export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, ti
   return (
     <ModalShell titulo="Editar tienda" descripcion="Datos generales, administradores asignados y estado." onClose={onClose} bloqueado={guardando} ancho="normal">
       <form onSubmit={handleSubmit} className={cuerpoModal}>
-          {cargando && <p role="status" className="text-xs text-slate-500">Consultando tienda...</p>}
+          {cargando && <p role="status" className="text-xs text-jades-muted">Consultando tienda...</p>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error} {!consultado && <button type="button" onClick={() => setRecarga(n => n + 1)} className="underline font-semibold">Reintentar</button>}</p>}
           <fieldset disabled={bloqueado || !activa} className="grid grid-cols-1 sm:grid-cols-2 gap-4 disabled:opacity-70">
             {campos.map(({ campo, etiqueta, ayuda, max, required, tipo }) => (
               <div key={campo}>
                 <div className="flex items-baseline gap-1"><label htmlFor={campo} className="text-sm font-semibold">{etiqueta}</label><AyudaCampo etiqueta={etiqueta} texto={ayuda} /></div>
                 <input id={campo} type={tipo || 'text'} required={required} maxLength={max} pattern={campo === 'documentoTienda' ? '[0-9]{11}' : undefined} inputMode={campo === 'documentoTienda' ? 'numeric' : undefined}
-                  value={formulario[campo] ?? ''} onChange={e => cambiar(campo, e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] outline-none" />
+                  value={formulario[campo] ?? ''} onChange={e => cambiar(campo, e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 text-sm bg-white border border-jades-line rounded-xl focus:border-jades-primary outline-none" />
               </div>
             ))}
             <label className="block text-xs font-bold text-slate-700">Estado actual
-              <input readOnly value={activa ? 'Activo' : 'Inactivo'} className="mt-1 w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
+              <input readOnly value={activa ? 'Activo' : 'Inactivo'} className="mt-1 w-full px-3.5 py-2.5 text-xs bg-jades-subtle border border-jades-line rounded-xl" />
             </label>
           </fieldset>
-          <div className="border-t border-slate-100 pt-4 space-y-3">
-            <h4 className="text-[11px] font-bold uppercase text-slate-400">Administradores asignados</h4>
+          <div className="border-t border-jades-line pt-4 space-y-3">
+            <h4 className="text-[11px] font-bold uppercase text-jades-muted">Administradores asignados</h4>
             {detalle.administradores.length ? detalle.administradores.map(a => (
-              <div key={a.idUsuario} className="rounded-xl border border-slate-200 p-3 text-xs">
-                <p className="font-semibold text-slate-800">{a.nombreUsuario} · {a.activo ? 'Activo' : 'Inactivo'}</p>
-                <p className="text-slate-600">{a.correoUsuario} · {a.telefonoUsuario || 'Sin teléfono'}</p>
+              <div key={a.idUsuario} className="rounded-xl border border-jades-line p-3 text-xs">
+                <p className="font-semibold text-jades-ink">{a.nombreUsuario} · {a.activo ? 'Activo' : 'Inactivo'}</p>
+                <p className="text-jades-muted">{a.correoUsuario} · {a.telefonoUsuario || 'Sin teléfono'}</p>
               </div>
-            )) : <p className="text-xs text-slate-500">No hay administradores vinculados.</p>}
-            <p className="text-xs text-slate-500">Las credenciales y los datos de los administradores no se modifican desde este formulario.</p>
+            )) : <p className="text-xs text-jades-muted">No hay administradores vinculados.</p>}
+            <p className="text-xs text-jades-muted">Las credenciales y los datos de los administradores no se modifican desde este formulario.</p>
           </div>
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-3 text-emerald-800">
             <Info className="w-5 h-5 shrink-0" />
             <p className="text-xs">{activa ? 'Al desactivar se impiden nuevas ventas y modificaciones, pero se conservan las consultas y cobranzas.' : 'Los administradores asignados pueden consultar y cobrar deudas existentes. Reactiva la tienda para editar sus datos.'}</p>
           </div>
-          <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-end gap-3">
-            <button type="button" disabled={bloqueado} onClick={() => { setError(null); setConfirmar(true); }} className={`min-h-11 px-5 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-50 ${activa ? 'bg-red-600 hover:bg-red-700' : 'bg-[#139a6c]'}`}>{activa ? 'Desactivar tienda' : 'Reactivar tienda'}</button>
-            <button type="button" disabled={guardando} onClick={onClose} className="min-h-11 px-5 py-2 border border-slate-200 rounded-xl text-sm font-semibold">Cancelar</button>
-            {activa && <button type="submit" disabled={bloqueado} className="min-h-11 px-5 py-2 rounded-xl text-white bg-[#139a6c] text-xs font-semibold disabled:opacity-50">{guardando ? 'Guardando...' : 'Guardar cambios'}</button>}
+          <div className="pt-4 border-t border-jades-line flex flex-wrap justify-end gap-3">
+            <button type="button" disabled={bloqueado} onClick={() => { setError(null); setConfirmar(true); }} className={`min-h-11 px-5 py-2 rounded-xl text-white text-xs font-semibold disabled:opacity-50 ${activa ? 'bg-red-600 hover:bg-red-700' : 'bg-jades-primary'}`}>{activa ? 'Desactivar tienda' : 'Reactivar tienda'}</button>
+            <button type="button" disabled={guardando} onClick={onClose} className="min-h-11 px-5 py-2 border border-jades-line rounded-xl text-sm font-semibold">Cancelar</button>
+            {activa && <button type="submit" disabled={bloqueado} className="min-h-11 px-5 py-2 rounded-xl text-white bg-jades-primary text-xs font-semibold disabled:opacity-50">{guardando ? 'Guardando...' : 'Guardar cambios'}</button>}
           </div>
         </form>
     </ModalShell>

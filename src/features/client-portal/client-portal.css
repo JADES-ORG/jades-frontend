@@ -821,3 +821,41 @@
   width: 42px;
   height: 42px;
 }
+
+.client-portal { color: var(--client-ink); }
+.client-sidebar { color: #fff; }
+.client-identity, .client-profile { background: var(--color-jades-navy-soft); }
+.client-menu-label { font-size: 11px; font-weight: 700; }
+.client-button { min-height: 44px; border-radius: 8px; font-size: 13px !important; }
+.client-button.primary:not(:disabled):hover { background: var(--color-jades-hover); }
+.client-filters { gap: 8px; justify-content: flex-start; }
+.client-filters .client-search, .client-select select { min-height: 44px; border-radius: 8px; }
+.client-filters .client-search input { font-size: 13px; }
+.client-panel-heading h3 { font-size: 16px; color: var(--client-ink); }
+.client-panel-heading p { font-size: 13px; color: var(--client-muted); }
+.client-table { font-variant-numeric: tabular-nums; }
+.client-table th { font-size: 11px; }
+.client-table td { font-size: 13px; }
+.client-table td strong { font-size: 13px; }
+.client-table td small { font-size: 12px; }
+.client-status { font-size: 12px; font-weight: 500; }
+.client-status.success { background: var(--color-jades-soft); color: var(--color-jades-primary); }
+.client-status.warning { background: var(--color-jades-warning-bg); color: var(--color-jades-warning); }
+.client-status.danger { background: var(--color-jades-danger-bg); color: var(--color-jades-danger); }
+.client-stat { min-width: 0; }
+.client-stat > div { min-width: 0; }
+.client-stat h3 { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.client-hero h3 { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.client-detail dd { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.client-pagination { min-height: 60px; padding: 8px 16px; font-size: 13px; }
+.client-pagination .client-button { min-width: 92px; }
+.client-pagination .client-button:disabled { background: var(--color-jades-canvas); }
+@media (min-width: 768px) and (max-width: 1100px) {
+  .client-sidebar { width: 260px; }
+  .client-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .client-topbar { position: sticky; top: 0; z-index: 40; }
+  .client-filters .client-select { min-width: 0; max-width: 100%; }
+  .client-pagination { justify-content: center; }
+}

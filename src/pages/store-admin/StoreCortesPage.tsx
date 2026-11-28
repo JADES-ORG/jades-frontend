@@ -87,7 +87,7 @@ function descargarInforme(ciclo: string, cortes: CorteResponse[], filas: CorteIt
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-const control = 'min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm';
+const control = 'min-h-11 rounded-lg border border-jades-line bg-white px-3 text-sm';
 
 export function StoreCortesPage({ idTienda }: { idTienda: number }) {
   const hoy = hoyLima();
@@ -143,29 +143,29 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
     ['Interés moratorio', 'totalMoraAcumulada'], ['Total pendiente', 'totalExigible'],
   ] as const;
 
-  return <div className="space-y-6">
+  return <div className="space-y-[18px]">
     <header className="flex flex-wrap items-end justify-between gap-4">
-      <div><h2 className="text-xl font-bold text-slate-900">Cortes y cobranzas</h2><p className="text-sm text-slate-600">Compras y obligaciones por ciclo.</p></div>
+      <div><h2 className="text-xl font-bold text-jades-ink">Cortes y cobranzas</h2><p className="text-sm text-jades-muted">Compras y obligaciones por ciclo.</p></div>
       <div className="flex flex-wrap gap-3">
         <label className="grid gap-1 text-xs font-semibold">Mes del corte<input className={control} type="month" value={ciclo} onChange={e => { setCiclo(e.target.value); setPagina(1); }} /></label>
         <label className="grid gap-1 text-xs font-semibold">Fecha de evaluación<input className={control} type="date" value={dia} max={hoy} onChange={e => { setDia(e.target.value); setPagina(1); }} /></label>
       </div>
     </header>
     {(!ciclo || !dia || dia > hoy) && <p role="alert" className="text-sm text-red-700">Selecciona un mes y una fecha de evaluación válida.</p>}
-    {ciclo && dia && dia <= hoy && !resultado && <p role="status" className="text-sm text-slate-600">Consultando el corte…</p>}
+    {ciclo && dia && dia <= hoy && !resultado && <p role="status" className="text-sm text-jades-muted">Consultando el corte…</p>}
     {resultado?.error && <p role="alert" className="text-sm text-red-700">{resultado.error} <button className="font-semibold underline" onClick={() => setIntento(n => n + 1)}>Reintentar</button></p>}
     {resultado && !resultado.error && <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-sm text-slate-600">Clientes incluidos</p><p className="text-xl font-bold">{new Set(cortes.filter(corte => corte.compras.length || corte.obligaciones.length || corte.pagosRegistrados.length).map(corte => corte.idCliente)).size}</p></div>
-        {metricas.map(([titulo, campo]) => <div key={campo} className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-sm text-slate-600">{titulo}</p>
-          {monedas.map(m => <p key={m} className="font-bold text-slate-900">{dinero(cortes.filter(corte => corte.moneda === m).reduce((suma, corte) => suma + corte.resumen[campo], 0), m)}</p>)}
+      <div className="grid gap-[14px] sm:grid-cols-2 2xl:grid-cols-5">
+        <div className="jades-dashboard-metric min-w-0 rounded-xl border border-jades-line bg-white p-4"><p className="text-sm text-jades-muted">Clientes incluidos</p><p className="text-xl font-bold">{new Set(cortes.filter(corte => corte.compras.length || corte.obligaciones.length || corte.pagosRegistrados.length).map(corte => corte.idCliente)).size}</p></div>
+        {metricas.map(([titulo, campo]) => <div key={campo} className="jades-dashboard-metric min-w-0 rounded-xl border border-jades-line bg-white p-4">
+          <p className="text-sm text-jades-muted">{titulo}</p>
+          {monedas.map(m => <p key={m} className="break-words font-bold tabular-nums text-jades-ink">{dinero(cortes.filter(corte => corte.moneda === m).reduce((suma, corte) => suma + corte.resumen[campo], 0), m)}</p>)}
         </div>)}
       </div>
       <p className="text-sm text-slate-700">Cobrado en el listado {monedas.map(m => dinero(cortes.filter(corte => corte.moneda === m).reduce((suma, corte) => suma + corte.resumen.totalPagadoListado, 0), m)).join(' · ')}</p>
       {resultado.errorVentas && <p role="alert" className="text-sm text-red-700">No se pudieron consultar algunas fechas de compra. {resultado.errorVentas} <button className="font-semibold underline" onClick={() => setIntento(n => n + 1)}>Reintentar</button></p>}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4">
+      <div className="overflow-hidden rounded-xl border border-jades-line bg-white">
+        <div className="flex flex-wrap gap-3 border-b border-jades-line p-4">
           <input aria-label="Buscar cliente u obligación" placeholder="Buscar cliente u obligación" className={control} value={busqueda} onChange={e => { setBusqueda(e.target.value); setPagina(1); }} />
           <select aria-label="Contenido del corte" className={control} value={vista} onChange={e => { setVista(e.target.value as typeof vista); setPagina(1); }}>
             <option value="obligaciones">Obligaciones y pagos</option><option value="compras">Compras por cliente</option>
@@ -181,7 +181,7 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
             <Download aria-hidden="true" className="size-4" /> Descargar informe CSV
           </button>
         </div>
-        {vista === 'compras' ? <div className="divide-y divide-slate-100">
+        {vista === 'compras' ? <div className="divide-y divide-jades-line">
           {compras.slice((paginaActual - 1) * 10, paginaActual * 10).map(({ corte, compra }) => (
             <details key={compra.idVenta} className="p-4 text-sm">
               <summary className="cursor-pointer font-semibold">{corte.nombreCliente} · {fecha(compra.fechaVenta)} {compra.horaVenta} · {compra.codigoCredito ?? `Venta #${compra.idVenta}`} · {dinero(compra.totalVenta, corte.moneda)}</summary>
@@ -197,13 +197,13 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
               </div>
             </details>
           ))}
-          {!compras.length && <p className="p-8 text-center text-sm text-slate-600">No hay compras para esta consulta.</p>}
+          {!compras.length && <p className="p-8 text-center text-sm text-jades-muted">No hay compras para esta consulta.</p>}
         </div> : <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600">
+          <table className="w-full text-left text-[13px]">
+            <thead className="bg-jades-subtle text-jades-muted">
               <tr>{['Cliente / obligación', 'Corte', 'Pago pactado', 'Capital', 'Interés', 'Mora', 'Total', 'Estado', 'Detalle'].map(label => <th key={label} scope="col" className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-jades-line">
               {filtradas.slice((paginaActual - 1) * 10, paginaActual * 10).map(fila => <tr key={fila.id}>
                 <td className="px-4 py-3"><strong className="block">{fila.cliente}</strong>{fila.obligacion}</td>
                 <td className="whitespace-nowrap px-4 py-3">{fecha(fila.fechaCorte)} {fila.fechaCorte?.split('T')[1]?.slice(0, 5)}</td>
@@ -212,7 +212,7 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
                 <td className="whitespace-nowrap px-4 py-3"><EstadoBadge estado={fila.estado} /></td>
                 <td className="px-4 py-3"><button type="button" aria-label={`Ver detalle de ${fila.cliente}, ${fila.obligacion}`} className="grid size-11 place-items-center rounded-lg hover:bg-slate-100" onClick={() => setSeleccionado(fila)}><Eye aria-hidden="true" className="size-4" /></button></td>
               </tr>)}
-              {!filtradas.length && <tr><td colSpan={9} className="p-8 text-center text-slate-600">No hay obligaciones para esta consulta.</td></tr>}
+              {!filtradas.length && <tr><td colSpan={9} className="p-8 text-center text-jades-muted">No hay obligaciones para esta consulta.</td></tr>}
             </tbody>
           </table>
         </div>}

@@ -153,7 +153,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
           <fieldset disabled={guardando || mode === 'detalle'} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
           <div>
-            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
+            <h4 className="text-xs font-semibold text-jades-muted uppercase tracking-wider mb-3">
               INFORMACIÓN GENERAL
             </h4>
 
@@ -168,7 +168,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   maxLength={150}
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                 />
               </div>
 
@@ -179,12 +179,12 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   <select id="pc-tipo"
                     value={tipo}
                     onChange={(e) => setTipo(e.target.value as 'Producto' | 'Servicio')}
-                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary cursor-pointer"
                   >
                     <option value="Producto">Producto</option>
                     <option value="Servicio">Servicio</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -198,7 +198,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   maxLength={150}
                   value={proveedor}
                   onChange={(e) => setProveedor(e.target.value)}
-                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                 />
               </div>
 
@@ -212,7 +212,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   maxLength={100}
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
-                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                 />
               </div>
 
@@ -223,11 +223,11 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   <select id="pc-unidad-de-medida"
                     value={unidad}
                     onChange={(e) => setUnidad(e.target.value)}
-                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary cursor-pointer"
                   >
                     {Object.entries(UNIDADES_PRODUCTO).map(([codigo, etiqueta]) => <option key={codigo} value={etiqueta}>{etiqueta}</option>)}
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -238,12 +238,12 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   <select id="pc-estado"
                     value={initialData?.estado ?? 'Activo'}
                     disabled
-                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary cursor-pointer"
                   >
                     <option value="Activo">Activo</option>
                     <option value="Inactivo">Inactivo</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -256,14 +256,14 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   maxLength={500}
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
-                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                 />
               </div>
 
               {/* Imagen */}
               <div>
                 <div className="flex items-center gap-1"><span className="text-sm font-semibold">Imagen</span><AyudaCampo etiqueta="Imagen" texto="PNG o JPEG, máximo 5 MB. Obligatoria al registrar." /></div>
-                <label className="border-2 border-dashed border-slate-200 hover:border-[#139a6c] rounded-xl p-2.5 flex items-center justify-center text-blue-600 hover:text-emerald-700 text-xs font-semibold cursor-pointer transition bg-slate-50/50">
+                <label className="border-2 border-dashed border-jades-line hover:border-jades-primary rounded-xl p-2.5 flex items-center justify-center text-blue-600 hover:text-emerald-700 text-xs font-semibold cursor-pointer transition bg-jades-subtle/50">
                   <input type="file" className="hidden" accept="image/png,image/jpeg,.png,.jpg,.jpeg" onChange={(e) => {
                     const seleccion = e.target.files?.[0];
                     if (!seleccion) return;
@@ -283,8 +283,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
           </div>
 
           {/* SECCIÓN 2: PRECIOS Y CRÉDITO */}
-          <div className="pt-2 border-t border-slate-100">
-            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">
+          <div className="pt-2 border-t border-jades-line">
+            <h4 className="text-xs font-semibold text-jades-muted uppercase tracking-wider mb-3">
               PRECIOS Y CRÉDITO
             </h4>
 
@@ -293,7 +293,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               <div>
                 <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-precio-contado-pen-obligatorio">Precio contado PEN (obligatorio)</label><AyudaCampo etiqueta="Precio contado PEN (obligatorio)" texto="Precio si se paga al contado." /></div>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-jades-muted font-medium">
                     S/
                   </span>
                   <input id="pc-precio-contado-pen-obligatorio"
@@ -302,7 +302,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                     placeholder="00.00"
                     value={precioContado}
                     onChange={(e) => setPrecioContado(e.target.value)}
-                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                   />
                 </div>
               </div>
@@ -311,7 +311,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               <div>
                 <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-precio-credito-pen-obligatorio">Precio crédito PEN (obligatorio)</label><AyudaCampo etiqueta="Precio crédito PEN (obligatorio)" texto="Capital unitario usado en la venta a crédito." /></div>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-jades-muted font-medium">
                     S/
                   </span>
                   <input id="pc-precio-credito-pen-obligatorio"
@@ -320,7 +320,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                     placeholder="00.00"
                     value={precioCredito}
                     onChange={(e) => setPrecioCredito(e.target.value)}
-                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink placeholder-jades-muted focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary"
                   />
                 </div>
               </div>
@@ -330,7 +330,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                 ['Precio crédito USD (opcional)', creditoUsd, setCreditoUsd],
               ] as const).map(([label, valor, cambiar], indice) => <div key={label}>
                 <div className="flex items-baseline gap-1"><label htmlFor={`precio-usd-${indice}`} className="text-sm font-semibold">{label}</label><AyudaCampo etiqueta={label} texto="Opcional. Completa este precio si el artículo se podrá vender en dólares con esta modalidad." /></div>
-                <input id={`precio-usd-${indice}`} type="text" inputMode="decimal" maxLength={19} value={valor} onChange={e => cambiar(e.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-slate-200 px-3" />
+                <input id={`precio-usd-${indice}`} type="text" inputMode="decimal" maxLength={19} value={valor} onChange={e => cambiar(e.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-jades-line px-3" />
               </div>)}
 
               {/* Modalidades permitidas */}
@@ -340,13 +340,13 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   <select id="pc-modalidades-permitidas"
                     value={modalidad}
                     onChange={(e) => setModalidad(e.target.value as 'Ambas modalidades' | 'Pago único' | 'En meses')}
-                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-jades-line rounded-lg text-sm text-jades-ink focus:outline-none focus:border-jades-primary focus:ring-1 focus:ring-jades-primary cursor-pointer"
                   >
                     <option value="Ambas modalidades">Ambas modalidades</option>
                     <option value="Pago único">Pago único</option>
                     <option value="En meses">En meses</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -355,19 +355,19 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
           </fieldset>
           {/* Footer Botones */}
           {mode !== 'detalle' && (
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
+          <div className="pt-4 border-t border-jades-line flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
               disabled={guardando}
-              className="min-h-11 px-5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
+              className="min-h-11 px-5 py-2 border border-jades-line text-slate-700 hover:bg-jades-subtle text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={guardando}
-              className="min-h-11 px-5 py-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+              className="min-h-11 px-5 py-2 bg-jades-primary hover:bg-jades-hover active:bg-jades-active text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               {guardando ? 'Guardando...' : 'Guardar producto'}
             </button>
@@ -405,5 +405,5 @@ export function ImagenProducto({ idTienda, idProducto, imagen, nombre, className
 
   return resultado?.imagen === imagen
     ? <img src={resultado.url} alt={nombre} className={className} />
-    : <span className={`${className ?? ''} flex items-center justify-center bg-slate-100 text-[9px] text-slate-500 text-center`}>Sin imagen</span>;
+    : <span className={`${className ?? ''} flex items-center justify-center bg-slate-100 text-[9px] text-jades-muted text-center`}>Sin imagen</span>;
 }
