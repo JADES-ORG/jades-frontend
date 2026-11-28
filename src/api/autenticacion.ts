@@ -33,14 +33,22 @@ export function recuperarSesion(rolRequerido?: LoginResponse['rol']): LoginRespo
     if (!usuario || token !== usuario.tokenAcceso || !Number.isInteger(usuario.id) ||
         !usuario.correo || !['ADMIN_SISTEMA', 'ADMIN_NEGOCIO', 'CLIENTE'].includes(usuario.rol)) return null;
     if (rolRequerido && usuario.rol !== rolRequerido) return null;
-    const partes = token.split('.');
-    if (partes.length !== 3) return null;
-    const base64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
-    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()) return null;
+    if (expiracionSesion(usuario) <= Date.now()) return null;
     return usuario;
   } catch {
     return null;
+  }
+}
+
+export function expiracionSesion(usuario: LoginResponse): number {
+  try {
+    const partes = usuario.tokenAcceso.split('.');
+    if (partes.length !== 3) return 0;
+    const base64 = partes[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+    return typeof payload.exp === 'number' && Number.isFinite(payload.exp) ? payload.exp * 1000 : 0;
+  } catch {
+    return 0;
   }
 }
 

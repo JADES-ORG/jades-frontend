@@ -44,6 +44,11 @@ export async function consultarCorteTienda(idTienda: number, filtros: FiltrosCor
   return data;
 }
 
+export async function consultarMiCorte(idTienda: number, ciclo: string, signal?: AbortSignal): Promise<CorteResponse> {
+  const { data } = await api.get<CorteResponse>('/corte/mi-cuenta', { params: { idTienda, ciclo }, signal });
+  return data;
+}
+
 export async function registrarPago(idCuota: number, solicitud: RegistrarPagoRequest): Promise<PagoResponse> {
   const { data } = await api.post<PagoResponse>(`/pagos/cuotas/${idCuota}`, solicitud);
   return data;

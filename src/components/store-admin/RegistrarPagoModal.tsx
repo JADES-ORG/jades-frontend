@@ -1,231 +1,121 @@
-import React, { useState } from 'react';
-import { X, Info, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { consultarImporteCuota, consultarLiquidacion, liquidarCredito, registrarPago } from '../../api/finanzas';
+import { obtenerMensajeError } from '../../api/errores';
+import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
+import type { ObligacionCobro } from '../../features/cobranzas/cuentas';
+import type { LiquidacionResponse } from '../../types/finanzas';
+import { AvisoError, botonPrincipalModal, botonSecundarioModal, cuerpoModal, ModalShell } from './ModalShell';
 
-export interface PagoItemData {
-  id: number;
-  cliente: string;
-  obligacion: string;
-  vence: string;
-  capital: number;
-  interesCompensatorio: number;
-  mora: number;
-  total: number;
-  estado: 'Pendiente' | 'En mora' | 'Por vencer';
-  diasAtraso?: number;
-  tasaMoraInfo?: string;
-  // Datos para post-pago
-  capitalPendientePost?: number;
-  creditoDisponiblePost?: number;
-  capitalLiberado?: number;
-  detallePost?: string;
-}
-
-interface RegistrarPagoModalProps {
-  isOpen: boolean;
-  pagoItem: PagoItemData | null;
+interface Props {
+  obligacion: ObligacionCobro;
   onClose: () => void;
-  onConfirmPago: (pagoConfirmado: PagoItemData, medioPago: string) => void;
+  onRegistrado: (mensaje: string) => void;
 }
 
-export const RegistrarPagoModal: React.FC<RegistrarPagoModalProps> = ({
-  isOpen,
-  pagoItem,
-  onClose,
-  onConfirmPago,
-}) => {
-  const [fechaEfectiva, setFechaEfectiva] = useState('15/06/2025');
-  const [medioPago, setMedioPago] = useState('Efectivo');
+const campo = 'block w-full min-h-11 mt-1 rounded-lg border border-slate-200 bg-white px-3 text-sm';
 
-  if (!isOpen || !pagoItem) return null;
+export function RegistrarPagoModal({ obligacion, onClose, onRegistrado }: Props) {
+  const hoy = hoyLima();
+  const [dia, setDia] = useState(hoy);
+  const [hora, setHora] = useState(() => new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).format(new Date()));
+  const [medio, setMedio] = useState('EFECTIVO');
+  const [liquidacion, setLiquidacion] = useState(obligacion.mensual && obligacion.fechaVencimiento.slice(0, 7) > hoy.slice(0, 7));
+  const [cotizacion, setCotizacion] = useState<{ clave: string; datos: LiquidacionResponse } | null>(null);
+  const [error, setError] = useState<{ clave: string; mensaje: string } | null>(null);
+  const [errorRegistro, setErrorRegistro] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
+  const [guardando, setGuardando] = useState(false);
+  const enviando = useRef(false);
+  const cuotaFutura = obligacion.mensual && obligacion.fechaVencimiento.slice(0, 7) > dia.slice(0, 7);
+  const cotizarLiquidacion = liquidacion || cuotaFutura;
+  const clave = `${dia}|${hora}|${cotizarLiquidacion}|${intento}`;
+  const importe = cotizacion?.clave === clave ? cotizacion.datos : null;
+  const errorCotizacion = error?.clave === clave ? error.mensaje : null;
+  const valido = !!dia && dia <= hoy && !!hora;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onConfirmPago(pagoItem, medioPago);
-  };
+  useEffect(() => {
+    if (!valido) return;
+    const controller = new AbortController();
+    const filtros = { fechaPagoEfectivo: dia, horaPagoEfectivo: hora };
+    const timer = window.setTimeout(() => {
+      const solicitud = cotizarLiquidacion
+        ? consultarLiquidacion(obligacion.idCredito, filtros, controller.signal)
+        : consultarImporteCuota(obligacion.idCuota, filtros, controller.signal);
+      solicitud.then(datos => {
+        if (!controller.signal.aborted) setCotizacion({ clave, datos });
+      }).catch((causa: unknown) => {
+        if (!controller.signal.aborted) setError({ clave, mensaje: obtenerMensajeError(causa) });
+      });
+    }, 250);
 
-  const isEnMora = pagoItem.mora > 0 || pagoItem.estado === 'En mora';
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [valido, dia, hora, cotizarLiquidacion, obligacion.idCredito, obligacion.idCuota, clave]);
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header Modal */}
-        <div className="p-6 sm:p-7 border-b border-slate-100 flex items-start justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-              Registrar pago total
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              {pagoItem.cliente} · {pagoItem.obligacion}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+  async function confirmar(event: FormEvent) {
+    event.preventDefault();
+    if (!importe || importe.totalPagar <= 0 || !valido || enviando.current) return;
+    enviando.current = true;
+    setGuardando(true);
+    setErrorRegistro(null);
+    try {
+      const solicitud = { monto: importe.totalPagar, fechaPagoEfectivo: dia, horaPagoEfectivo: hora, medioPago: medio };
+      const resultado = cotizarLiquidacion
+        ? await liquidarCredito(obligacion.idCredito, solicitud)
+        : await registrarPago(obligacion.idCuota, solicitud);
+      const total = 'totalPagar' in resultado ? resultado.totalPagar : resultado.totalExigible;
+      onRegistrado(`Pago registrado por ${dinero(total, resultado.moneda)}.`);
+    } catch (causa) {
+      setErrorRegistro(obtenerMensajeError(causa));
+      setIntento(n => n + 1);
+    } finally {
+      enviando.current = false;
+      setGuardando(false);
+    }
+  }
+
+  return <ModalShell titulo="Gestionar pago" descripcion={`${obligacion.cliente} · ${obligacion.obligacion}`} onClose={onClose} bloqueado={guardando}>
+    <form className={cuerpoModal} onSubmit={confirmar}>
+      <p className="text-sm text-slate-600">Vencimiento pactado {fecha(obligacion.fechaVencimiento)}</p>
+      <fieldset disabled={guardando} className="space-y-4">
+        {obligacion.mensual && <div className="flex flex-wrap gap-4 text-sm">
+          <label><input type="radio" name="operacion" checked={!cotizarLiquidacion} disabled={cuotaFutura} onChange={() => { setLiquidacion(false); setErrorRegistro(null); setIntento(n => n + 1); }} /> Pagar cuota {obligacion.numeroCuota}</label>
+          <label><input type="radio" name="operacion" checked={cotizarLiquidacion} onChange={() => { setLiquidacion(true); setErrorRegistro(null); setIntento(n => n + 1); }} /> Liquidar crédito</label>
+          {cuotaFutura && <p className="w-full text-slate-600">La cuota individual se habilita en su mes de vencimiento.</p>}
+        </div>}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm font-semibold">Fecha de pago<input type="date" required max={hoy} className={campo} value={dia} onChange={e => { setDia(e.target.value); setErrorRegistro(null); setIntento(n => n + 1); }} /></label>
+          <label className="text-sm font-semibold">Hora de pago<input type="time" required step={1} className={campo} value={hora} onChange={e => { setHora(e.target.value); setErrorRegistro(null); setIntento(n => n + 1); }} /></label>
+          <label className="text-sm font-semibold">Medio de pago<select className={campo} value={medio} onChange={e => setMedio(e.target.value)}>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <option value="YAPE">Yape</option>
+            <option value="PLIN">Plin</option>
+            <option value="TARJETA">Tarjeta</option>
+          </select></label>
         </div>
-
-        {/* Contenido */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-5">
-          {/* Tarjeta: COMPOSICIÓN E IMPUTACIÓN */}
-          <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs">
-            <div className="bg-white p-4 space-y-3">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                COMPOSICIÓN E IMPUTACIÓN
-              </h4>
-
-              {/* 1 Intereses por mora */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center">
-                    1
-                  </span>
-                  <span className="text-slate-700">Intereses por mora</span>
-                </div>
-                <span className="font-semibold text-slate-900">
-                  S/ {pagoItem.mora.toFixed(2)}
-                </span>
-              </div>
-
-              {/* 2 Interés compensatorio */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center">
-                    2
-                  </span>
-                  <span className="text-slate-700">Interés compensatorio</span>
-                </div>
-                <span className="font-semibold text-slate-900">
-                  S/ {pagoItem.interesCompensatorio.toFixed(2)}
-                </span>
-              </div>
-
-              {/* 3 Capital */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center">
-                    3
-                  </span>
-                  <span className="text-slate-700">Capital</span>
-                </div>
-                <span className="font-semibold text-slate-900">
-                  S/ {pagoItem.capital.toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {/* Fila oscura Total exigible */}
-            <div className="bg-[#0e3b2e] text-white px-4 py-3 flex items-center justify-between">
-              <span className="font-semibold">Total exigible</span>
-              <span className="text-base font-bold text-white">
-                S/ {pagoItem.total.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          {/* Alerta de Atraso o Puntualidad */}
-          {isEnMora ? (
-            <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-3 text-left flex items-start space-x-2.5">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-900 leading-relaxed font-medium">
-                Vencimiento: {pagoItem.vence === '07 jun' ? '07/06/2025' : pagoItem.vence} · 8 días de atraso · TNM 1.200000% con capitalización diaria.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-[#ecfdf5] border border-[#a7f3d0] rounded-xl p-3 text-left flex items-start space-x-2.5">
-              <Info className="w-4 h-4 text-[#059669] shrink-0 mt-0.5" />
-              <p className="text-xs text-emerald-900 leading-relaxed font-medium">
-                Vencimiento: 15/06/2025 · Pago puntual · 0 dias de atraso.
-              </p>
-            </div>
-          )}
-
-          {/* Alerta informativa de pago total obligatorio */}
-          <div className="bg-[#fffbeb] border border-[#fef3c7] rounded-xl p-3 text-left flex items-start space-x-2.5">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-900 leading-relaxed">
-              Esta obligación debe pagarse por el total exigible. No se admiten abonos menores.
-            </p>
-          </div>
-
-          {/* Campo: Monto a recibir (calculado) */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Monto a recibir (calculado)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
-                S/
-              </span>
-              <input
-                type="text"
-                disabled
-                value={pagoItem.total.toFixed(2)}
-                className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-semibold"
-              />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1">
-              Importe calculado por el sistema; no es editable.
-            </p>
-          </div>
-
-          {/* Campo: Fecha efectiva de pago */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Fecha efectiva de pago
-            </label>
-            <input
-              type="text"
-              value={fechaEfectiva}
-              onChange={(e) => setFechaEfectiva(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-[#139a6c]"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">
-              Registra la fecha real en que el negocio recibe el pago.
-            </p>
-          </div>
-
-          {/* Campo: Medio de pago */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Medio de pago
-            </label>
-            <div className="relative">
-              <select
-                value={medioPago}
-                onChange={(e) => setMedioPago(e.target.value)}
-                className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
-              >
-                <option value="Efectivo">Efectivo</option>
-                <option value="Transferencia / Yape / Plin">Transferencia / Yape / Plin</option>
-                <option value="Tarjeta de débito">Tarjeta de débito</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1">
-              Selecciona el medio por el que se recibió el pago.
-            </p>
-          </div>
-
-          {/* Botones de Acción */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-            >
-              Confirmar pago total
-            </button>
-          </div>
-        </form>
+      </fieldset>
+      {valido && !importe && !errorCotizacion && <p role="status" className="text-sm text-slate-600">Cotizando importe…</p>}
+      <AvisoError mensaje={errorCotizacion} />
+      <AvisoError mensaje={errorRegistro} />
+      {importe && <dl className="grid grid-cols-2 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-4">
+        {([
+          ['Capital', importe.capital], ['Interés compensatorio', importe.interesCompensatorio],
+          ['Mora', importe.mora], ['Total', importe.totalPagar],
+        ] as const).map(([etiqueta, valor]) => <div key={etiqueta}>
+          <dt className="text-xs text-slate-600">{etiqueta}</dt>
+          <dd className="font-bold text-slate-900">{dinero(valor, importe.moneda)}</dd>
+        </div>)}
+      </dl>}
+      <div className="flex justify-end gap-3">
+        <button type="button" className={botonSecundarioModal} onClick={onClose} disabled={guardando}>Cancelar</button>
+        <button type="submit" className={botonPrincipalModal} disabled={guardando || !importe || importe.totalPagar <= 0}>{guardando ? 'Registrando…' : 'Confirmar pago'}</button>
       </div>
-    </div>
-  );
-};
+    </form>
+  </ModalShell>;
+}

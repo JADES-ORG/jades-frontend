@@ -1,3 +1,4 @@
+import { etiquetaPeriodo, etiquetaTipoTasa, horaCorta, porcentajeTasa } from "../../features/clientes/model";
 import { useCuentaCliente } from "../../features/client-portal/state";
 import {
   capitalPorMoneda,
@@ -26,6 +27,7 @@ export function ClientDashboardPage({
 }: Props) {
   const { cuenta } = useCuentaCliente();
   if (!cuenta) return null;
+  const condicion = cuenta.condicionCrediticia;
   const siguiente = pendientes(cuenta)[0];
   const capitales = capitalPorMoneda(cuenta);
   return (
@@ -48,7 +50,7 @@ export function ClientDashboardPage({
           ) : (
             <h3>Sin deuda registrada</h3>
           )}
-          <small>Para conocer tu crédito disponible, consulta con tu negocio.</small>
+          {condicion && <small>Crédito disponible: {dinero(condicion.creditoDisponible, condicion.monedaCredito)}</small>}
           {cuenta.compras.some(
             (c) =>
               !cuenta.obligaciones.some((o) => o.idVenta === c.idVenta) &&
@@ -75,6 +77,23 @@ export function ClientDashboardPage({
           Ver mis compras
         </button>
       </section>
+      {condicion && <section className="client-panel client-detail">
+        <h3>Condiciones vigentes</h3>
+        <dl>
+          {[
+            ['Límite', dinero(condicion.limiteCredito, condicion.monedaCredito)],
+            ['Crédito utilizado', dinero(condicion.creditoUtilizado, condicion.monedaCredito)],
+            ['Crédito disponible', dinero(condicion.creditoDisponible, condicion.monedaCredito)],
+            ['Plazo máximo', `${condicion.plazoMaximo} meses`],
+            ['Corte mensual', `Día ${condicion.diaCorte} · ${horaCorta(condicion.horaCorte)}`],
+            ['Pago mensual', `Día ${condicion.diaPago}`],
+            ['Interés compensatorio', `${porcentajeTasa(condicion.tasaInteres)} · ${etiquetaTipoTasa(condicion.tipoTasa)} ${etiquetaPeriodo(condicion.periodoTasa)}`],
+            ['Capitalización compensatoria', condicion.capitalizacionTasa ? etiquetaPeriodo(condicion.capitalizacionTasa) : 'No aplica'],
+            ['Interés moratorio', `${porcentajeTasa(condicion.tasaMoratoria)} · ${etiquetaTipoTasa(condicion.tipoTasaMora)} ${etiquetaPeriodo(condicion.periodoTasaMora)}`],
+            ['Capitalización moratoria', condicion.capitalizacionMora ? etiquetaPeriodo(condicion.capitalizacionMora) : 'No aplica'],
+          ].map(([etiqueta, valor]) => <div key={etiqueta}><dt>{etiqueta}</dt><dd>{valor}</dd></div>)}
+        </dl>
+      </section>}
       <section className="client-panel">
         <div className="client-panel-heading">
           <h3>Mis compras a crédito</h3>

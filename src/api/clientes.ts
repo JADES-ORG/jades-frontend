@@ -7,7 +7,7 @@ import type {
   CreditoDisponibleResponse,
   RegistrarClienteRequest,
 } from '../types/clientes';
-import type { CuentaCorrienteResponse } from '../types/finanzas';
+import type { CuentaCorrienteResponse, TiendaClienteResponse } from '../types/finanzas';
 
 export async function listarClientes(idTienda: number, soloActivos = true, signal?: AbortSignal): Promise<ClienteResponse[]> {
   const { data } = await api.get<ClienteResponse[]>(`/tiendas/${idTienda}/clientes`, { params: { soloActivos }, signal });
@@ -35,8 +35,13 @@ export async function consultarCreditoDisponible(idTienda: number, idCliente: nu
 }
 
 /** Cuenta del cliente autenticado; el servidor obtiene su identidad desde el JWT. */
-export async function consultarMiCuenta(signal?: AbortSignal): Promise<CuentaCorrienteResponse> {
-  const { data } = await api.get<CuentaCorrienteResponse>('/portal/mi-cuenta', { signal, timeout: 20000 });
+export async function listarTiendasCliente(signal?: AbortSignal): Promise<TiendaClienteResponse[]> {
+  const { data } = await api.get<TiendaClienteResponse[]>('/portal/mis-tiendas', { signal, timeout: 20000 });
+  return data;
+}
+
+export async function consultarMiCuenta(idTienda: number, signal?: AbortSignal): Promise<CuentaCorrienteResponse> {
+  const { data } = await api.get<CuentaCorrienteResponse>('/portal/mi-cuenta', { params: { idTienda }, signal, timeout: 20000 });
   return data;
 }
 

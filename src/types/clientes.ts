@@ -50,7 +50,7 @@ export interface RegistrarClienteRequest {
   dniCliente: string;
   telefonoCliente: string | null;
   correoCliente: string;
-  contrasenaTemporal: string;
+  contrasenaTemporal: string | null;
 }
 
 /** PUT /tiendas/{tienda}/clientes/{id}: datos generales del cliente. */
@@ -58,7 +58,6 @@ export interface ActualizarClienteRequest {
   nombreCliente: string;
   dniCliente: string;
   telefonoCliente: string | null;
-  correoCliente: string | null;
 }
 
 /** POST y PUT de /condicion-crediticia. Las tasas se envían como fracción (2.5 % = 0.025). */

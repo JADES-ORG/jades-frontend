@@ -39,6 +39,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                 <Campo id="dc-dni" label="DNI" ayuda="Documento de 8 dígitos; no puede repetirse.">
                     <input
                         id="dc-dni"
+                        readOnly={!contrasena}
                         type="text"
                         inputMode="numeric"
                         required
@@ -84,11 +85,10 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                                 className={inputClase}
                             />
                         </Campo>
-                        <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="Credencial de acceso asignada al cliente.">
+                        <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="Requerida para una cuenta nueva. Si el cliente ya tiene una cuenta con este correo y DNI, déjala vacía.">
                             <input
                                 id="dc-contrasena"
                                 type="password"
-                                required
                                 minLength={8}
                                 maxLength={72}
                                 autoComplete="new-password"

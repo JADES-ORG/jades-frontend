@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CronogramaResponse, PagoUnicoResponse } from "../../types/finanzas";
-import { consultarCronograma, consultarPagoUnico } from "../../api/finanzas";
+import { consultarCronograma, consultarMiCorte, consultarPagoUnico } from "../../api/finanzas";
 import { obtenerMensajeError } from "../../api/errores";
 import { useCuentaCliente } from "../../features/client-portal/state";
 import {
@@ -10,6 +10,7 @@ import {
   fecha,
   porcentaje,
 } from "../../features/client-portal/model";
+import type { DetalleVentaResponse } from "../../types/ventas";
 import { Aviso, Empty, FigmaIcon } from "../../features/client-portal/ui";
 
 interface Props {
@@ -25,6 +26,29 @@ export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const [detalle, setDetalle] = useState<{ clave: string; productos: DetalleVentaResponse[]; error?: string } | null>(null);
+  const fechaCorte = unico ? pagoUnico?.fechaCorteAsignada : plan?.fechaCorte;
+  const ciclo = fechaCorte?.slice(0, 7);
+  const idTienda = cuenta?.idTienda;
+  const productosPagados = cuenta?.pagos.find(pago => pago.idVenta === idVenta && pago.detalles?.length)?.detalles;
+  const claveDetalle = `${idTienda}|${idVenta}|${ciclo}`;
+  const detalleActual = detalle?.clave === claveDetalle ? detalle : null;
+  const productos = productosPagados ?? detalleActual?.productos;
+
+  useEffect(() => {
+    if (!ciclo || !idTienda || productosPagados) return;
+    const controller = new AbortController();
+    consultarMiCorte(idTienda, ciclo, controller.signal).then(corte => {
+      if (controller.signal.aborted) return;
+      if (corte.idTienda !== idTienda) throw new Error('El corte recibido no corresponde al establecimiento seleccionado.');
+      const compra = corte.compras.find(compraCorte => compraCorte.idVenta === idVenta);
+      setDetalle({ clave: claveDetalle, productos: compra?.detalles ?? [] });
+    }).catch((causa: unknown) => {
+      if (!controller.signal.aborted) setDetalle({ clave: claveDetalle, productos: [], error: obtenerMensajeError(causa) });
+    });
+    return () => controller.abort();
+  }, [idTienda, idVenta, ciclo, claveDetalle, productosPagados]);
+
   useEffect(() => {
     const controller = new AbortController();
     if (!compra) return () => controller.abort();
@@ -224,6 +248,15 @@ export function ClientPlanPagosPage({ idVenta, onBackToCompras }: Props) {
           </section>
         </>
       ) : null}
+      {!loading && !error && <section className="client-panel client-detail">
+        <h3>Productos y servicios adquiridos</h3>
+        {detalleActual?.error && !productosPagados ? <p role="alert">{detalleActual.error}</p>
+          : productos?.length ? <ul className="divide-y divide-slate-100">
+            {productos.map(producto => <li className="flex justify-between gap-3 py-2 text-sm" key={producto.idProducto}>
+              <span>{producto.cantidad} × {producto.nombreProducto}</span><strong>{dinero(producto.subtotal, compra.moneda)}</strong>
+            </li>)}
+          </ul> : <p>{ciclo && !detalleActual ? 'Consultando detalle…' : 'Esta compra no tiene un detalle disponible en el corte.'}</p>}
+      </section>}
       <Aviso>
         Solo consulta. Para efectuar un pago, comunícate con {cuenta.comercio}.
         No se aceptan pagos parciales.

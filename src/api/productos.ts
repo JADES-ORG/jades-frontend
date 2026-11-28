@@ -38,6 +38,11 @@ export async function desactivarProducto(idTienda: number, idProducto: number): 
   return data;
 }
 
+export async function reactivarProducto(idTienda: number, idProducto: number): Promise<ProductoResponse> {
+  const { data } = await api.patch<ProductoResponse>(`/tiendas/${idTienda}/productos/${idProducto}/reactivar`);
+  return data;
+}
+
 export async function consultarImagenProducto(idTienda: number, idProducto: number, imagen: string, signal?: AbortSignal): Promise<Blob> {
   const url = new URL(imagen);
   const prefijo = `/api/v1/tiendas/${idTienda}/productos/${idProducto}/imagenes/`;

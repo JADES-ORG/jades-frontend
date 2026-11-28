@@ -26,7 +26,7 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({ idTienda
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    // El correo de acceso no se edita aquí: se envía el que ya tiene el cliente.
+    if (guardando) return;
     const problema = validarDatosCliente(datos, { requiereCorreo: false });
     setError(problema);
     if (problema) return;
@@ -34,9 +34,8 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({ idTienda
     try {
       let actualizado = await actualizarCliente(idTienda, cliente.id, {
         nombreCliente: datos.nombre.trim(),
-        dniCliente: datos.dni.trim(),
+        dniCliente: cliente.dniCliente,
         telefonoCliente: datos.telefono.trim() || null,
-        correoCliente: datos.correo.trim() || null,
       });
       if (datos.estado !== actualizado.estadoCliente) {
         actualizado = datos.estado === 'INACTIVO'
@@ -55,7 +54,7 @@ export const EditarClienteModal: React.FC<EditarClienteModalProps> = ({ idTienda
   return (
       <ModalShell
           titulo="Editar cliente"
-          descripcion="Actualiza los datos generales y de acceso del cliente."
+          descripcion="Actualiza los datos de la ficha del cliente."
           onClose={onClose}
           bloqueado={guardando}
       >

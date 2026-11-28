@@ -44,7 +44,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
   const continuar = (e: React.FormEvent) => {
     e.preventDefault();
     const problema = validarDatosCliente(datos)
-        ?? (contrasena.length < 8 || contrasena.length > 72 ? 'La contraseña inicial debe tener entre 8 y 72 caracteres.' : null);
+        ?? (contrasena && (contrasena.length < 8 || contrasena.length > 72) ? 'La contraseña inicial debe tener entre 8 y 72 caracteres.' : null);
     setError(problema);
     if (!problema) setStep(2);
   };
@@ -66,7 +66,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
           dniCliente: datos.dni.trim(),
           telefonoCliente: datos.telefono.trim() || null,
           correoCliente: datos.correo.trim(),
-          contrasenaTemporal: contrasena,
+          contrasenaTemporal: contrasena || null,
         });
         setClienteCreado(cliente);
       }

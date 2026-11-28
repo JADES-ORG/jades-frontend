@@ -19,6 +19,8 @@ type Filtro = 'TODOS' | EstadoDeuda | 'INACTIVOS';
 
 interface StoreClientesListPageProps {
     idTienda: number;
+    busqueda: string;
+    onBuscar: (valor: string) => void;
     onSelectCliente: (idCliente: number) => void;
     onNewClient: () => void;
     soloConsulta?: boolean;
@@ -29,6 +31,8 @@ const normalizar = (texto: string) =>
 
 export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                                                                 idTienda,
+                                                                                busqueda,
+                                                                                onBuscar,
                                                                                 onSelectCliente,
                                                                                 onNewClient,
                                                                                 soloConsulta = false,
@@ -38,7 +42,6 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [recarga, setRecarga] = useState(0);
-    const [busqueda, setBusqueda] = useState('');
     const [filtro, setFiltro] = useState<Filtro>('TODOS');
     const [pagina, setPagina] = useState(1);
 
@@ -141,7 +144,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                             aria-label="Buscar por nombre o DNI"
                             value={busqueda}
                             onChange={(e) => {
-                                setBusqueda(e.target.value);
+                                onBuscar(e.target.value);
                                 setPagina(1);
                             }}
                             placeholder="Buscar por nombre o DNI"

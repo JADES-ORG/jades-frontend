@@ -34,8 +34,8 @@ interface StoreAdminLayoutProps {
   currentTab: StoreTab;
   onSelectTab: (tab: StoreTab) => void;
   onLogout: () => void;
-  /** Reemplaza el título del encabezado (por ejemplo, en el detalle de un cliente). */
-  encabezado?: { titulo: string; subtitulo: string };
+  busquedaClientes: string;
+  onBuscarCliente: (valor: string) => void;
   children: React.ReactNode;
 }
 
@@ -48,7 +48,8 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                                                                     currentTab,
                                                                     onSelectTab,
                                                                     onLogout,
-                                                                    encabezado,
+                                                                    busquedaClientes,
+                                                                    onBuscarCliente,
                                                                     children,
                                                                   }) => {
   const tiendaActiva = tiendas.find(tienda => tienda.idTienda === idTiendaActiva);
@@ -225,52 +226,25 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
         {/* CONTENEDOR PRINCIPAL */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header Superior */}
-          <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-            <div>
-              {encabezado ? (
-                  <>
-                    <h2 className="text-base font-bold text-slate-800 leading-tight">{encabezado.titulo}</h2>
-                    <p className="text-xs text-slate-400 font-normal">{encabezado.subtitulo}</p>
-                  </>
-              ) : (
-                  <>
-                    <h2 className="text-base font-bold text-slate-800 leading-tight capitalize">
-                      {currentTab === 'inicio' && 'Inicio'}
-                      {currentTab === 'clientes' && 'Clientes'}
-                      {currentTab === 'productos' && 'Productos y servicios'}
-                      {currentTab === 'nueva_venta' && 'Nueva venta'}
-                      {currentTab === 'pagos' && 'Pagos'}
-                      {currentTab === 'cortes' && 'Cortes y cobranzas'}
-                      {currentTab === 'ayuda' && 'Ayuda'}
-                      {currentTab === 'configuracion' && 'Configuración'}
-                    </h2>
-                    <p className="text-xs text-slate-400 font-normal">
-                      {currentTab === 'inicio' && (tiendaActiva?.nombreTienda ?? 'Sin tienda seleccionada')}
-                      {currentTab === 'clientes' && 'Gestión de clientes y créditos'}
-                      {currentTab === 'productos' && 'Catálogo de venta'}
-                      {currentTab === 'nueva_venta' && 'Registro de crédito'}
-                      {currentTab === 'pagos' && 'Gestión de cobranzas'}
-                      {currentTab === 'cortes' && 'Listados por ciclo'}
-                      {currentTab === 'ayuda' && 'Uso del sistema'}
-                      {currentTab === 'configuracion' && 'Datos y preferencias del negocio'}
-                    </p>
-                  </>
-              )}
-            </div>
-
+          <header className="h-16 shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between gap-3">
+            <span className="truncate text-sm font-semibold text-slate-700">{tiendaActiva?.nombreTienda}</span>
             <div className="flex items-center space-x-3">
               {/* Buscador */}
               <div className="relative hidden sm:block w-64">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                     type="text"
-                    placeholder="Buscar cliente, venta..."
+                    placeholder="Buscar cliente…"
+                    aria-label="Buscar un cliente de esta tienda"
+                    value={busquedaClientes}
+                    disabled={!tiendaActiva}
+                    onChange={e => onBuscarCliente(e.target.value)}
                     className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
                 />
               </div>
 
               {/* Campana */}
-              <button className="p-2 text-slate-400 hover:text-slate-600 transition cursor-pointer rounded-lg hover:bg-slate-50">
+              <button type="button" aria-label="Ver próximos cobros" disabled={!tiendaActiva} onClick={() => onSelectTab('pagos')} className="grid size-11 place-items-center text-slate-600 rounded-lg hover:bg-slate-50">
                 <Bell className="w-4 h-4" />
               </button>
 

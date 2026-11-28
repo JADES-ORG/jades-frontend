@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { cerrarSesion, recuperarSesion, type CodigoRecuperacionResponse } from './api/autenticacion';
+import { cerrarSesion, expiracionSesion, recuperarSesion, type CodigoRecuperacionResponse } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
 import { listarMisTiendas, listarTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
@@ -22,17 +22,13 @@ import { StoreAdminLayout, type StoreTab } from './layouts/StoreAdminLayout';
 import { StoreDashboardPage } from './pages/store-admin/StoreDashboardPage';
 import { StoreClientesListPage } from './pages/store-admin/StoreClientesListPage';
 import { StoreClienteDetailPage } from './pages/store-admin/StoreClienteDetailPage';
-import { StorePlanPagosPage } from './pages/store-admin/StorePlanPagosPage';
 import { RegistrarClienteModal } from './components/store-admin/RegistrarClienteModal';
 import { EditarClienteModal } from './components/store-admin/EditarClienteModal';
 import { EditarCondicionesModal } from './components/store-admin/EditarCondicionesModal';
 import { StoreProductosListPage } from './pages/store-admin/StoreProductosListPage';
 import { StoreNuevaVentaPage } from './pages/store-admin/StoreNuevaVentaPage';
-import { StorePagosPage, initialPagos } from './pages/store-admin/StorePagosPage';
-import { RegistrarPagoModal, type PagoItemData } from './components/store-admin/RegistrarPagoModal';
-import { PagoRegistradoModal } from './components/store-admin/PagoRegistradoModal';
-import { StoreCortesPage, initialCortes } from './pages/store-admin/StoreCortesPage';
-import { DetalleCorteModal, type CorteItemData } from './components/store-admin/DetalleCorteModal';
+import { StorePagosPage } from './pages/store-admin/StorePagosPage';
+import { StoreCortesPage } from './pages/store-admin/StoreCortesPage';
 import { StoreAyudaPage } from './pages/store-admin/StoreAyudaPage';
 import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPage';
 
@@ -52,7 +48,7 @@ export type MainView =
     | 'store_admin'       // 7. Panel Administrador del Negocio (Bodega San Blas)
     | 'client_portal';    // 8. Portal Cliente (María Quispe)
 
-export type StoreSubView = 'lista' | 'detalle_cliente' | 'plan_pagos';
+export type StoreSubView = 'lista' | 'detalle_cliente';
 
 function maskEmail(email: string): string {
   if (!email || !email.includes('@')) return 'l***@ejemplo.com';
@@ -62,15 +58,21 @@ function maskEmail(email: string): string {
 }
 
 export function App() {
-  // Conservar la restauración del portal cliente; los administradores ingresan de nuevo.
-  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion('CLIENTE'));
-  const [currentView, setCurrentView] = useState<MainView>(() => currentUser ? 'client_portal' : 'login');
+  const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion());
+  const [currentView, setCurrentView] = useState<MainView>(() => {
+    switch (currentUser?.rol) {
+      case 'ADMIN_SISTEMA': return 'admin_system';
+      case 'ADMIN_NEGOCIO': return 'store_admin';
+      case 'CLIENTE': return 'client_portal';
+      default: return 'login';
+    }
+  });
   const [userEmail, setUserEmail] = useState<string>(() => currentUser?.correo ?? '');
   const [codigoRecuperacion, setCodigoRecuperacion] = useState<CodigoRecuperacionResponse | null>(null);
   const [tokenRecuperacion, setTokenRecuperacion] = useState<string | null>(null);
   const [misTiendas, setMisTiendas] = useState<TiendaResumenResponse[]>([]);
   const [idTiendaActiva, setIdTiendaActiva] = useState<number | null>(null);
-  const [cargandoTiendas, setCargandoTiendas] = useState(false);
+  const [cargandoTiendas, setCargandoTiendas] = useState(currentUser?.rol === 'ADMIN_NEGOCIO');
   const [errorTiendas, setErrorTiendas] = useState<string | null>(null);
   const [recargaTiendas, setRecargaTiendas] = useState(0);
 
@@ -81,7 +83,7 @@ export function App() {
       if (controller.signal.aborted) return;
       setMisTiendas(resultado);
       setIdTiendaActiva((anterior) => resultado.some(t => t.idTienda === anterior)
-          ? anterior : resultado[0]?.idTienda ?? null);
+          ? anterior : resultado.find(t => t.estadoTienda === 'ACTIVO')?.idTienda ?? resultado[0]?.idTienda ?? null);
       setCargandoTiendas(false);
     }).catch((error: unknown) => {
       if (controller.signal.aborted) return;
@@ -93,11 +95,60 @@ export function App() {
     return () => controller.abort();
   }, [currentUser, recargaTiendas]);
 
+  // Estados del Administrador del Sistema
+  const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
+  const [tiendas, setTiendas] = useState<TiendaDetalleResponse[]>([]);
+  const [cargandoAdminTiendas, setCargandoAdminTiendas] = useState(currentUser?.rol === 'ADMIN_SISTEMA');
+  const [errorAdminTiendas, setErrorAdminTiendas] = useState<string | null>(null);
+  const [recargaAdminTiendas, setRecargaAdminTiendas] = useState(0);
+  const [avisoTiendas, setAvisoTiendas] = useState<string | null>(null);
+  const [busquedaTiendas, setBusquedaTiendas] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTienda, setEditingTienda] = useState<TiendaDetalleResponse | null>(null);
+
+  useEffect(() => {
+    if (currentUser?.rol !== 'ADMIN_SISTEMA') return;
+    const controller = new AbortController();
+    listarTiendas(controller.signal).then(data => {
+      if (!controller.signal.aborted) setTiendas(data);
+    }).catch(e => {
+      if (!controller.signal.aborted) setErrorAdminTiendas(obtenerMensajeError(e));
+    }).finally(() => {
+      if (!controller.signal.aborted) setCargandoAdminTiendas(false);
+    });
+    return () => controller.abort();
+  }, [currentUser, recargaAdminTiendas]);
+
+  // Estados del Administrador del Negocio (Bodega San Blas)
+  const [storeTab, setStoreTab] = useState<StoreTab>('inicio');
+  const [storeSubView, setStoreSubView] = useState<StoreSubView>('lista');
+
+  // Clientes y condiciones crediticias
+  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState<number | null>(null);
+  const [busquedaClientes, setBusquedaClientes] = useState('');
+  const [recargaClientes, setRecargaClientes] = useState(0);
+  const [isRegisterClientModalOpen, setIsRegisterClientModalOpen] = useState(false);
+  const [clienteEnEdicion, setClienteEnEdicion] = useState<ClienteResponse | null>(null);
+  // undefined: modal cerrado; null: registrar condiciones; objeto: editar condiciones.
+  const [condicionEnEdicion, setCondicionEnEdicion] = useState<CondicionCrediticiaResponse | null | undefined>(undefined);
+  const cerrarModalesClientes = () => {
+    setIsRegisterClientModalOpen(false);
+    setClienteEnEdicion(null);
+    setCondicionEnEdicion(undefined);
+  };
+  const recargarClientes = () => setRecargaClientes((n) => n + 1);
+
+  const [revisionCobros, setRevisionCobros] = useState(0);
+
   useEffect(() => {
     const expirar = () => {
       setCodigoRecuperacion(null);
       setTokenRecuperacion(null);
       setUserEmail('');
+      setStoreSubView('lista');
+      setIdClienteSeleccionado(null);
+      setBusquedaClientes('');
+      cerrarModalesClientes();
       setTiendas([]);
       setAvisoTiendas(null);
       setBusquedaTiendas('');
@@ -115,101 +166,19 @@ export function App() {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expirar);
   }, []);
 
-  // Estados del Administrador del Sistema
-  const [adminTab, setAdminTab] = useState<AdminTab>('resumen');
-  const [tiendas, setTiendas] = useState<TiendaDetalleResponse[]>([]);
-  const [cargandoAdminTiendas, setCargandoAdminTiendas] = useState(false);
-  const [errorAdminTiendas, setErrorAdminTiendas] = useState<string | null>(null);
-  const [recargaAdminTiendas, setRecargaAdminTiendas] = useState(0);
-  const [avisoTiendas, setAvisoTiendas] = useState<string | null>(null);
-  const [busquedaTiendas, setBusquedaTiendas] = useState('');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingTienda, setEditingTienda] = useState<TiendaDetalleResponse | null>(null);
-
   useEffect(() => {
-    if (currentUser?.rol !== 'ADMIN_SISTEMA') return;
-    const controller = new AbortController();
-    setCargandoAdminTiendas(true);
-    setErrorAdminTiendas(null);
-    listarTiendas(controller.signal).then(data => {
-      if (!controller.signal.aborted) setTiendas(data);
-    }).catch(e => {
-      if (!controller.signal.aborted) setErrorAdminTiendas(obtenerMensajeError(e));
-    }).finally(() => {
-      if (!controller.signal.aborted) setCargandoAdminTiendas(false);
-    });
-    return () => controller.abort();
-  }, [currentUser, recargaAdminTiendas]);
-
-  // Estados del Administrador del Negocio (Bodega San Blas)
-  const [storeTab, setStoreTab] = useState<StoreTab>('inicio');
-  const [storeSubView, setStoreSubView] = useState<StoreSubView>('lista');
-  const [activeCreditoCode] = useState<string>('CR-001284');
-
-  // Clientes y condiciones crediticias
-  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState<number | null>(null);
-  const [nombreClienteSeleccionado, setNombreClienteSeleccionado] = useState('');
-  const [recargaClientes, setRecargaClientes] = useState(0);
-  const [isRegisterClientModalOpen, setIsRegisterClientModalOpen] = useState(false);
-  const [clienteEnEdicion, setClienteEnEdicion] = useState<ClienteResponse | null>(null);
-  // undefined: modal cerrado; null: registrar condiciones; objeto: editar condiciones.
-  const [condicionEnEdicion, setCondicionEnEdicion] = useState<CondicionCrediticiaResponse | null | undefined>(undefined);
-  const cerrarModalesClientes = () => {
-    setIsRegisterClientModalOpen(false);
-    setClienteEnEdicion(null);
-    setCondicionEnEdicion(undefined);
-  };
-  const recargarClientes = () => setRecargaClientes((n) => n + 1);
-
-  // Estados de Pagos y Cobranzas (Bodega San Blas)
-  const [pagosList, setPagosList] = useState<PagoItemData[]>(initialPagos);
-  const [selectedPagoForRegister, setSelectedPagoForRegister] = useState<PagoItemData | null>(null);
-  const [isRegistrarPagoModalOpen, setIsRegistrarPagoModalOpen] = useState(false);
-  const [isPagoRegistradoModalOpen, setIsPagoRegistradoModalOpen] = useState(false);
-  const [lastPaidItem, setLastPaidItem] = useState<PagoItemData | null>(null);
-
-  const handleOpenRegistrarPago = (pago: PagoItemData) => {
-    setSelectedPagoForRegister(pago);
-    setIsRegistrarPagoModalOpen(true);
-  };
-
-  const handleConfirmPago = (pago: PagoItemData) => {
-    setPagosList((prev) => prev.filter((p) => p.id !== pago.id));
-    setSelectedPagoForRegister(null);
-    setIsRegistrarPagoModalOpen(false);
-    setLastPaidItem(pago);
-    setIsPagoRegistradoModalOpen(true);
-  };
-
-  // Estados de Cortes y Cobranzas (Bodega San Blas)
-  const [cortesList] = useState<CorteItemData[]>(initialCortes);
-  const [selectedCorteForDetail, setSelectedCorteForDetail] = useState<CorteItemData | null>(null);
-  const [isDetalleCorteModalOpen, setIsDetalleCorteModalOpen] = useState(false);
-
-  const handleOpenDetalleCorte = (corte: CorteItemData) => {
-    setSelectedCorteForDetail(corte);
-    setIsDetalleCorteModalOpen(true);
-  };
-
-  const handleRegistrarPagoFromCorte = (corte: CorteItemData) => {
-    const foundPago = pagosList.find((p) => p.cliente === corte.cliente) || {
-      id: corte.id,
-      cliente: corte.cliente,
-      obligacion: corte.obligacion,
-      vence: corte.fechaPago.slice(0, 6),
-      capital: corte.capital,
-      interesCompensatorio: corte.interesCompensatorio,
-      mora: corte.mora,
-      total: corte.totalPagar,
-      estado: (corte.estado === 'Pagado' ? 'Pendiente' : corte.estado) as 'Pendiente' | 'En mora' | 'Por vencer',
-      diasAtraso: corte.estado === 'En mora' ? 8 : 0,
-      capitalPendientePost: corte.cliente.includes('Rosa') ? 0.00 : 560.28,
-      creditoDisponiblePost: corte.cliente.includes('Rosa') ? 2000.00 : 1439.72,
-      capitalLiberado: corte.capital,
+    if (!currentUser) return;
+    const comprobarSesion = () => {
+      if (Date.now() >= expiracionSesion(currentUser)) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     };
-    setSelectedPagoForRegister(foundPago);
-    setIsRegistrarPagoModalOpen(true);
-  };
+    const tiempoRestante = Math.max(0, expiracionSesion(currentUser) - Date.now());
+    const timer = window.setTimeout(comprobarSesion, Math.min(tiempoRestante, 2_147_483_647));
+    window.addEventListener('focus', comprobarSesion);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', comprobarSesion);
+    };
+  }, [currentUser]);
 
   // --- Manejadores de Autenticación ---
   const handleLoginSuccess = (user: LoginResponse) => {
@@ -236,7 +205,7 @@ export function App() {
       setErrorTiendas(null);
       setCargandoTiendas(true);
       setCurrentView('store_admin');
-      setStoreTab('clientes');
+      setStoreTab('inicio');
       setStoreSubView('lista');
     }
   };
@@ -282,6 +251,7 @@ export function App() {
     setCargandoTiendas(false);
     setStoreSubView('lista');
     setIdClienteSeleccionado(null);
+    setBusquedaClientes('');
     cerrarModalesClientes();
     setCodigoRecuperacion(null);
     setTokenRecuperacion(null);
@@ -297,6 +267,7 @@ export function App() {
 
   const recargarAdminTiendas = () => {
     setCargandoAdminTiendas(true);
+    setErrorAdminTiendas(null);
     setRecargaAdminTiendas(n => n + 1);
   };
 
@@ -455,16 +426,18 @@ export function App() {
               onSelectTienda={(id) => {
                 setIdTiendaActiva(id);
                 setStoreSubView('lista');
-                setStoreTab('clientes');
+                setStoreTab('inicio');
                 setIdClienteSeleccionado(null);
+                setBusquedaClientes('');
                 cerrarModalesClientes();
               }}
               currentTab={storeTab}
-              encabezado={
-                storeTab === 'clientes' && storeSubView === 'detalle_cliente'
-                    ? { titulo: 'Detalle del cliente', subtitulo: `Clientes / ${nombreClienteSeleccionado || '...'}` }
-                    : undefined
-              }
+              busquedaClientes={busquedaClientes}
+              onBuscarCliente={(valor) => {
+                setBusquedaClientes(valor);
+                setStoreTab('clientes');
+                setStoreSubView('lista');
+              }}
               onSelectTab={(tab) => {
                 setStoreTab(tab);
                 setStoreSubView('lista');
@@ -487,21 +460,19 @@ export function App() {
             ) : (
                 <>
                   {soloConsulta && <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Tienda inactiva: se permiten consultas y cobranzas, no nuevas ventas ni modificaciones.</p>}
-                  {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes') && (
-                      <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
-                        {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
-                        {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
-                        {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
-                      </p>
-                  )}
                   {/* Pestaña: Inicio (Dashboard de la Bodega) */}
                   {storeTab === 'inicio' && (
                       <StoreDashboardPage
+                          key={idTiendaActiva}
+                          idTienda={idTiendaActiva}
+                          soloConsulta={soloConsulta}
+                          revision={revisionCobros}
+                          onGoToPayments={() => setStoreTab('pagos')}
                           onGoToClients={() => {
                             setStoreTab('clientes');
                             setStoreSubView('lista');
                           }}
-                          onGoToSales={() => setStoreTab('nueva_venta')}
+                          onGoToSales={() => { setIdClienteSeleccionado(null); setStoreTab('nueva_venta'); }}
                       />
                   )}
 
@@ -514,10 +485,11 @@ export function App() {
                                 key={`${idTiendaActiva}-${recargaClientes}`}
                                 idTienda={idTiendaActiva}
                                 soloConsulta={soloConsulta}
+                                busqueda={busquedaClientes}
+                                onBuscar={setBusquedaClientes}
                                 onNewClient={() => setIsRegisterClientModalOpen(true)}
                                 onSelectCliente={(idCliente) => {
                                   setIdClienteSeleccionado(idCliente);
-                                  setNombreClienteSeleccionado('');
                                   setStoreSubView('detalle_cliente');
                                 }}
                             />
@@ -530,7 +502,6 @@ export function App() {
                                 idTienda={idTiendaActiva}
                                 idCliente={idClienteSeleccionado}
                                 soloConsulta={soloConsulta}
-                                onClienteCargado={(cliente) => setNombreClienteSeleccionado(cliente.nombreCliente)}
                                 onBack={() => setStoreSubView('lista')}
                                 onEditClient={(cliente) => setClienteEnEdicion(cliente)}
                                 onEditConditions={(condicion) => setCondicionEnEdicion(condicion)}
@@ -538,13 +509,6 @@ export function App() {
                             />
                         )}
 
-                        {/* 3. Plan de Pagos / Cronograma Francés (HU-12) */}
-                        {storeSubView === 'plan_pagos' && (
-                            <StorePlanPagosPage
-                                codigoCredito={activeCreditoCode}
-                                onBackToClient={() => setStoreSubView('detalle_cliente')}
-                            />
-                        )}
                       </>
                   )}
 
@@ -563,6 +527,7 @@ export function App() {
                       <StoreNuevaVentaPage
                           key={idTiendaActiva}
                           idTienda={idTiendaActiva}
+                          idClienteInicial={storeSubView === 'detalle_cliente' ? idClienteSeleccionado : null}
                           onCancel={() => { setStoreTab('clientes'); setStoreSubView('lista'); }}
                       />
                   )}
@@ -570,16 +535,18 @@ export function App() {
                   {/* Pestaña: Pagos */}
                   {storeTab === 'pagos' && (
                       <StorePagosPage
-                          pagos={pagosList}
-                          onOpenRegistrarPago={handleOpenRegistrarPago}
+                          key={idTiendaActiva}
+                          idTienda={idTiendaActiva}
+                          revision={revisionCobros}
+                          onPagoRegistrado={() => { setRevisionCobros(n => n + 1); recargarClientes(); }}
                       />
                   )}
 
                   {/* Pestaña: Cortes y cobranzas */}
                   {storeTab === 'cortes' && (
                       <StoreCortesPage
-                          cortes={cortesList}
-                          onViewDetalle={handleOpenDetalleCorte}
+                          key={idTiendaActiva}
+                          idTienda={idTiendaActiva}
                       />
                   )}
 
@@ -628,26 +595,6 @@ export function App() {
                   onSave={recargarClientes}
               />
           )}
-
-          <RegistrarPagoModal
-              isOpen={isRegistrarPagoModalOpen}
-              pagoItem={selectedPagoForRegister}
-              onClose={() => setIsRegistrarPagoModalOpen(false)}
-              onConfirmPago={handleConfirmPago}
-          />
-
-          <PagoRegistradoModal
-              isOpen={isPagoRegistradoModalOpen}
-              pagoItem={lastPaidItem}
-              onClose={() => setIsPagoRegistradoModalOpen(false)}
-          />
-
-          <DetalleCorteModal
-              isOpen={isDetalleCorteModalOpen}
-              corte={selectedCorteForDetail}
-              onClose={() => setIsDetalleCorteModalOpen(false)}
-              onRegistrarPago={handleRegistrarPagoFromCorte}
-          />
 
         </>
     );
