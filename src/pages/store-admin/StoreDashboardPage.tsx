@@ -64,9 +64,7 @@ export function StoreDashboardPage({ idTienda, nombreUsuario, revision, soloCons
   const manana = new Date(hoy + 'T00:00:00Z');
   manana.setUTCDate(manana.getUTCDate() + 1);
   const fechaManana = manana.toISOString().slice(0, 10);
-  const eje = (valor: number) => `${monedaGrafico === 'PEN' ? 'S/' : 'US
-
-} ${new Intl.NumberFormat('es-PE', { notation: 'compact', maximumFractionDigits: 1 }).format(valor)}`;
+  const eje = (valor: number) => (monedaGrafico === 'PEN' ? 'S/ ' : 'US$ ') + new Intl.NumberFormat('es-PE', { notation: 'compact', maximumFractionDigits: 1 }).format(valor);
 
   return <div className="store-dashboard">
     <header className="store-dashboard-welcome">
