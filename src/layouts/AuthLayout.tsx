@@ -8,32 +8,32 @@ interface AuthLayoutProps {
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   const [anio] = useState(() => new Date().getFullYear());
   return (
-    <div className="min-h-screen flex flex-col md:flex-row w-full bg-[#f8fafc]">
+    <div className="jades-auth min-h-screen flex flex-col md:flex-row w-full bg-jades-canvas">
       {/* Panel Izquierdo Branding */}
-      <div className="relative w-full md:w-5/12 bg-[#102e29] text-white p-8 md:p-16 flex flex-col justify-center min-h-[300px] md:min-h-screen">
+      <div className="jades-auth-brand relative w-full md:w-5/12 bg-jades-navy text-white p-8 md:p-16 flex flex-col justify-center min-h-[300px] md:min-h-screen">
         <div>
           {/* Logo Badge */}
-          <div className="w-12 h-12 rounded-xl bg-[#139a6c] flex items-center justify-center shadow-lg shadow-black/20">
-            <ReceiptText className="w-6 h-6 text-white stroke-[2.2]" />
+          <div className="w-[60px] h-[60px] rounded-[14px] bg-jades-primary flex items-center justify-center shadow-lg shadow-black/20">
+            <ReceiptText className="w-8 h-8 text-white stroke-[2.2]" />
           </div>
 
           {/* Nombre de la marca */}
-          <p className="text-3xl font-extrabold tracking-tight text-white mt-6">
+          <p className="text-[40px] font-bold tracking-tight text-white mt-6">
             JADES
           </p>
 
           {/* Slogan principal */}
           <div className="mt-6 space-y-1">
-            <p className="text-3xl lg:text-4xl font-extrabold leading-tight text-white">
+            <p className="text-3xl lg:text-[32px] font-bold leading-tight text-white">
               Créditos simples.
             </p>
-            <p className="text-3xl lg:text-4xl font-extrabold leading-tight text-white">
+            <p className="text-3xl lg:text-[32px] font-bold leading-tight text-white">
               Cuentas claras.
             </p>
           </div>
 
           {/* Bajada */}
-          <p className="mt-6 text-sm lg:text-base text-emerald-100/75 leading-relaxed font-normal max-w-sm">
+          <p className="mt-6 text-sm lg:text-base text-jades-on-navy leading-relaxed font-normal max-w-sm">
             Una plataforma para el negocio y sus clientes.
           </p>
         </div>

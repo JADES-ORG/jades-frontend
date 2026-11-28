@@ -7,7 +7,7 @@ interface ModalShellProps {
     onClose: () => void;
     /** Mientras se guarda no se permite cerrar el modal. */
     bloqueado?: boolean;
-    ancho?: 'normal' | 'amplio';
+    ancho?: 'normal' | 'amplio' | 'pago' | 'detalle';
     children: React.ReactNode;
 }
 
@@ -60,14 +60,14 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby={idTitulo}
-                    className={`bg-white rounded-2xl shadow-2xl outline-none ${ancho === 'amplio' ? 'max-w-[55rem]' : 'max-w-2xl'} w-full border border-slate-100 my-4`}
+                    className={`jades-dialog bg-white outline-none ${ancho === 'detalle' ? 'max-w-[900px]' : ancho === 'pago' ? 'max-w-[700px]' : 'max-w-[780px]'} w-full border border-slate-100 my-4`}
                 >
                     <div className="px-6 sm:px-8 pt-6 sm:pt-8 flex items-start justify-between gap-4">
                         <div>
                             <h3 id={idTitulo} className="text-2xl font-bold text-slate-900 tracking-tight">
                                 {titulo}
                             </h3>
-                            <p className="text-sm text-slate-600 mt-3">{descripcion}</p>
+                            <p className="text-sm text-slate-600 mt-1">{descripcion}</p>
                         </div>
                         <button
                             type="button"
@@ -104,9 +104,9 @@ export const NotaInfo: React.FC<{ children: React.ReactNode }> = ({ children }) 
     </p>
 );
 
-const botonBase = 'px-6 py-3 text-sm font-semibold rounded-xl transition cursor-pointer';
+const botonBase = 'min-h-11 px-5 py-2.5 text-sm font-semibold rounded-lg transition cursor-pointer';
 export const botonSecundarioModal = `${botonBase} border border-slate-200 text-slate-800 bg-white hover:bg-slate-50 disabled:opacity-50`;
-export const botonPrincipalModal = `${botonBase} bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white shadow-xs disabled:opacity-60 disabled:cursor-wait`;
+export const botonPrincipalModal = `${botonBase} bg-jades-primary hover:bg-jades-hover active:bg-jades-active text-white shadow-xs disabled:opacity-60 disabled:cursor-wait`;
 
 interface BotonesProps {
     onCancelar: () => void;

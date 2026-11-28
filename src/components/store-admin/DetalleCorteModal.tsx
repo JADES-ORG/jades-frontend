@@ -24,7 +24,7 @@ export interface CorteItemData {
 }
 
 export function DetalleCorteModal({ corte, onClose, titulo = 'Detalle del corte' }: { corte: CorteItemData; onClose: () => void; titulo?: string }) {
-  return <ModalShell titulo={titulo} ancho="normal" descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
+  return <ModalShell titulo={titulo} ancho="detalle" descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
     <div className={cuerpoModal}>
       <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
         {[

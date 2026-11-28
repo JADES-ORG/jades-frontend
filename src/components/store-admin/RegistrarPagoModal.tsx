@@ -81,7 +81,7 @@ export function RegistrarPagoModal({ obligacion, onClose, onRegistrado }: Props)
     }
   }
 
-  return <ModalShell ancho={liquidacion ? 'amplio' : 'normal'} titulo="Gestionar pago" descripcion={`${obligacion.cliente} · ${obligacion.obligacion}`} onClose={onClose} bloqueado={guardando}>
+  return <ModalShell ancho={liquidacion ? 'detalle' : 'pago'} titulo="Gestionar pago" descripcion={`${obligacion.cliente} · ${obligacion.obligacion}`} onClose={onClose} bloqueado={guardando}>
     <form className={cuerpoModal} onSubmit={confirmar}>
       <div className="flex items-baseline gap-2 text-sm text-slate-600">
         <span>Vencimiento pactado {fecha(obligacion.fechaVencimiento)}</span>

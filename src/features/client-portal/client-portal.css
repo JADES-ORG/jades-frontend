@@ -1,39 +1,11 @@
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/client-fonts/dm-sans-400.ttf") format("truetype");
-}
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/client-fonts/dm-sans-500.ttf") format("truetype");
-}
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/client-fonts/dm-sans-600.ttf") format("truetype");
-}
-@font-face {
-  font-family: "DM Sans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/client-fonts/dm-sans-700.ttf") format("truetype");
-}
 /* Portal cliente: tokens y geometría de Figma. Estilos aislados de los otros módulos. */
 .client-portal {
-  --client-navy: #102f2a;
-  --client-primary: #087f5b;
-  --client-ink: #182230;
-  --client-muted: #667085;
-  --client-line: #e7eaf0;
-  --client-soft: #eaf8f2;
+  --client-navy: var(--color-jades-navy);
+  --client-primary: var(--color-jades-primary);
+  --client-ink: var(--color-jades-ink);
+  --client-muted: var(--color-jades-muted);
+  --client-line: var(--color-jades-line);
+  --client-soft: var(--color-jades-soft);
   display: flex;
   min-height: 100vh;
   background: #f3f6f5;
@@ -103,7 +75,7 @@
 }
 .client-brand p {
   font-size: 12px;
-  color: #a5aaa8;
+  color: var(--color-jades-on-navy);
   margin: 0;
 }
 .client-avatar {
@@ -136,11 +108,11 @@
 .client-identity small {
   display: block;
   font-size: 11px;
-  color: #a5aaa8;
+  color: var(--color-jades-on-navy);
 }
 .client-menu-label {
   font-size: 10px;
-  color: #a5aaa8;
+  color: var(--color-jades-on-navy);
   margin: 37px 0 0;
 }
 .client-sidebar nav button {
@@ -178,7 +150,7 @@
   border: 0;
   padding: 0;
   background: transparent;
-  color: #a5aaa8;
+  color: var(--color-jades-on-navy);
   font-size: 11px;
   text-align: left;
 }
@@ -221,7 +193,7 @@
   color: var(--client-ink);
 }
 .client-search input::placeholder {
-  color: #66696e;
+  color: var(--client-muted);
 }
 .client-global-search {
   width: 255px;
@@ -255,7 +227,7 @@
 }
 .client-heading p {
   font-size: 14px;
-  color: #66696e;
+  color: var(--client-muted);
   margin: 0;
 }
 .client-hero {
@@ -297,7 +269,7 @@
   border-radius: 9px;
   background: white;
   color: var(--client-navy);
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   transition: background 0.15s;
 }
@@ -326,7 +298,7 @@
 .client-panel-heading p {
   font-size: 12px;
   margin: 0;
-  color: #66696e;
+  color: var(--client-muted);
 }
 .client-table-scroll {
   overflow-x: auto;
@@ -336,12 +308,12 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 11px;
+  font-size: 13px;
 }
 .client-table th {
   background: #fafbfc;
-  color: #66696e;
-  font-size: 9px;
+  color: var(--client-muted);
+  font-size: 11px;
   text-transform: uppercase;
   font-weight: 600;
   height: 42px;
@@ -363,12 +335,12 @@
 .client-table td strong {
   font-weight: 600;
   display: block;
-  font-size: 12px;
+  font-size: 13px;
 }
 .client-table td small {
   display: block;
-  color: #66696e;
-  font-size: 10px;
+  color: var(--client-muted);
+  font-size: 12px;
   margin-top: 2px;
 }
 .client-table tbody tr:hover {
@@ -508,7 +480,7 @@
 .client-stat p {
   font-size: 12px;
   margin: 0;
-  color: #66696e;
+  color: var(--client-muted);
 }
 .client-stat h3 {
   font-size: 21px;
@@ -518,7 +490,7 @@
 }
 .client-stat small {
   font-size: 11px;
-  color: #66696e;
+  color: var(--client-muted);
 }
 .client-actions {
   display: flex;

@@ -1,9 +1,135 @@
 @import "tailwindcss";
 
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/client-fonts/dm-sans-400.ttf") format("truetype"); }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/client-fonts/dm-sans-500.ttf") format("truetype"); }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/client-fonts/dm-sans-600.ttf") format("truetype"); }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/client-fonts/dm-sans-700.ttf") format("truetype"); }
+
 @theme {
   --font-sans: "DM Sans", system-ui, sans-serif;
+  --color-jades-navy: #102f2a;
+  --color-jades-navy-soft: #1c453c;
+  --color-jades-primary: #087f5b;
+  --color-jades-hover: #06684b;
+  --color-jades-active: #05553e;
+  --color-jades-canvas: #f3f6f5;
+  --color-jades-ink: #172b28;
+  --color-jades-muted: #53655f;
+  --color-jades-line: #dce5e1;
+  --color-jades-soft: #e7f5ef;
+  --color-jades-subtle: #fafbfc;
+  --color-jades-on-navy: #b9cdc5;
+  --color-jades-warning: #925a0b;
+  --color-jades-warning-bg: #fff4df;
+  --color-jades-danger: #b83a3a;
+  --color-jades-danger-bg: #fdebec;
 }
 
 :root {
   font-family: "DM Sans", system-ui, sans-serif;
+  color: var(--color-jades-ink);
+  background: var(--color-jades-canvas);
+  font-synthesis: none;
+}
+button:not(:disabled) { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--color-jades-primary);
+  outline-offset: 3px;
+}
+.jades-sidebar :where(button, a):focus-visible { outline-color: var(--color-jades-on-navy); }
+.jades-sidebar {
+  padding: 24px 16px 16px;
+  color: #fff;
+  background: var(--color-jades-navy);
+}
+.jades-sidebar .jades-brand {
+  display: flex;
+  gap: 11px;
+  height: 62px;
+  align-items: flex-start;
+  padding: 8px;
+}
+.jades-sidebar .jades-brand-symbol { width: 38px; height: 38px; flex: none; border-radius: 11px; box-shadow: none; }
+.jades-sidebar .jades-brand h1 { font-size: 18px; line-height: 26px; font-weight: 700; }
+.jades-sidebar .jades-brand p { font-size: 12px; color: var(--color-jades-on-navy); }
+.jades-sidebar .jades-sidebar-context { min-height: 58px; }
+.jades-sidebar .jades-sidebar-context > button {
+  min-height: 58px;
+  padding: 11px;
+  border-color: #2d5b50;
+  background: var(--color-jades-navy-soft);
+}
+.jades-sidebar .jades-sidebar-context > ul { inset-inline: 0; margin-top: 4px; }
+.jades-sidebar .jades-sidebar-context > button small { font-size: 12px; color: var(--color-jades-on-navy); }
+.jades-sidebar .jades-sidebar-context > button strong { font-size: 13px; }
+.jades-sidebar .jades-nav { padding: 36px 0 0; }
+.jades-sidebar .jades-nav > p { padding: 0; margin: 0; font-size: 11px; line-height: 16px; color: var(--color-jades-on-navy); }
+.jades-sidebar .jades-nav nav > button, .jades-sidebar .jades-config {
+  min-height: 45px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: left;
+}
+.jades-sidebar .jades-nav nav > button > svg, .jades-sidebar .jades-config > svg { width: 20px; height: 20px; flex-shrink: 0; }
+.jades-sidebar .jades-nav nav > button:disabled { opacity: .5; }
+.jades-sidebar .jades-profile { padding: 10px; min-height: 55px; border-radius: 8px; background: var(--color-jades-navy-soft); }
+.jades-sidebar .jades-profile p { overflow-wrap: anywhere; font-size: 13px; }
+.jades-sidebar .jades-profile button { font-size: 12px; color: var(--color-jades-on-navy); }
+.jades-topbar { height: 64px; border-color: var(--color-jades-line); }
+.jades-topbar input { min-height: 39px; height: 39px; background: #fff; font-size: 13px; border-color: var(--color-jades-line); border-radius: 9px; }
+.jades-content { min-width: 0; padding: 24px 16px 40px; }
+.jades-content h2.text-xl { font-size: 26px; font-weight: 700; line-height: 1.45; color: var(--color-jades-ink); letter-spacing: -.35px; }
+.jades-content h2.text-xl + p { font-size: 14px; line-height: 1.45; color: var(--color-jades-muted); }
+.jades-content table, .jades-dialog table { font-size: 13px; font-variant-numeric: tabular-nums; }
+.jades-content table thead, .jades-dialog table thead { background: var(--color-jades-subtle); color: var(--color-jades-muted); font-size: 11px; font-weight: 600; letter-spacing: .025em; }
+.jades-content table th, .jades-dialog table th { vertical-align: middle; }
+.jades-content table td, .jades-dialog table td { vertical-align: middle; }
+.jades-content table tbody tr:not([class*="bg-"]):hover, .jades-dialog table tbody tr:not([class*="bg-"]):hover { background: #f7fbf9; }
+.jades-content :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.jades-dialog :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) { min-height: 44px; border-radius: 8px; font-size: 14px; }
+.jades-content button:is([class*="bg-[#139a6c]"], [class*="bg-[#137b57]"], .bg-jades-primary),
+.jades-dialog button:is([class*="bg-[#139a6c]"], [class*="bg-[#137b57]"], .bg-jades-primary),
+.jades-auth button:is([class*="bg-[#139a6c]"], .bg-jades-primary) {
+  background: var(--color-jades-primary);
+  min-height: 40px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.jades-content button:is([class*="bg-[#139a6c]"], [class*="bg-[#137b57]"], .bg-jades-primary):not(:disabled):hover,
+.jades-dialog button:is([class*="bg-[#139a6c]"], [class*="bg-[#137b57]"], .bg-jades-primary):not(:disabled):hover,
+.jades-auth button:is([class*="bg-[#139a6c]"], .bg-jades-primary):not(:disabled):hover { background: var(--color-jades-hover); }
+.jades-content :is([class*="text-[#139a6c]"], [class*="text-[#137b57]"]), .jades-dialog [class*="text-[#139a6c]"], .jades-auth [class*="text-[#139a6c]"] { color: var(--color-jades-primary); }
+.jades-content :is(.text-slate-900, .text-slate-800), .jades-dialog :is(.text-slate-900, .text-slate-800) { color: var(--color-jades-ink); }
+.jades-content :is(.text-slate-500, .text-slate-400), .jades-dialog :is(.text-slate-500, .text-slate-400) { color: var(--color-jades-muted); }
+.jades-content .border-slate-200, .jades-dialog .border-slate-200 { border-color: var(--color-jades-line); }
+.jades-dialog { border: 1px solid var(--color-jades-line); border-radius: 16px; box-shadow: 0 16px 48px #102f2a24; }
+.jades-dialog h3 { color: var(--color-jades-ink); }
+.jades-pagination { min-height: 60px; color: var(--color-jades-muted); font-size: 13px; }
+.jades-pagination button { min-width: 92px; min-height: 44px; border: 1px solid var(--color-jades-line); border-radius: 8px; padding-inline: 12px; background: #fff; }
+.jades-pagination button:not(:disabled):hover { background: var(--color-jades-soft); border-color: var(--color-jades-primary); }
+.jades-pagination button:disabled { background: var(--color-jades-canvas); opacity: .6; }
+.jades-auth main > div { border-color: var(--color-jades-line); border-radius: 18px; box-shadow: 0 12px 24px #0c161319; }
+.jades-auth main h1 { font-size: clamp(24px, 2.4vw, 28px); line-height: 1.45; color: var(--color-jades-ink); }
+.jades-auth main input:not([type="checkbox"]) { height: 44px; padding-block: 10px; border-radius: 10px; }
+.jades-auth main button[type="submit"] { min-height: 46px; padding-block: 10px; border-radius: 8px; box-shadow: none; }
+.jades-auth main label { font-size: 13px; font-weight: 600; }
+@media (min-width: 768px) {
+  .jades-sidebar { width: 260px; }
+  .jades-topbar { padding-inline: 34px; }
+  .jades-content { padding: 30px 34px 48px; }
+  .jades-auth-brand { padding: 70px; }
+}
+@media (max-width: 767px) {
+  .jades-sidebar { padding: 16px; }
+  .jades-sidebar .jades-nav { padding-top: 12px; }
+  .jades-sidebar .jades-nav nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .jades-sidebar .jades-nav nav > button { font-size: 13px; }
+  .jades-sidebar .jades-brand { height: 58px; }
+  .jades-content h2.text-xl { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
