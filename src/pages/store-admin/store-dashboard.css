@@ -94,6 +94,27 @@
 .store-dashboard .recibido { background: var(--color-jades-primary); }
 .store-dashboard-month { margin-top: 9px; font-size: 11px; color: #667085; text-transform: capitalize; }
 .store-dashboard-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px; margin-top: auto; color: var(--color-jades-muted); font-size: 11px; }
+.store-dashboard-legend { position: relative; min-height: 28px; }
+.store-dashboard-legend > details { flex: 0 0 28px; }
+.store-dashboard-legend > details > summary { width: 28px; height: 28px; }
+.store-dashboard-legend > details > p {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(320px, 100%);
+  margin: 0;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid var(--color-jades-line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px #102f2a1a;
+  color: var(--color-jades-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
 .store-dashboard-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .store-dashboard-legend i { width: 9px; height: 9px; border-radius: 2px; }
 .store-dashboard-link { display: inline-flex; align-items: center; gap: 3px; color: var(--color-jades-primary); font-size: 11px; font-weight: 600; min-height: 28px; white-space: nowrap; }
