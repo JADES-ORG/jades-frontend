@@ -3,7 +3,7 @@ import { CronogramaCredito } from '../../components/store-admin/CronogramaCredit
 import { porcentaje } from '../../features/client-portal/model';
 import { etiquetaMoneda, etiquetaPeriodo, horaCorta, iniciales, resumenTasaCompensatoria, resumenTasaMoratoria } from '../../features/clientes/model';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Trash2, Info, CheckCircle, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Search, Trash2, Info, CheckCircle, ChevronRight, ArrowLeft, ChevronDown, Plus, Minus } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
 import { listarProductos } from '../../api/productos';
 import { admiteCantidadDecimal } from '../../types/productos';
@@ -91,6 +91,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const [errorCondicion, setErrorCondicion] = useState('');
   const [recargaCondicion, setRecargaCondicion] = useState(0);
   const [busquedaProducto, setBusquedaProducto] = useState('');
+  const [mostrandoProductos, setMostrandoProductos] = useState(true);
   const [items, setItems] = useState<VentaItem[]>([]);
   const [modalidad, setModalidad] = useState<ModalidadPago>('MENSUAL');
   const [cuotas, setCuotas] = useState(3);
@@ -193,12 +194,28 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     setBusquedaCliente('');
     if (cliente?.id === c.id) return;
     setCliente(c); setCondicion(null); setCargaCondicion(true); setErrorCondicion('');
-    setItems([]); setBusquedaProducto(''); setErrorSaldo(''); invalidaSimulacion();
+    setItems([]); setBusquedaProducto(''); setMostrandoProductos(true); setErrorSaldo(''); invalidaSimulacion();
   }
 
   function agregarProducto(p: ProductoResponse) {
     setItems(prev => prev.some(i => i.producto.id === p.id) || prev.length >= 50 ? prev : [...prev, { producto: p, cantidad: '1' }]);
+    setBusquedaProducto('');
+    setMostrandoProductos(false);
     invalidaSimulacion();
+  }
+
+  function cambiarCantidad(idProducto: number, cantidad: string) {
+    setItems(prev => prev.map(item => item.producto.id === idProducto ? { ...item, cantidad } : item));
+    invalidaSimulacion();
+  }
+
+  function ajustarCantidad(item: VentaItem, direccion: -1 | 1) {
+    if (!cantidadValida(item)) return;
+    const pasoCantidad = admiteCantidadDecimal(item.producto.unidadMedida) ? 1 : 1000;
+    const actual = Math.round(Number(item.cantidad) * 1000);
+    const siguiente = actual + direccion * pasoCantidad;
+    if (siguiente < pasoCantidad || siguiente > 999999999000) return;
+    cambiarCantidad(item.producto.id, String(siguiente / 1000));
   }
 
   function construirSolicitud(): RegistrarVentaRequest | null {
@@ -319,9 +336,6 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
             </button>)}
             {!encontrados.length && <p className="p-4 text-xs text-jades-muted">No se encontraron clientes activos.</p>}
           </div>
-          {cliente && <button type="button" onClick={() => setMostrandoClientes(false)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-jades-primary hover:underline">
-            <ArrowLeft aria-hidden="true" className="size-4"/> Volver al cliente seleccionado
-          </button>}
         </> : cliente && <>
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-jades-line bg-jades-soft px-4 py-4 sm:px-5">
             <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -374,23 +388,94 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
         <button type="button" className={principal} disabled={mostrandoClientes || !cliente || !condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button>
       </div>
     </>}
-    {paso === 2 && <section className={panel}>
-      <div className="flex items-baseline gap-1"><h3 className="font-bold">2. Agrega productos o servicios</h3><AyudaCampo etiqueta="los productos y cantidades" texto="Elige artículos con precio de crédito en la moneda del cliente. Usa decimales solo cuando la unidad los admita." /></div>
-      <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
-      <div className="max-h-52 overflow-auto border border-jades-line rounded-xl divide-y divide-jades-line">
-        {catalogo.map(p => <button type="button" key={p.id} disabled={items.some(i => i.producto.id === p.id) || items.length >= 50} onClick={() => agregarProducto(p)} className="w-full text-left flex justify-between gap-3 p-3 text-sm hover:bg-jades-subtle disabled:opacity-50"><span><strong>{p.nombreProducto}</strong> · {p.unidadMedida} · {p.modalidad}</span><strong>{m(precioCredito(p)!)}</strong></button>)}
-        {!catalogo.length && <p className="p-4 text-xs text-jades-muted">{productos.length ? 'No se encontraron productos disponibles en la moneda del crédito.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
+    {paso === 2 && <>
+      <section className={panel}>
+        <div>
+          <h3 className="font-bold">2. Agrega productos o servicios</h3>
+          <p className="mt-1 text-[13px] text-jades-muted">Se aplicará el precio de crédito y solo estarán disponibles las modalidades permitidas por los conceptos seleccionados.</p>
+        </div>
+        <div className="space-y-2" onKeyDown={e => { if (e.key === 'Escape') setMostrandoProductos(false); }}>
+          <div className="relative">
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-jades-muted"/>
+            <input className={campo + ' pl-10 pr-12'} aria-label="Buscar producto o servicio" aria-controls={mostrandoProductos ? 'venta-catalogo' : undefined} placeholder="Buscar producto o servicio" value={busquedaProducto}
+              onFocus={() => setMostrandoProductos(true)} onClick={() => setMostrandoProductos(true)} onChange={e => { setBusquedaProducto(e.target.value); setMostrandoProductos(true); }}/>
+            <button type="button" aria-label={mostrandoProductos ? 'Ocultar catálogo' : 'Mostrar catálogo'} aria-expanded={mostrandoProductos} onClick={() => setMostrandoProductos(v => !v)} className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-lg text-jades-muted hover:bg-jades-soft">
+              <ChevronDown aria-hidden="true" className={'size-4 transition-transform ' + (mostrandoProductos ? 'rotate-180' : '')}/>
+            </button>
+          </div>
+          {mostrandoProductos && <div id="venta-catalogo" className="max-h-56 overflow-auto rounded-lg border border-jades-line divide-y divide-jades-line">
+            {catalogo.filter(p => !items.some(i => i.producto.id === p.id)).map(p => <button type="button" key={p.id} disabled={items.length >= 50} onClick={() => agregarProducto(p)} className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-jades-soft disabled:opacity-50">
+              <span className="min-w-0"><strong className="block font-semibold text-jades-ink">{p.nombreProducto}</strong><span className="text-xs text-jades-muted">{p.unidadMedida} · {p.modalidad}</span></span>
+              <span className="flex shrink-0 items-center gap-3 font-semibold tabular-nums text-jades-primary">{m(precioCredito(p)!)}<Plus aria-hidden="true" className="size-4"/></span>
+            </button>)}
+            {!catalogo.some(p => !items.some(i => i.producto.id === p.id)) && <p className="p-4 text-xs text-jades-muted">{productos.length ? 'No se encontraron otros productos disponibles en la moneda del crédito.' : 'No hay productos disponibles en esta tienda. Registra o activa un producto en el catálogo para continuar.'}</p>}
+          </div>}
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-jades-muted">Detalle de la venta</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[650px] table-fixed text-left text-[13px]">
+              <thead className="bg-jades-subtle text-jades-muted">
+                <tr>
+                  <th scope="col" className="w-[40%] px-3 py-3">Producto</th>
+                  <th scope="col" className="w-[18%] px-3 py-3">Precio unitario</th>
+                  <th scope="col" className="w-[21%] px-3 py-3">Cantidad</th>
+                  <th scope="col" className="px-3 py-3">Subtotal</th>
+                  <th scope="col" className="w-12"><span className="sr-only">Quitar</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-jades-line border-b border-jades-line">
+                {items.map(i => {
+                  const decimal = admiteCantidadDecimal(i.producto.unidadMedida);
+                  const minimo = decimal ? .001 : 1;
+                  const cantidadCorrecta = cantidadValida(i);
+                  return <tr key={i.producto.id}>
+                    <td className="px-3 py-4 font-semibold break-words">{i.producto.nombreProducto}</td>
+                    <td className="px-3 py-4 tabular-nums">{m(precioCredito(i.producto)!)}</td>
+                    <td className="px-3 py-4">
+                      <div className="inline-flex items-center gap-1">
+                        <button type="button" aria-label={'Disminuir cantidad de ' + i.producto.nombreProducto} disabled={!cantidadCorrecta || Number(i.cantidad) <= minimo} onClick={() => ajustarCantidad(i, -1)} className="grid size-8 shrink-0 place-items-center rounded-md text-jades-primary hover:bg-jades-soft disabled:opacity-30">
+                          <Minus aria-hidden="true" className="size-4"/>
+                        </button>
+                        <input aria-label={'Cantidad de ' + i.producto.nombreProducto} className="w-[72px] min-w-0 border border-jades-line bg-white px-1 py-1 text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" min={minimo} max={999999999} step={minimo} value={i.cantidad} onChange={e => cambiarCantidad(i.producto.id, e.target.value)}/>
+                        <button type="button" aria-label={'Aumentar cantidad de ' + i.producto.nombreProducto} disabled={!cantidadCorrecta || Number(i.cantidad) >= 999999999} onClick={() => ajustarCantidad(i, 1)} className="grid size-8 shrink-0 place-items-center rounded-md text-jades-primary hover:bg-jades-soft disabled:opacity-30">
+                          <Plus aria-hidden="true" className="size-4"/>
+                        </button>
+                      </div>
+                      {!cantidadCorrecta && <p className="mt-1 text-xs text-red-700">Cantidad inválida</p>}
+                    </td>
+                    <td className="px-3 py-4 tabular-nums">{cantidadCorrecta ? m(subtotalCentavos(i, precioCredito(i.producto) ?? 0)/100) : '—'}</td>
+                    <td className="px-1 py-4 text-center">
+                      <button type="button" aria-label={'Quitar ' + i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }} className="inline-grid size-9 place-items-center rounded-md hover:bg-red-50">
+                        <Trash2 aria-hidden="true" className="size-4 text-red-600"/>
+                      </button>
+                    </td>
+                  </tr>;
+                })}
+                {!items.length && <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-jades-muted">Busca y selecciona un producto o servicio para agregarlo a la venta.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-jades-line bg-jades-line sm:grid-cols-2">
+          <div className="min-w-0 bg-white px-4 py-3">
+            <dt className="text-xs text-jades-muted">Capital total estimado</dt>
+            <dd className="mt-1 break-words text-sm font-bold tabular-nums text-jades-ink">{validas ? m(capital) : items.length ? '—' : m(0)}</dd>
+          </div>
+          <div className="min-w-0 bg-white px-4 py-3">
+            <dt className="text-xs text-jades-muted">Crédito disponible</dt>
+            <dd className="mt-1 break-words text-sm font-bold tabular-nums text-jades-ink">{condicion && saldoVigente ? m(condicion.creditoDisponible) : '—'}</dd>
+            <dd className="mt-1 text-[11px] text-jades-muted">Disponible tras capital inicial (estimado): {condicion && saldoVigente && validas ? m(Math.max(0, condicion.creditoDisponible - capital)) : '—'}</dd>
+          </div>
+        </dl>
+        {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}
+        {condicion && saldoVigente && capital > condicion.creditoDisponible && aviso('Crédito insuficiente: el capital supera el crédito disponible.')}
+      </section>
+      <div className="flex flex-wrap justify-end gap-3">
+        <button type="button" className={secundario + ' bg-white'} onClick={() => setPaso(1)}>Atrás</button>
+        <button type="button" className={principal} disabled={!puedeAvanzar} onClick={() => { setModalidad(mensualPermitido ? 'MENSUAL' : 'UNICO'); invalidaSimulacion(); setPaso(3); }}>Continuar</button>
       </div>
-      <div className="overflow-x-auto border border-jades-line rounded-xl"><table className="w-full text-left text-[13px]">
-        <thead className="bg-jades-subtle text-jades-muted"><tr>{['Producto','Precio crédito','Cantidad','Subtotal',''].map((h,i) => <th key={i} className="p-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-jades-line">{items.map(i => <tr key={i.producto.id}><td className="p-3 font-semibold">{i.producto.nombreProducto}</td><td className="p-3">{m(precioCredito(i.producto)!)}</td><td className="p-3"><input aria-label={'Cantidad de '+i.producto.nombreProducto} className="w-24 min-h-11 border border-jades-line rounded-lg p-2" type="number" min={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} max={999999999} step={admiteCantidadDecimal(i.producto.unidadMedida) ? .001 : 1} value={i.cantidad} onChange={e => { const cantidad = e.target.value; setItems(prev => prev.map(it => it.producto.id === i.producto.id ? {...it, cantidad} : it)); invalidaSimulacion(); }}/>{!cantidadValida(i) && <p className="text-red-700 mt-1">Cantidad inválida</p>}</td><td className="p-3">{cantidadValida(i) ? m(subtotalCentavos(i, precioCredito(i.producto) ?? 0)/100) : '—'}</td><td className="p-3"><button aria-label={'Quitar '+i.producto.nombreProducto} onClick={() => { setItems(prev => prev.filter(it => it.producto.id !== i.producto.id)); invalidaSimulacion(); }}><Trash2 className="w-4 h-4 text-red-600"/></button></td></tr>)}</tbody>
-      </table></div>
-      <p className="rounded-lg bg-jades-soft px-4 py-3 text-right text-base font-bold tabular-nums text-jades-primary">Capital estimado: {validas ? m(capital) : '—'}</p>
-      {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}
-      {condicion && saldoVigente && capital > condicion.creditoDisponible && aviso('Crédito insuficiente: el capital supera el crédito disponible.')} 
-      {condicion && <Datos datos={[[ 'Crédito disponible', m(condicion.creditoDisponible)], ['Disponible tras capital inicial (estimado)', m(Math.max(0, condicion.creditoDisponible - capital))]]}/>}
-      <div className="flex justify-end gap-3"><button className={secundario} onClick={() => setPaso(1)}>Atrás</button><button className={principal} disabled={!puedeAvanzar} onClick={() => { setModalidad(mensualPermitido ? 'MENSUAL' : 'UNICO'); invalidaSimulacion(); setPaso(3); }}>Continuar</button></div>
-    </section>}
+    </>}
     {paso === 3 && <section className={panel}>
       <div className="flex items-baseline gap-1"><h3 className="font-bold">3. Modalidad de pago</h3><AyudaCampo etiqueta="la modalidad y el número de cuotas" texto="Elige una modalidad común a todos los artículos. Para un crédito mensual, el número de cuotas debe respetar el plazo pactado con el cliente." /></div>
       <div className="grid sm:grid-cols-2 gap-3">
