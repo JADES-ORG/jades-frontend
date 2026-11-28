@@ -16,7 +16,7 @@ import type { LiquidacionResponse, Moneda, PagoResponse } from '../../types/fina
 import type { CreditoDisponibleResponse } from '../../types/clientes';
 import { RegistrarPagoModal } from '../../components/store-admin/RegistrarPagoModal';
 import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
-import { obligacionesPendientes, proximosSieteDias, useCuentasTienda, type ObligacionCobro } from '../../features/cobranzas/cuentas';
+import { historialDeCuenta, obligacionesPendientes, proximosSieteDias, useCuentasTienda, type ObligacionCobro } from '../../features/cobranzas/cuentas';
 
 interface StorePagosPageProps {
   idTienda: number;
@@ -36,7 +36,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
   const [moneda, setMoneda] = useState<Moneda>('PEN');
   const [vista, setVista] = useState<'pendientes' | 'programadas' | 'historial'>('pendientes');
   const [detalle, setDetalle] = useState<CorteItemData | null>(null);
-  const [confirmacion, setConfirmacion] = useState<{ operacion: PagoResponse | LiquidacionResponse; medio: string; idCliente: number } | null>(null);
+  const [confirmacion, setConfirmacion] = useState<{ operacion: PagoResponse | LiquidacionResponse; medio: string; idCliente: number; referencia: string } | null>(null);
   const [credito, setCredito] = useState<CreditoDisponibleResponse | null>(null);
   const [errorCredito, setErrorCredito] = useState('');
   async function consultarSaldo(idCliente: number) {
@@ -51,38 +51,23 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
   const pagos = cargando || error ? [] : obligacionesPendientes(cuentas).filter(pago => pago.moneda === moneda);
   const hoy = hoyLima();
   const indicadores = [
-    { titulo: 'Exigible hoy', icono: Clock, filas: pagos.filter(p => p.fechaVencimiento === hoy) },
+    { titulo: 'Exigible hoy', icono: Clock, filas: pagos.filter(p => p.estado === 'Pendiente' && p.fechaVencimiento === hoy) },
     { titulo: 'En mora', icono: AlertTriangle, filas: pagos.filter(p => p.estado === 'En mora') },
-    { titulo: 'Próximos 7 días', icono: Calendar, filas: pagos.filter(p => proximosSieteDias(p.fechaVencimiento, hoy)) },
+    { titulo: 'Próximos 7 días', icono: Calendar, filas: pagos.filter(p => p.estado === 'Por vencer' && proximosSieteDias(p.fechaVencimiento, hoy)) },
   ];
 
   const filteredPagos = pagos.filter((item) => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
     const matchSearch =
       item.cliente.toLowerCase().includes(term) ||
       item.obligacion.toLowerCase().includes(term);
 
-    const pertenece = vista === 'programadas' ? item.fechaVencimiento > hoy : item.fechaVencimiento <= hoy || item.gestionable;
+    const pertenece = vista === 'programadas' ? item.programada : !item.programada;
     return pertenece && matchSearch && (estadoFilter === 'TODOS' || item.estado === estadoFilter);
   });
 
-  const historial = cuentas.flatMap(cuenta => cuenta.pagos.map(pago => ({
-    id: String(pago.idPago),
-    cliente: cuenta.nombreCliente,
-    obligacion: `${cuenta.compras.find(compra => compra.idVenta === pago.idVenta)?.codigoCredito ?? 'Venta #' + pago.idVenta} · Cuota ${pago.numeroCuota}`,
-    fechaCorte: null,
-    fechaPago: pago.fechaPagoPactada,
-    fechaCompra: pago.fechaCompra,
-    fechaPagoEfectivo: [pago.fechaPago, pago.horaPagoEfectivo].filter(Boolean).join('T'),
-    medioPago: pago.medioPago,
-    capital: pago.capitalPagado,
-    interesCompensatorio: pago.interesPagado,
-    mora: pago.moraPagada,
-    totalPagar: pago.totalExigible,
-    moneda: pago.moneda,
-    estado: 'Pagado',
-    detalles: pago.detalles,
-  }))).filter(pago => pago.moneda === moneda && `${pago.cliente} ${pago.obligacion}`.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+  const historial = cuentas.flatMap(historialDeCuenta)
+    .filter(pago => pago.moneda === moneda && `${pago.cliente} ${pago.obligacion}`.toLowerCase().includes(searchTerm.trim().toLowerCase()))
     .sort((a, b) => b.fechaPagoEfectivo.localeCompare(a.fechaPagoEfectivo));
   const esHistorial = vista === 'historial';
   const total = esHistorial ? historial.length : filteredPagos.length;
@@ -139,7 +124,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               value={searchTerm}
               aria-label="Buscar cliente u obligación"
               onChange={(e) => { setSearchTerm(e.target.value); setPagina(1); }}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl min-h-11 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
             />
           </div>
 
@@ -148,7 +133,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               value={estadoFilter}
               aria-label="Estado de la obligación"
               onChange={(e) => { setEstadoFilter(e.target.value); setPagina(1); }}
-              className="w-full sm:w-48 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
+              className="w-full sm:w-48 appearance-none px-3.5 py-2 pr-9 bg-white border border-slate-200 rounded-xl min-h-11 text-sm text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] cursor-pointer"
             >
               <option value="TODOS">Todos</option>
               <option value="Pendiente">Pendiente</option>
@@ -178,7 +163,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               {esHistorial && historial.slice((paginaActual - 1) * 10, paginaActual * 10).map(pago => (
                 <tr key={pago.id}>
                   <td className="px-6 py-4"><strong className="block">{pago.cliente}</strong>{pago.obligacion}</td>
-                  <td className="px-4 py-4">{fecha(pago.fechaPagoEfectivo)} {pago.fechaPagoEfectivo.split('T')[1]}</td>
+                  <td className="px-4 py-4">{fecha(pago.fechaPagoEfectivo)} {pago.fechaPagoEfectivo.split('T')[1]}<span className="block text-slate-600">Pactado {fecha(pago.fechaPago)} · {pago.medioPago} · Mora {pago.diasAtraso} d</span></td>
                   {[pago.capital, pago.interesCompensatorio, pago.mora, pago.totalPagar].map((importe, indice) => <td className="px-4 py-4" key={indice}>{dinero(importe, pago.moneda)}</td>)}
                   <td className="px-4 py-4"><EstadoBadge estado="Pagado" /></td>
                   <td className="px-6 py-4 text-right"><button type="button" className="min-h-11 rounded-lg border border-slate-200 px-3" onClick={() => setDetalle(pago)}>Ver detalle</button></td>
@@ -227,10 +212,10 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
                     {item.gestionable ? <button
                       type="button"
                       onClick={() => { setSeleccionada(item); }}
-                      className="min-h-11 px-4 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50"
+                      className="min-h-11 whitespace-nowrap px-4 border border-slate-200 rounded-lg text-sm font-semibold hover:bg-slate-50"
                     >
                       Gestionar pago
-                    </button> : <span className="text-slate-600">{item.inicioCobro > hoy.slice(0, 7) ? 'Disponible desde ' + item.inicioCobro : 'Gestionar desde la primera cuota pendiente'}</span>}
+                    </button> : <span className="text-slate-600">{item.inicioCobro > hoy.slice(0, 7) ? 'Disponible desde ' + item.inicioCobro : 'Cancela primero la cuota pendiente más antigua'}</span>}
                   </td>
                 </tr>
               ))}
@@ -250,13 +235,13 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
       </div>
       {seleccionada && <RegistrarPagoModal obligacion={seleccionada} onClose={() => setSeleccionada(null)} onRegistrado={(operacion, medio) => {
         setSeleccionada(null);
-        setConfirmacion({ operacion, medio, idCliente: seleccionada.idCliente });
+        setConfirmacion({ operacion, medio, idCliente: seleccionada.idCliente, referencia: 'totalPagar' in operacion ? seleccionada.codigo : seleccionada.obligacion });
         setCredito(null);
         void consultarSaldo(seleccionada.idCliente);
         onPagoRegistrado();
       }} />}
       {detalle && <DetalleCorteModal titulo="Detalle del pago" corte={detalle} onClose={() => setDetalle(null)} />}
-      {confirmacion && <ModalShell titulo={'totalPagar' in confirmacion.operacion ? 'Liquidación registrada' : 'Pago registrado'} descripcion={`Venta #${confirmacion.operacion.idVenta}`} onClose={() => setConfirmacion(null)}>
+      {confirmacion && <ModalShell titulo={'totalPagar' in confirmacion.operacion ? 'Liquidación registrada' : 'Pago registrado'} descripcion={confirmacion.referencia} onClose={() => setConfirmacion(null)}>
         <div className={cuerpoModal}>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             {(() => {

@@ -59,13 +59,13 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
   const botonTiendas = useRef<HTMLButtonElement>(null);
   const inicialUsuario = correoUsuario.slice(0, 2).toUpperCase();
   return (
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
+      <div className="min-h-screen bg-[#f3f6f5] flex flex-col md:flex-row font-sans">
         {/* SIDEBAR IZQUIERDO */}
-        <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
+        <aside className="w-full md:w-64 bg-[#102f2a] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
           <div>
             {/* Logo JADES */}
             <div className="p-5 border-b border-white/10 flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-[#139a6c] flex items-center justify-center text-white shadow-md">
+              <div className="w-9 h-9 rounded-xl bg-[#087f5b] flex items-center justify-center text-white shadow-md">
                 <ReceiptText className="w-5 h-5 text-white stroke-[2.2]" />
               </div>
               <div>
@@ -90,7 +90,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
               <button type="button" ref={botonTiendas} aria-label="Cambiar establecimiento" aria-expanded={selectorAbierto} aria-controls="tiendas-autorizadas"
                 disabled={cargandoTiendas || !tiendas.length} onClick={() => setSelectorAbierto(abierto => !abierto)}
                 className="flex w-full items-center gap-3 rounded-lg border border-white/15 bg-white/10 p-3 text-left text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-60">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-[#0e3b2e]">{tiendaActiva?.nombreTienda.trim().split(/\s+/).slice(0, 2).map(palabra => palabra[0]).join('').toUpperCase() ?? '—'}</span>
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-[#102f2a]">{tiendaActiva?.nombreTienda.trim().split(/\s+/).slice(0, 2).map(palabra => palabra[0]).join('').toUpperCase() ?? '—'}</span>
                 <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{tiendaActiva?.nombreTienda ?? (cargandoTiendas ? 'Cargando tiendas…' : 'Sin tiendas disponibles')}</strong>
                   {tiendaActiva && <small className="block truncate text-emerald-100">{tiendaActiva.estadoTienda === 'ACTIVO' ? tiendaActiva.documentoTienda : 'Tienda inactiva'}</small>}
                 </span>
@@ -121,7 +121,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('inicio')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'inicio'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -133,7 +133,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('clientes')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'clientes'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -145,7 +145,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('productos')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'productos'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -158,7 +158,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('nueva_venta')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'nueva_venta'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -170,7 +170,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('pagos')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'pagos'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -182,7 +182,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('cortes')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'cortes'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -194,7 +194,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     onClick={() => onSelectTab('ayuda')}
                     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                         currentTab === 'ayuda'
-                            ? 'bg-[#139a6c] text-white shadow-xs'
+                            ? 'bg-[#087f5b] text-white shadow-xs'
                             : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                     }`}
                 >
@@ -211,7 +211,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                 onClick={() => onSelectTab('configuracion')}
                 className={`w-full flex items-center space-x-3 px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                     currentTab === 'configuracion'
-                        ? 'bg-[#139a6c] text-white'
+                        ? 'bg-[#087f5b] text-white'
                         : 'text-emerald-100/70 hover:text-white'
                 }`}
             >
@@ -257,7 +257,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                     value={busquedaClientes}
                     disabled={!tiendaActiva}
                     onChange={e => onBuscarCliente(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+                    className="w-full min-h-11 pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#087f5b]"
                 />
               </div>
 

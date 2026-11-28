@@ -1,3 +1,4 @@
+import { AyudaCampo } from '../../components/shared/AyudaCampo';
 import React, { useEffect, useState } from 'react';
 import { actualizarConfiguracionTienda, consultarConfiguracionTienda } from '../../api/tiendas';
 import { obtenerMensajeError } from '../../api/errores';
@@ -73,7 +74,7 @@ export const StoreConfiguracionPage: React.FC<StoreConfiguracionPageProps> = ({ 
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-slate-500">Datos y configuración del negocio seleccionado.</p>
+      <h2 className="text-xl font-bold tracking-tight text-slate-900">Configuración del negocio</h2>
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
         {cargando && <p role="status" className="text-xs text-slate-500">Cargando configuración...</p>}
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
@@ -81,18 +82,22 @@ export const StoreConfiguracionPage: React.FC<StoreConfiguracionPageProps> = ({ 
         {!activa && detalle && <p className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">Tienda inactiva: los datos son de solo lectura. Solo el administrador del sistema puede reactivarla.</p>}
         {detalle && formulario && <form onSubmit={guardar} className="space-y-6">
           <fieldset disabled={!activa || guardando} className="grid grid-cols-1 sm:grid-cols-2 gap-5 disabled:opacity-70">
-            <label className="block text-xs font-semibold text-slate-700">Nombre comercial
-              <input required maxLength={120} value={formulario.nombreTienda} onChange={e => cambiar('nombreTienda', e.target.value)} className="mt-1 w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs" />
-            </label>
-            <label className="block text-xs font-semibold text-slate-700">Tipo de negocio
-              <input required maxLength={50} value={formulario.giroDeNegocio} onChange={e => cambiar('giroDeNegocio', e.target.value)} className="mt-1 w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs" />
-            </label>
-            <label className="block text-xs font-semibold text-slate-700">Teléfono del negocio
-              <input type="tel" maxLength={15} value={formulario.telefonoTienda ?? ''} onChange={e => cambiar('telefonoTienda', e.target.value)} className="mt-1 w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs" />
-            </label>
-            <label className="block text-xs font-semibold text-slate-700">Correo del negocio
-              <input type="email" maxLength={150} value={formulario.correoTienda ?? ''} onChange={e => cambiar('correoTienda', e.target.value)} className="mt-1 w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs" />
-            </label>
+            <div>
+              <div className="flex items-baseline gap-1"><label htmlFor="config-nombre" className="text-sm font-semibold">Nombre comercial</label><AyudaCampo etiqueta="Nombre comercial" texto="Nombre que identifica tu tienda en JADES." /></div>
+              <input id="config-nombre" required maxLength={120} value={formulario.nombreTienda} onChange={e => cambiar('nombreTienda', e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm" />
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1"><label htmlFor="config-giro" className="text-sm font-semibold">Tipo de negocio</label><AyudaCampo etiqueta="Tipo de negocio" texto="Actividad principal del establecimiento." /></div>
+              <input id="config-giro" required maxLength={50} value={formulario.giroDeNegocio} onChange={e => cambiar('giroDeNegocio', e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm" />
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1"><label htmlFor="config-telefono" className="text-sm font-semibold">Teléfono del negocio</label><AyudaCampo etiqueta="Teléfono del negocio" texto="Número que los clientes pueden usar para contactar al negocio." /></div>
+              <input id="config-telefono" type="tel" maxLength={15} value={formulario.telefonoTienda ?? ''} onChange={e => cambiar('telefonoTienda', e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm" />
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1"><label htmlFor="config-correo" className="text-sm font-semibold">Correo del negocio</label><AyudaCampo etiqueta="Correo del negocio" texto="Correo de contacto público de la tienda. El correo de acceso se gestiona por separado." /></div>
+              <input id="config-correo" type="email" maxLength={150} value={formulario.correoTienda ?? ''} onChange={e => cambiar('correoTienda', e.target.value)} className="mt-1 w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm" />
+            </div>
           </fieldset>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 border-t border-slate-100 pt-4">
             {[
@@ -103,7 +108,7 @@ export const StoreConfiguracionPage: React.FC<StoreConfiguracionPageProps> = ({ 
               <input readOnly value={value} className="mt-1 w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs" />
             </label>)}
           </div>
-          <p className="text-xs text-slate-500">Los datos legales son administrados por el administrador del sistema. El correo del negocio no cambia tus credenciales.</p>
+          <AyudaCampo etiqueta="los datos de solo lectura" texto="El administrador del sistema actualiza los datos legales del establecimiento y gestiona las cuentas de acceso." />
           {activa && <div className="pt-4 flex justify-end">
             <button type="submit" disabled={guardando} className="px-6 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] text-white text-xs font-semibold rounded-xl disabled:opacity-50">{guardando ? 'Guardando...' : 'Guardar cambios'}</button>
           </div>}

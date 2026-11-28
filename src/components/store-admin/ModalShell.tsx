@@ -7,6 +7,7 @@ interface ModalShellProps {
     onClose: () => void;
     /** Mientras se guarda no se permite cerrar el modal. */
     bloqueado?: boolean;
+    ancho?: 'normal' | 'amplio';
     children: React.ReactNode;
 }
 
@@ -15,6 +16,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                                                           descripcion,
                                                           onClose,
                                                           bloqueado = false,
+                                                          ancho = 'amplio',
                                                           children,
                                                       }) => {
     const idTitulo = useId();
@@ -58,9 +60,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby={idTitulo}
-                    className="bg-white rounded-2xl shadow-2xl outline-none max-w-[55rem] w-full border border-slate-100 my-8"
+                    className={`bg-white rounded-2xl shadow-2xl outline-none ${ancho === 'amplio' ? 'max-w-[55rem]' : 'max-w-2xl'} w-full border border-slate-100 my-4`}
                 >
-                    <div className="px-6 sm:px-10 pt-8 sm:pt-10 flex items-start justify-between gap-4">
+                    <div className="px-6 sm:px-8 pt-6 sm:pt-8 flex items-start justify-between gap-4">
                         <div>
                             <h3 id={idTitulo} className="text-2xl font-bold text-slate-900 tracking-tight">
                                 {titulo}
@@ -72,7 +74,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                             aria-label="Cerrar"
                             onClick={onClose}
                             disabled={bloqueado}
-                            className="text-slate-500 hover:text-slate-700 p-1 -mt-2 -mr-2 rounded-lg hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
+                            className="text-slate-500 hover:text-slate-700 grid size-11 shrink-0 place-items-center -mt-2 -mr-2 rounded-lg hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -85,7 +87,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
 };
 
 /** Clases del cuerpo de los formularios dentro del modal. */
-export const cuerpoModal = 'px-6 sm:px-10 pt-5 pb-8 sm:pb-10 space-y-6';
+export const cuerpoModal = 'px-6 sm:px-8 pt-5 pb-6 sm:pb-8 space-y-6';
 
 export const AvisoError: React.FC<{ mensaje: string | null }> = ({ mensaje }) =>
     mensaje ? (

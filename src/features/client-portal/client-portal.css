@@ -28,15 +28,15 @@
 }
 /* Portal cliente: tokens y geometría de Figma. Estilos aislados de los otros módulos. */
 .client-portal {
-  --client-navy: #12372f;
-  --client-primary: #15976d;
+  --client-navy: #102f2a;
+  --client-primary: #087f5b;
   --client-ink: #182230;
   --client-muted: #667085;
   --client-line: #e7eaf0;
   --client-soft: #eaf8f2;
   display: flex;
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #f3f6f5;
   color: var(--client-navy);
   font-family: "DM Sans", Arial, sans-serif;
   font-size: 13px;

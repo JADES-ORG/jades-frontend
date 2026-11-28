@@ -1,3 +1,4 @@
+import { identificarObligacion } from '../../features/cobranzas/cuentas';
 import { Paginacion } from '../../components/shared/Paginacion';
 import { useEffect, useState } from 'react';
 import { Download, Eye } from 'lucide-react';
@@ -11,7 +12,7 @@ import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
 import type { CorteResponse } from '../../types/finanzas';
 
 function filasDelCorte(cortes: CorteResponse[], dia: string, ventas: VentaResponse[]): CorteItemData[] {
-  const fechas = new Map(ventas.map(venta => [venta.id, venta.fechaVenta]));
+  const fechas = new Map(ventas.map(venta => [venta.id, venta]));
   return cortes.flatMap(corte => {
     const cliente = corte.nombreCliente;
     const compras = new Map(corte.compras.map(compra => [compra.idVenta, compra]));
@@ -20,10 +21,11 @@ function filasDelCorte(cortes: CorteResponse[], dia: string, ventas: VentaRespon
         idVenta: obligacion.idVenta,
         id: `cuota-${obligacion.idCuota}`,
         cliente,
-        obligacion: `${obligacion.codigoCredito} · Cuota ${obligacion.numeroCuota}`,
+        obligacion: identificarObligacion(compras.get(obligacion.idVenta)?.modalidadPago ?? fechas.get(obligacion.idVenta)?.modalidadPago, obligacion.numeroCuota, obligacion.codigoCredito),
         fechaCorte: obligacion.fechaCorteObligacion,
         fechaPago: obligacion.fechaVencimiento,
-        fechaCompra: compras.get(obligacion.idVenta)?.fechaVenta ?? fechas.get(obligacion.idVenta),
+        fechaCompra: compras.get(obligacion.idVenta)?.fechaVenta ?? fechas.get(obligacion.idVenta)?.fechaVenta,
+        diasAtraso: obligacion.diasAtraso,
         capital: obligacion.amortizacion,
         interesCompensatorio: obligacion.interes,
         mora: obligacion.moraCalculada,
@@ -36,12 +38,13 @@ function filasDelCorte(cortes: CorteResponse[], dia: string, ventas: VentaRespon
         idVenta: pago.idVenta,
         id: `pago-${pago.idPago}`,
         cliente,
-        obligacion: `${pago.codigoCredito} · Cuota ${pago.numeroCuota}`,
+        obligacion: identificarObligacion(pago.modalidadPago, pago.numeroCuota, pago.codigoCredito),
         fechaCorte: pago.fechaCorteObligacion,
         fechaPago: pago.fechaPagoPactada,
         fechaCompra: pago.fechaCompra,
         fechaPagoEfectivo: pago.horaPagoEfectivo ? `${pago.fechaPagoEfectivo}T${pago.horaPagoEfectivo}` : pago.fechaPagoEfectivo,
         medioPago: pago.medioPago,
+        diasAtraso: pago.diasAtraso,
         capital: pago.capitalPagado,
         interesCompensatorio: pago.interesPagado,
         mora: pago.moraPagada,
@@ -60,15 +63,15 @@ function comprasOrdenadas(corte: CorteResponse) {
 
 function descargarInforme(ciclo: string, cortes: CorteResponse[], filas: CorteItemData[]) {
   const celdas = [
-    ['Tipo', 'Cliente', 'Referencia', 'Compra', 'Corte', 'Pago pactado', 'Pago efectivo', 'Medio', 'Moneda', 'Capital', 'Interés', 'Mora', 'Total', 'Estado', 'Productos'],
+    ['Tipo', 'Cliente', 'Referencia', 'Modalidad de la compra', 'Compra', 'Corte', 'Pago pactado', 'Pago efectivo', 'Medio', 'Días de mora', 'Moneda', 'Capital de la compra', 'Interés total estimado de la compra', 'Capital de la obligación', 'Interés compensatorio de la obligación', 'Mora', 'Total', 'Estado', 'Productos'],
     ...cortes.flatMap(corte => comprasOrdenadas(corte).map(compra => [
-      'Compra', corte.nombreCliente, compra.codigoCredito ?? compra.idVenta, [compra.fechaVenta, compra.horaVenta].filter(Boolean).join(' '), compra.fechaCorteAsignada,
-      compra.fechaPagoAsignada, '', '', corte.moneda, compra.totalVenta, compra.interesEstimado, '', '', '',
+      'Compra', corte.nombreCliente, compra.codigoCredito ?? compra.idVenta, compra.modalidadPago === 'UNICO' ? 'Pago único' : 'Mensual', [compra.fechaVenta, compra.horaVenta].filter(Boolean).join(' '), compra.fechaCorteAsignada,
+      compra.fechaPagoAsignada, '', '', '', corte.moneda, compra.totalVenta, compra.interesEstimado, '', '', '', '', '',
       compra.detalles.map(detalle => `${detalle.cantidad} × ${detalle.nombreProducto}`).join(' / '),
     ])),
     ...filas.map(fila => [
-      fila.estado === 'Pagado' ? 'Pago registrado' : 'Obligación pendiente', fila.cliente, fila.obligacion, fila.fechaCompra, fila.fechaCorte, fila.fechaPago,
-      fila.fechaPagoEfectivo, fila.medioPago, fila.moneda, fila.capital, fila.interesCompensatorio, fila.mora,
+      fila.estado === 'Pagado' ? 'Pago registrado' : 'Obligación pendiente', fila.cliente, fila.obligacion, '', fila.fechaCompra, fila.fechaCorte, fila.fechaPago,
+      fila.fechaPagoEfectivo, fila.medioPago, fila.diasAtraso, fila.moneda, '', '', fila.capital, fila.interesCompensatorio, fila.mora,
       fila.totalPagar, fila.estado, fila.detalles.map(detalle => `${detalle.cantidad} × ${detalle.nombreProducto}`).join(' / '),
     ]),
   ];
@@ -98,7 +101,7 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
   const [moneda, setMoneda] = useState('');
   const [vista, setVista] = useState<'obligaciones' | 'compras'>('obligaciones');
   const [pagina, setPagina] = useState(1);
-  const clave = `${ciclo}|${dia}|${intento}`;
+  const clave = `${idTienda}|${ciclo}|${dia}|${intento}`;
   const resultado = consulta?.clave === clave ? consulta : null;
 
   useEffect(() => {
@@ -181,11 +184,12 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
         {vista === 'compras' ? <div className="divide-y divide-slate-100">
           {compras.slice((paginaActual - 1) * 10, paginaActual * 10).map(({ corte, compra }) => (
             <details key={compra.idVenta} className="p-4 text-sm">
-              <summary className="cursor-pointer font-semibold">{corte.nombreCliente} · {fecha(compra.fechaVenta)} · {compra.codigoCredito ?? `Venta #${compra.idVenta}`} · {dinero(compra.totalVenta, corte.moneda)}</summary>
+              <summary className="cursor-pointer font-semibold">{corte.nombreCliente} · {fecha(compra.fechaVenta)} {compra.horaVenta} · {compra.codigoCredito ?? `Venta #${compra.idVenta}`} · {dinero(compra.totalVenta, corte.moneda)}</summary>
               <dl className="mt-3 grid gap-2 sm:grid-cols-3">
                 <div><dt>Corte histórico</dt><dd>{compra.fechaCorteAsignada?.replace('T', ' ') ?? '—'}</dd></div>
-                <div><dt>Pago pactado</dt><dd>{fecha(compra.fechaPagoAsignada)}</dd></div>
-                <div><dt>Interés del ciclo</dt><dd>{dinero(compra.interesEstimado, corte.moneda)}</dd></div>
+                <div><dt>Modalidad</dt><dd>{compra.modalidadPago === 'UNICO' ? 'Pago único' : `Mensual · ${compra.numeroCuotas} cuotas`}</dd></div>
+                <div><dt>Primer pago pactado</dt><dd>{fecha(compra.fechaPagoAsignada)}</dd></div>
+                <div><dt>Interés total estimado del financiamiento</dt><dd>{dinero(compra.interesEstimado, corte.moneda)}</dd></div>
               </dl>
               <ul className="my-3">{compra.detalles.map(item => <li key={item.idProducto}>{item.cantidad} × {item.nombreProducto} · {dinero(item.subtotal, corte.moneda)}</li>)}</ul>
               <div className="flex flex-wrap gap-2">

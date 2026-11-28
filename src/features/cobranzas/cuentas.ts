@@ -37,6 +37,11 @@ export function useCuentasTienda(idTienda: number, revision: number) {
   return { cuentas: actual?.cuentas ?? [], cargando: !actual, error: actual?.error ?? '', recargar: () => setIntento(n => n + 1) };
 }
 
+export function identificarObligacion(modalidad: string | undefined, numero: number, codigo: string) {
+  const tipo = modalidad === 'UNICO' ? 'Pago único' : modalidad === 'MENSUAL' ? `Cuota ${String(numero).padStart(2, '0')}` : 'Obligación';
+  return `${tipo} · ${codigo}`;
+}
+
 export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
   const hoy = hoyLima();
   return cuentas.flatMap(cuenta => {
@@ -59,18 +64,48 @@ export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
       const inicioCobro = (primerVencimiento.get(cuota.idCredito) ?? cuota.fechaVencimiento).slice(0, 7);
       const estado = cuota.vencida || cuota.fechaVencimiento < hoy
         ? 'En mora' as const : cuota.fechaVencimiento === hoy ? 'Pendiente' as const : 'Por vencer' as const;
+      const primera = cuota.numeroCuota === primeraPorCredito.get(cuota.idCredito);
+      const pagoIndividual = !mensual || (primera && cuota.fechaVencimiento.slice(0, 7) <= hoy.slice(0, 7));
+      const codigo = compra.codigoCredito ?? `Venta #${cuota.idVenta}`;
       return [{
         ...cuota,
         idCliente: cuenta.idCliente,
         cliente: cuenta.nombreCliente,
-        obligacion: compra.codigoCredito ?? `Venta #${cuota.idVenta}`,
+        obligacion: identificarObligacion(compra.modalidadPago, cuota.numeroCuota, codigo),
+        codigo,
+        programada: cuota.fechaVencimiento > hoy && !proximosSieteDias(cuota.fechaVencimiento, hoy) && !pagoIndividual,
         mensual,
         inicioCobro,
         estado,
-        gestionable: !mensual || (inicioCobro <= hoy.slice(0, 7) && cuota.numeroCuota === primeraPorCredito.get(cuota.idCredito)),
+        gestionable: pagoIndividual || (primera && inicioCobro <= hoy.slice(0, 7)),
       }];
     });
   }).sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento) || a.idCuota - b.idCuota);
+}
+
+export function historialDeCuenta(cuenta: CuentaCorrienteResponse) {
+  const compras = new Map(cuenta.compras.map(compra => [compra.idVenta, compra]));
+  return cuenta.pagos.map(pago => {
+    const compra = compras.get(pago.idVenta);
+    return {
+      id: String(pago.idPago),
+      cliente: cuenta.nombreCliente,
+      obligacion: identificarObligacion(compra?.modalidadPago, pago.numeroCuota, compra?.codigoCredito ?? `Venta #${pago.idVenta}`),
+      fechaCorte: null,
+      fechaPago: pago.fechaPagoPactada,
+      fechaCompra: pago.fechaCompra,
+      fechaPagoEfectivo: [pago.fechaPago, pago.horaPagoEfectivo].filter(Boolean).join('T'),
+      medioPago: pago.medioPago,
+      diasAtraso: pago.diasAtraso,
+      capital: pago.capitalPagado,
+      interesCompensatorio: pago.interesPagado,
+      mora: pago.moraPagada,
+      totalPagar: pago.totalExigible,
+      moneda: pago.moneda,
+      estado: 'Pagado',
+      detalles: pago.detalles,
+    };
+  }).sort((a, b) => b.fechaPagoEfectivo.localeCompare(a.fechaPagoEfectivo) || Number(b.id) - Number(a.id));
 }
 
 export type ObligacionCobro = ReturnType<typeof obligacionesPendientes>[number];

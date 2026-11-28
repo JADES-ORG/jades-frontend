@@ -1,6 +1,9 @@
+import { Paginacion } from '../../components/shared/Paginacion';
+import { DetalleCorteModal, type CorteItemData } from '../../components/store-admin/DetalleCorteModal';
+import { historialDeCuenta } from '../../features/cobranzas/cuentas';
 import { ConfirmarEstado } from '../../components/shared/ConfirmarEstado';
 import { CronogramaCredito } from '../../components/store-admin/CronogramaCredito';
-import { consultarCronograma } from '../../api/finanzas';
+import { consultarCronograma, consultarPagoUnico } from '../../api/finanzas';
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, Plus } from 'lucide-react';
@@ -16,7 +19,7 @@ import { obtenerMensajeError } from '../../api/errores';
 import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
 import { anulada, cuotasDe, estadoCompra, estadoObligacion } from '../../features/client-portal/model';
 import type { ClienteResponse, CondicionCrediticiaResponse } from '../../types/clientes';
-import type { CompraCuentaCorriente, CuentaCorrienteResponse, CronogramaResponse } from '../../types/finanzas';
+import type { CompraCuentaCorriente, CuentaCorrienteResponse, CronogramaResponse, PagoUnicoResponse } from '../../types/finanzas';
 import type { VentaResponse } from '../../types/ventas';
 import {
   dinero,
@@ -107,17 +110,21 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
   const [pestana, setPestana] = useState<Pestana>('creditos');
+  const [paginas, setPaginas] = useState({ activos: 1, cancelados: 1, pagos: 1 });
+  const [detallePago, setDetallePago] = useState<CorteItemData | null>(null);
   const [abierto, setAbierto] = useState<CompraCuentaCorriente | null>(null);
   const [plan, setPlan] = useState<CronogramaResponse | null>(null);
+  const [pagoUnico, setPagoUnico] = useState<PagoUnicoResponse | null>(null);
   const [errorPlan, setErrorPlan] = useState('');
   const [intentoPlan, setIntentoPlan] = useState(0);
 
   useEffect(() => {
-    if (abierto?.modalidadPago !== 'MENSUAL') return;
+    if (!abierto) return;
     const controller = new AbortController();
-    consultarCronograma(abierto.idVenta, controller.signal)
-      .then(resultado => { if (!controller.signal.aborted) setPlan(resultado); })
-      .catch((causa: unknown) => { if (!controller.signal.aborted) setErrorPlan(obtenerMensajeError(causa)); });
+    const consulta = abierto.modalidadPago === 'MENSUAL'
+      ? consultarCronograma(abierto.idVenta, controller.signal).then(resultado => { if (!controller.signal.aborted) setPlan(resultado); })
+      : consultarPagoUnico(abierto.idVenta, controller.signal).then(resultado => { if (!controller.signal.aborted) setPagoUnico(resultado); });
+    consulta.catch((causa: unknown) => { if (!controller.signal.aborted) setErrorPlan(obtenerMensajeError(causa)); });
     return () => controller.abort();
   }, [abierto, intentoPlan]);
   const [confirmarEstado, setConfirmarEstado] = useState(false);
@@ -216,9 +223,12 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
   const productos = (idVenta: number) =>
       ventas.find((v) => v.id === idVenta)?.detalles.map((d) => d.nombreProducto).join(', ') ?? '';
   const codigo = (c: CompraCuentaCorriente) => c.codigoCredito || `Venta #${c.idVenta}`;
-  const referenciaCuota = (idVenta: number) => {
-    const compra = cuenta?.compras.find((c) => c.idVenta === idVenta);
-    return compra ? codigo(compra) : `Venta #${idVenta}`;
+  const historial = cuenta ? historialDeCuenta(cuenta) : [];
+  const paginaActual = (lista: unknown[], tipo: keyof typeof paginas) => Math.min(paginas[tipo], Math.max(1, Math.ceil(lista.length / 10)));
+  const paginaDe = <T,>(lista: T[], tipo: keyof typeof paginas) => lista.slice((paginaActual(lista, tipo) - 1) * 10, paginaActual(lista, tipo) * 10);
+  const cambiarPagina = (tipo: keyof typeof paginas, pagina: number) => {
+    setPaginas(actual => ({ ...actual, [tipo]: pagina }));
+    if (tipo !== 'pagos') setAbierto(null);
   };
 
   const cambiarEstado = async () => {
@@ -280,8 +290,8 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               type="button"
                               aria-expanded={expandido}
                               aria-label={`${expandido ? 'Ocultar' : 'Ver'} cuotas de ${codigo(compra)}`}
-                              onClick={() => { setPlan(null); setErrorPlan(''); setAbierto(expandido ? null : compra); }}
-                              className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                              onClick={() => { setPlan(null); setPagoUnico(null); setErrorPlan(''); setAbierto(expandido ? null : compra); }}
+                              className="inline-grid size-11 place-items-center rounded-lg hover:bg-slate-100 cursor-pointer"
                           >
                             {expandido ? (
                                 <ChevronDown className="w-4 h-4 text-slate-500" />
@@ -301,11 +311,17 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               {d.cantidad} × {d.nombreProducto} · {dinero(d.subtotal, compra.moneda)}
                             </li>)}</ul>
                           </div>
-                          {compra.modalidadPago === 'MENSUAL' && <div className="mb-4">
-                            {plan?.idVenta === compra.idVenta ? <CronogramaCredito plan={plan} definitivo /> : errorPlan
+                          <div className="mb-4 space-y-3">
+                            <p className="text-sm">Total pagado registrado <strong>{dinero(cuenta!.pagos.filter(pago => pago.idVenta === compra.idVenta && pago.moneda === compra.moneda).reduce((total, pago) => total + pago.totalExigible, 0), compra.moneda)}</strong></p>
+                            {plan?.idVenta === compra.idVenta ? <CronogramaCredito plan={plan} definitivo /> :
+                              pagoUnico?.idVenta === compra.idVenta ? <dl className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm sm:grid-cols-3" aria-label="Condiciones históricas de pago único">
+                                <Dato etiqueta="Corte histórico">{fecha(pagoUnico.fechaCorteAsignada)} {horaCorta(pagoUnico.fechaCorteAsignada?.split('T')[1])}</Dato>
+                                <Dato etiqueta="Pago pactado">{fecha(pagoUnico.fechaPago)}</Dato>
+                                <Dato etiqueta="Tasa efectiva del período">{pagoUnico.tasaEfectivaPeriodo == null ? '—' : porcentajeTasa(pagoUnico.tasaEfectivaPeriodo)}</Dato>
+                              </dl> : errorPlan
                               ? <p role="alert" className="text-sm text-red-700">{errorPlan} <button className="underline" onClick={() => { setErrorPlan(''); setIntentoPlan(n => n + 1); }}>Reintentar</button></p>
-                              : <p role="status" className="text-sm">Consultando cronograma…</p>}
-                          </div>}
+                              : <p role="status" className="text-sm">Consultando condiciones históricas…</p>}
+                          </div>
                           <table className="w-full text-[11px]">
                             <thead className="text-slate-400 text-left">
                             <tr>
@@ -321,7 +337,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                             <tbody>
                             {cuotas.map((o) => (
                                 <tr key={o.idCuota} className="border-t border-slate-100">
-                                  <td className="py-1.5 pr-4">{String(o.numeroCuota).padStart(2, '0')}</td>
+                                  <td className="py-1.5 pr-4">{compra.modalidadPago === 'UNICO' ? 'Pago único' : String(o.numeroCuota).padStart(2, '0')}</td>
                                   <td className="py-1.5 pr-4">{fecha(o.fechaVencimiento)}</td>
                                   <td className="py-1.5 pr-4">{dinero(o.capital, o.moneda)}</td>
                                   <td className="py-1.5 pr-4">{dinero(o.interesCompensatorio, o.moneda)}</td>
@@ -521,14 +537,18 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                 <div className="space-y-6">
                   <Tarjeta titulo="Créditos activos" subtitulo="Compras pendientes de pago">
                     {comprasActivas.length ? (
-                        tablaCreditos(comprasActivas)
+                        <>
+                          {tablaCreditos(paginaDe(comprasActivas, 'activos'))}
+                          <Paginacion total={comprasActivas.length} pagina={paginaActual(comprasActivas, 'activos')} onCambiar={p => cambiarPagina('activos', p)} etiqueta="créditos activos" />
+                        </>
                     ) : (
                         <p className="px-5 pb-6 text-xs text-slate-400">El cliente no tiene compras pendientes de pago.</p>
                     )}
                   </Tarjeta>
                   {comprasCanceladas.length > 0 && (
                       <Tarjeta titulo="Compras canceladas" subtitulo="Créditos pagados en su totalidad">
-                        {tablaCreditos(comprasCanceladas)}
+                        {tablaCreditos(paginaDe(comprasCanceladas, 'cancelados'))}
+                        <Paginacion total={comprasCanceladas.length} pagina={paginaActual(comprasCanceladas, 'cancelados')} onCambiar={p => cambiarPagina('cancelados', p)} etiqueta="créditos cancelados" />
                       </Tarjeta>
                   )}
                 </div>
@@ -548,53 +568,39 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                             <thead className="bg-slate-50/70 border-y border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                             <tr>
                               <th className="py-3 px-5">Obligación</th>
-                              <th className="py-3 px-5">Fecha</th>
+                              <th className="py-3 px-5">Pago efectivo / pactado</th>
                               <th className="py-3 px-5">Capital</th>
                               <th className="py-3 px-5">Interés</th>
                               <th className="py-3 px-5">Mora</th>
                               <th className="py-3 px-5">Total</th>
                               <th className="py-3 px-5">Medio</th>
+                              <th className="py-3 px-5">Detalle</th>
                             </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {[...cuenta.pagos]
-                                .sort((a, b) => b.fechaPago.localeCompare(a.fechaPago) || b.idPago - a.idPago)
-                                .map((p) => (
-                                    <tr key={p.idPago}>
-                                      <td className="py-4 px-5 font-semibold text-slate-900">
-                                        Cuota {String(p.numeroCuota).padStart(2, '0')} · {referenciaCuota(p.idVenta)}
-                                      </td>
-                                      <td className="py-4 px-5">
-                                        {fecha(p.fechaPago)}
-                                        {p.horaPagoEfectivo && ` · ${horaCorta(p.horaPagoEfectivo)}`}
-                                      </td>
-                                      <td className="py-4 px-5 font-semibold">{dinero(p.capitalPagado, p.moneda)}</td>
-                                      <td className="py-4 px-5">{dinero(p.interesPagado, p.moneda)}</td>
-                                      <td className="py-4 px-5">{dinero(p.moraPagada, p.moneda)}</td>
-                                      <td className="py-4 px-5 font-semibold">
-                                        {dinero(p.totalExigible, p.moneda)}
-                                      </td>
-                                      <td className="py-4 px-5 capitalize">{p.medioPago ? p.medioPago.toLowerCase() : '—'}
-                                        {!!p.detalles.length && <details className="mt-1"><summary className="cursor-pointer font-semibold">Productos y servicios</summary>
-                                          <ul>{p.detalles.map(d => <li key={d.idProducto}>{d.cantidad} × {d.nombreProducto} · {dinero(d.subtotal, p.moneda)}</li>)}</ul>
-                                        </details>}
-                                      </td>
-                                    </tr>
-                                ))}
+                            {paginaDe(historial, 'pagos').map(pago => (
+                              <tr key={pago.id}>
+                                <td className="px-5 py-4 font-semibold">{pago.obligacion}</td>
+                                <td className="px-5 py-4">{fecha(pago.fechaPagoEfectivo)} {horaCorta(pago.fechaPagoEfectivo.split('T')[1])}
+                                  <span className="block text-slate-600">Pactado {fecha(pago.fechaPago)} · Mora {pago.diasAtraso} d</span>
+                                </td>
+                                {[pago.capital, pago.interesCompensatorio, pago.mora, pago.totalPagar].map((importe, i) => <td key={i} className="whitespace-nowrap px-5 py-4">{dinero(importe, pago.moneda)}</td>)}
+                                <td className="px-5 py-4">{pago.medioPago}</td>
+                                <td className="px-5 py-4"><button type="button" className="min-h-11 whitespace-nowrap rounded-lg border border-slate-200 px-3" onClick={() => setDetallePago(pago)}>Ver detalle</button></td>
+                              </tr>
+                            ))}
                             </tbody>
                           </table>
                         </div>
-                        <p className="px-5 py-4 border-t border-slate-100 text-[11px] text-slate-500">
-                          {cuenta.pagos.some((p) => p.moraPagada > 0)
-                              ? 'Algunos pagos incluyeron interés moratorio por atraso.'
-                              : 'Los pagos fueron imputados a interés compensatorio y capital. No hubo mora.'}
-                        </p>
+                        <Paginacion total={historial.length} pagina={paginaActual(historial, 'pagos')} onCambiar={p => cambiarPagina('pagos', p)} etiqueta="pagos" />
                       </>
                   ) : (
                       <p className="px-5 pb-6 text-xs text-slate-400">Aún no hay pagos registrados.</p>
                   )}
                 </Tarjeta>
             ))}
+
+        {detallePago && <DetalleCorteModal titulo="Detalle del pago" corte={detallePago} onClose={() => setDetallePago(null)} />}
 
         {pestana === 'condiciones' && (
             <Tarjeta

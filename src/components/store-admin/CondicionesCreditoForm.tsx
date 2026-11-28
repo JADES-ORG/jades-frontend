@@ -12,7 +12,7 @@ import {
 import type { PeriodoTasa } from '../../types/clientes';
 
 export const inputClase =
-    'w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl placeholder-slate-400 focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none disabled:bg-white disabled:text-slate-400 disabled:cursor-not-allowed';
+    'w-full min-h-11 px-4 py-2 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl placeholder-slate-400 focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none disabled:bg-white disabled:text-slate-400 disabled:cursor-not-allowed';
 
 interface CampoProps {
     id: string;
@@ -89,7 +89,7 @@ export const CondicionesCreditoForm: React.FC<CondicionesCreditoFormProps> = ({
                         <option value="NOMINAL">Nominal</option>
                     </Selector>
                 </Campo>
-                <Campo id="cc-valor-tasa" label="Valor de la tasa" ayuda="Mayor que 0; conserva al menos 7 decimales.">
+                <Campo id="cc-valor-tasa" label="Valor de la tasa" ayuda="Mayor que 0. Puedes ingresar hasta 7 decimales en el porcentaje.">
                     <input
                         id="cc-valor-tasa"
                         type="text"

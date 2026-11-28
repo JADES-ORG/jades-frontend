@@ -1,3 +1,4 @@
+import { AyudaCampo } from '../../components/shared/AyudaCampo';
 import React, { useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
 import { listarAdministradoresNegocio, registrarTienda } from '../../api/tiendas';
@@ -106,10 +107,8 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Nombre comercial
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-nombre-comercial">Nombre comercial</label><AyudaCampo etiqueta="Nombre comercial" texto="Nombre con el que se identifica el negocio." /></div>
+                <input id="rt-nombre-comercial"
                   type="text"
                   required
                   maxLength={120}
@@ -118,14 +117,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="Bodega San Blas"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Nombre con el que se identifica el negocio.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Razón social o responsable
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-razon-social-o-responsable">Razón social o responsable</label><AyudaCampo etiqueta="Razón social o responsable" texto="Responsable legal o razón social." /></div>
+                <input id="rt-razon-social-o-responsable"
                   type="text"
                   required
                   maxLength={150}
@@ -134,14 +130,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="Luis Alvarez"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Responsable legal o razón social.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Tipo / giro del negocio
-                </label>
-                <select
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-tipo-giro-del-negocio">Tipo / giro del negocio</label><AyudaCampo etiqueta="Tipo / giro del negocio" texto="Selecciona el giro principal del establecimiento." /></div>
+                <select id="rt-tipo-giro-del-negocio"
                   value={giro}
                   onChange={(e) => setGiro(e.target.value)}
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none cursor-pointer"
@@ -154,14 +147,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   <option value="Minimarket">Minimarket</option>
                   <option value="Otro">Otro</option>
                 </select>
-                <p className="text-[10px] text-slate-400 mt-1.5">Selecciona el giro principal del establecimiento.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Teléfono
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-telefono">Teléfono</label><AyudaCampo etiqueta="Teléfono" texto="Número de contacto de la tienda." /></div>
+                <input id="rt-telefono"
                   type="text"
                   maxLength={15}
                   value={telefono}
@@ -169,14 +159,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="987 654 321"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Número de contacto de la tienda.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Dirección
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-direccion">Dirección</label><AyudaCampo etiqueta="Dirección" texto="Ubicación del establecimiento." /></div>
+                <input id="rt-direccion"
                   type="text"
                   required maxLength={200}
                   value={direccion}
@@ -184,14 +171,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="Cusco, Perú"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Ubicación del establecimiento.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Correo
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-correo">Correo</label><AyudaCampo etiqueta="Correo" texto="Correo de contacto del negocio." /></div>
+                <input id="rt-correo"
                   type="email"
                   maxLength={150}
                   value={correo}
@@ -199,22 +183,16 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="contacto@ejemplo.com"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Correo de contacto del negocio.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Estado
-                </label>
-                <input type="text" value="Activo" readOnly className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
-                <p className="text-[10px] text-slate-400 mt-1.5">Las tiendas nuevas se registran activas.</p>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-estado">Estado</label><AyudaCampo etiqueta="Estado" texto="Las tiendas nuevas se registran activas." /></div>
+                <input id="rt-estado" type="text" value="Activo" readOnly className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl" />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Documento del negocio
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-documento-del-negocio">Documento del negocio</label><AyudaCampo etiqueta="Documento del negocio" texto="Número tributario o identificación del establecimiento." /></div>
+                <input id="rt-documento-del-negocio"
                   type="text"
                   required maxLength={11} minLength={11} inputMode="numeric" pattern="[0-9]{11}"
                   value={documento}
@@ -222,7 +200,6 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="Ingresa el documento"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Número tributario o identificación del establecimiento.</p>
               </div>
             </div>
           </div>
@@ -238,22 +215,20 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
               <label><input type="radio" name="tipoAdmin" checked={existente} onChange={() => { setLista(null); setExistente(true); }} /> Usar administrador existente</label>
             </div>
             {existente ? (
-              <label className="grid max-w-md gap-2 text-sm font-medium">
-                Administrador de negocio
-                <select required disabled={!lista || !!lista.error} value={idAdministrador} onChange={e => setIdAdministrador(e.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3">
+              <div className="grid max-w-md gap-2 text-sm font-medium">
+                <div className="flex items-baseline gap-1"><label htmlFor="rt-admin-existente">Administrador de negocio</label><AyudaCampo etiqueta="Administrador de negocio" texto="Selecciona un administrador activo que ya tenga una cuenta en JADES." /></div>
+                <select id="rt-admin-existente" required disabled={!lista || !!lista.error} value={idAdministrador} onChange={e => setIdAdministrador(e.target.value)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3">
                   <option value="">{lista ? 'Selecciona un administrador' : 'Cargando administradores…'}</option>
                   {lista?.datos.map(admin => <option value={admin.idUsuario} key={admin.idUsuario}>{admin.nombreUsuario} · {admin.correoUsuario}</option>)}
                 </select>
                 {lista?.error && <span role="alert" className="text-red-700">{lista.error} <button type="button" className="font-semibold underline" onClick={() => { setLista(null); setIntento(n => n + 1); }}>Reintentar</button></span>}
                 {lista && !lista.error && !lista.datos.length && <span>No hay administradores activos disponibles.</span>}
-              </label>
+              </div>
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Nombre completo
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-nombre-completo">Nombre completo</label><AyudaCampo etiqueta="Nombre completo" texto="Persona que administrará esta tienda." /></div>
+                <input id="rt-nombre-completo"
                   type="text"
                   required
                   maxLength={200}
@@ -262,14 +237,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="Luis Alvarez"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Persona que administrará esta tienda.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Correo de acceso
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-correo-de-acceso">Correo de acceso</label><AyudaCampo etiqueta="Correo de acceso" texto="Usuario asignado a esta tienda." /></div>
+                <input id="rt-correo-de-acceso"
                   type="email"
                   required
                   maxLength={150}
@@ -278,14 +250,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="luis@ejemplo.com"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Usuario asignado a esta tienda.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Contraseña inicial
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-contrasena-inicial">Contraseña inicial</label><AyudaCampo etiqueta="Contraseña inicial" texto="Mínimo 12 caracteres; máximo 72 bytes." /></div>
+                <input id="rt-contrasena-inicial"
                   type="password"
                   required
                   minLength={12} maxLength={72} autoComplete="new-password"
@@ -294,14 +263,11 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="••••••••••••"
                   className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Mínimo 12 caracteres; máximo 72 bytes.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Teléfono del administrador
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="rt-telefono-del-administrador">Teléfono del administrador</label><AyudaCampo etiqueta="Teléfono del administrador" texto="Contacto del responsable de la cuenta." /></div>
+                <input id="rt-telefono-del-administrador"
                   type="text"
                   maxLength={15}
                   value={adminTelefono}
@@ -309,7 +275,6 @@ export const RegistrarTiendaPage: React.FC<RegistrarTiendaPageProps> = ({
                   placeholder="987 654 321"
                   className="w-full px-4 py-3 text-xs text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">Contacto del responsable de la cuenta.</p>
               </div>
             </div>
             )}

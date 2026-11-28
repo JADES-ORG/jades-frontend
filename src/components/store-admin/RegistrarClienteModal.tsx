@@ -1,3 +1,4 @@
+import { AyudaCampo } from '../shared/AyudaCampo';
 import React, { useState } from 'react';
 import { desactivarCliente, registrarCliente, registrarCondicionCrediticia } from '../../api/clientes';
 import { obtenerMensajeError } from '../../api/errores';
@@ -119,6 +120,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
               <fieldset className="flex flex-wrap gap-4 text-sm">
                 <legend className="mb-2 font-semibold">Cuenta de acceso</legend>
                 <label><input type="radio" name="cuenta-cliente" checked={!vinculacion} onChange={() => { setVinculacion(false); setError(null); }} /> Crear cuenta nueva</label>
+                <AyudaCampo etiqueta="el tipo de cuenta" texto="Crea una cuenta para quien aún no tiene acceso al portal. Si ya tiene cuenta, vincúlala con el mismo correo y DNI." />
                 <label><input type="radio" name="cuenta-cliente" checked={vinculacion} onChange={() => { setVinculacion(true); setContrasena(''); setError(null); }} /> Vincular cuenta existente</label>
               </fieldset>
               <DatosClienteFields valores={datos} onChange={setDatos} vinculacion={vinculacion} contrasena={vinculacion ? undefined : { valor: contrasena, onChange: setContrasena }} />

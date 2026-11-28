@@ -1,5 +1,7 @@
+import { ModalShell, cuerpoModal } from './ModalShell';
+import { AyudaCampo } from '../shared/AyudaCampo';
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { consultarImagenProducto } from '../../api/productos';
 import { obtenerMensajeError } from '../../api/errores';
 import { UNIDADES_PRODUCTO } from '../../types/productos';
@@ -145,29 +147,8 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-100 my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header Modal */}
-        <div className="p-6 sm:p-7 border-b border-slate-100 flex items-start justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-              {mode === 'nuevo' ? 'Nuevo producto o servicio' : mode === 'detalle' ? 'Detalle de producto o servicio' : 'Editar producto o servicio'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Define los datos y modalidades disponibles para ventas a crédito.
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={guardando}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="p-6 sm:p-7 space-y-6 max-h-[80vh] overflow-y-auto">
+    <ModalShell titulo={mode === 'nuevo' ? 'Nuevo producto o servicio' : mode === 'detalle' ? 'Detalle de producto o servicio' : 'Editar producto o servicio'} descripcion="Define los datos y modalidades disponibles para ventas a crédito." onClose={onClose} bloqueado={guardando} ancho="normal">
+      <form onSubmit={handleSubmit} className={cuerpoModal}>
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
           <fieldset disabled={guardando || mode === 'detalle'} className="space-y-6">
           {/* SECCIÓN 1: INFORMACIÓN GENERAL */}
@@ -179,146 +160,109 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Nombre */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nombre
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-nombre">Nombre</label><AyudaCampo etiqueta="Nombre" texto="Nombre comercial del producto o servicio." /></div>
+                <input id="pc-nombre"
                   type="text"
                   required
                   placeholder="Nombre comercial"
                   maxLength={150}
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Nombre comercial del producto o servicio.
-                </p>
               </div>
 
               {/* Tipo */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tipo
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-tipo">Tipo</label><AyudaCampo etiqueta="Tipo" texto="Producto físico o servicio prestado." /></div>
                 <div className="relative">
-                  <select
+                  <select id="pc-tipo"
                     value={tipo}
                     onChange={(e) => setTipo(e.target.value as 'Producto' | 'Servicio')}
-                    className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
                     <option value="Producto">Producto</option>
                     <option value="Servicio">Servicio</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Producto físico o servicio prestado.
-                </p>
               </div>
 
               {/* Proveedor */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Proveedor
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-proveedor">Proveedor</label><AyudaCampo etiqueta="Proveedor" texto="Opcional cuando corresponda." /></div>
+                <input id="pc-proveedor"
                   type="text"
                   placeholder="Opcional"
                   disabled={tipo === 'Servicio'}
                   maxLength={150}
                   value={proveedor}
                   onChange={(e) => setProveedor(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Opcional cuando corresponda.
-                </p>
               </div>
 
               {/* Marca */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Marca
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-marca">Marca</label><AyudaCampo etiqueta="Marca" texto="Opcional; no aplica a todos los servicios." /></div>
+                <input id="pc-marca"
                   type="text"
                   placeholder="Opcional"
                   disabled={tipo === 'Servicio'}
                   maxLength={100}
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Opcional; no aplica a todos los servicios.
-                </p>
               </div>
 
               {/* Unidad de medida */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Unidad de medida
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-unidad-de-medida">Unidad de medida</label><AyudaCampo etiqueta="Unidad de medida" texto="Unidad usada en el detalle de venta." /></div>
                 <div className="relative">
-                  <select
+                  <select id="pc-unidad-de-medida"
                     value={unidad}
                     onChange={(e) => setUnidad(e.target.value)}
-                    className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
                     {Object.entries(UNIDADES_PRODUCTO).map(([codigo, etiqueta]) => <option key={codigo} value={etiqueta}>{etiqueta}</option>)}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Unidad usada en el detalle de venta.
-                </p>
               </div>
 
               {/* Estado */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Estado
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-estado">Estado</label><AyudaCampo etiqueta="Estado" texto="Inactivo impide agregarlo a nuevas ventas." /></div>
                 <div className="relative">
-                  <select
+                  <select id="pc-estado"
                     value={initialData?.estado ?? 'Activo'}
                     disabled
-                    className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
                     <option value="Activo">Activo</option>
                     <option value="Inactivo">Inactivo</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Inactivo impide agregarlo a nuevas ventas.
-                </p>
               </div>
 
               {/* Descripción */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Descripción
-                </label>
-                <input
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-descripcion">Descripción</label><AyudaCampo etiqueta="Descripción" texto="Características que permiten identificarlo." /></div>
+                <input id="pc-descripcion"
                   type="text"
                   placeholder="Selección de productos para el hogar"
                   maxLength={500}
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                  className="w-full px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Características que permiten identificarlo.
-                </p>
               </div>
 
               {/* Imagen */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Imagen
-                </label>
+                <div className="flex items-center gap-1"><span className="text-sm font-semibold">Imagen</span><AyudaCampo etiqueta="Imagen" texto="PNG o JPEG, máximo 5 MB. Obligatoria al registrar." /></div>
                 <label className="border-2 border-dashed border-slate-200 hover:border-[#139a6c] rounded-xl p-2.5 flex items-center justify-center text-blue-600 hover:text-emerald-700 text-xs font-semibold cursor-pointer transition bg-slate-50/50">
                   <input type="file" className="hidden" accept="image/png,image/jpeg,.png,.jpg,.jpeg" onChange={(e) => {
                     const seleccion = e.target.files?.[0];
@@ -333,9 +277,6 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   }} />
                   <span>{archivo?.name ?? '+ Seleccionar imagen'}</span>
                 </label>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  PNG o JPEG, máximo 5 MB. Obligatoria al registrar.
-                </p>
                 {preview ? <img src={preview} alt="Vista previa" className="mt-2 h-24 w-24 rounded-xl object-cover" /> : initialData?.id && initialData.imagenProducto ? <ImagenProducto idTienda={idTienda} idProducto={initialData.id} imagen={initialData.imagenProducto} nombre={initialData.nombre} className="mt-2 h-24 w-24 rounded-xl object-cover" /> : null}
               </div>
             </div>
@@ -350,68 +291,56 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Precio contado */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Precio contado PEN (obligatorio)
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-precio-contado-pen-obligatorio">Precio contado PEN (obligatorio)</label><AyudaCampo etiqueta="Precio contado PEN (obligatorio)" texto="Precio si se paga al contado." /></div>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
                     S/
                   </span>
-                  <input
+                  <input id="pc-precio-contado-pen-obligatorio"
                     type="text"
                     required
                     placeholder="00.00"
                     value={precioContado}
                     onChange={(e) => setPrecioContado(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Precio si se paga al contado.
-                </p>
               </div>
 
               {/* Precio de lista / crédito */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Precio crédito PEN (obligatorio)
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-precio-credito-pen-obligatorio">Precio crédito PEN (obligatorio)</label><AyudaCampo etiqueta="Precio crédito PEN (obligatorio)" texto="Capital unitario usado en la venta a crédito." /></div>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
                     S/
                   </span>
-                  <input
+                  <input id="pc-precio-credito-pen-obligatorio"
                     type="text"
                     required
                     placeholder="00.00"
                     value={precioCredito}
                     onChange={(e) => setPrecioCredito(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
+                    className="w-full pl-9 pr-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c]"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Capital unitario usado en la venta a crédito.
-                </p>
               </div>
 
               {([
                 ['Precio contado USD (opcional)', contadoUsd, setContadoUsd],
                 ['Precio crédito USD (opcional)', creditoUsd, setCreditoUsd],
-              ] as const).map(([label, valor, cambiar]) => <label key={label} className="block text-xs font-semibold text-slate-700">
-                {label}
-                <input type="text" inputMode="decimal" maxLength={19} value={valor} onChange={e => cambiar(e.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-slate-200 px-3" />
-              </label>)}
+              ] as const).map(([label, valor, cambiar], indice) => <div key={label}>
+                <div className="flex items-baseline gap-1"><label htmlFor={`precio-usd-${indice}`} className="text-sm font-semibold">{label}</label><AyudaCampo etiqueta={label} texto="Opcional. Completa este precio si el artículo se podrá vender en dólares con esta modalidad." /></div>
+                <input id={`precio-usd-${indice}`} type="text" inputMode="decimal" maxLength={19} value={valor} onChange={e => cambiar(e.target.value)} className="mt-1 block min-h-11 w-full rounded-lg border border-slate-200 px-3" />
+              </div>)}
 
               {/* Modalidades permitidas */}
               <div className="sm:col-span-1">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Modalidades permitidas
-                </label>
+                <div className="mb-1 flex items-baseline gap-1"><label className="text-sm font-semibold text-slate-700" htmlFor="pc-modalidades-permitidas">Modalidades permitidas</label><AyudaCampo etiqueta="Modalidades permitidas" texto="Pago único por ciclo, en meses o ambos." /></div>
                 <div className="relative">
-                  <select
+                  <select id="pc-modalidades-permitidas"
                     value={modalidad}
                     onChange={(e) => setModalidad(e.target.value as 'Ambas modalidades' | 'Pago único' | 'En meses')}
-                    className="w-full appearance-none px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
+                    className="w-full appearance-none px-3.5 min-h-11 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#139a6c] focus:ring-1 focus:ring-[#139a6c] cursor-pointer"
                   >
                     <option value="Ambas modalidades">Ambas modalidades</option>
                     <option value="Pago único">Pago único</option>
@@ -419,9 +348,6 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Pago único por ciclo, en meses o ambos.
-                </p>
               </div>
             </div>
           </div>
@@ -434,22 +360,21 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={guardando}
-              className="px-5 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
+              className="min-h-11 px-5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold rounded-xl transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={guardando}
-              className="px-5 py-2.5 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+              className="min-h-11 px-5 py-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
             >
               {guardando ? 'Guardando...' : 'Guardar producto'}
             </button>
           </div>
           )}
         </form>
-      </div>
-    </div>
+    </ModalShell>
   );
 };
 

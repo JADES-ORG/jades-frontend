@@ -498,7 +498,7 @@ export function App() {
                         {/* 2. Detalle del Cliente */}
                         {storeSubView === 'detalle_cliente' && idClienteSeleccionado !== null && (
                             <StoreClienteDetailPage
-                                key={`${idClienteSeleccionado}-${recargaClientes}`}
+                                key={`${idTiendaActiva}-${idClienteSeleccionado}-${recargaClientes}`}
                                 idTienda={idTiendaActiva}
                                 idCliente={idClienteSeleccionado}
                                 soloConsulta={soloConsulta}

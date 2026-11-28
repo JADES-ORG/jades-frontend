@@ -13,6 +13,7 @@ export interface CorteItemData {
   fechaCompra?: string;
   fechaPagoEfectivo?: string;
   medioPago?: string;
+  diasAtraso?: number;
   capital: number;
   interesCompensatorio: number;
   mora: number;
@@ -23,14 +24,15 @@ export interface CorteItemData {
 }
 
 export function DetalleCorteModal({ corte, onClose, titulo = 'Detalle del corte' }: { corte: CorteItemData; onClose: () => void; titulo?: string }) {
-  return <ModalShell titulo={titulo} descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
+  return <ModalShell titulo={titulo} ancho="normal" descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
     <div className={cuerpoModal}>
       <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
         {[
           ['Fecha de compra', fecha(corte.fechaCompra)],
           ['Corte', corte.fechaCorte ? corte.fechaCorte.replace('T', ' ') : '—'],
           ['Pago pactado', fecha(corte.fechaPago)],
-          ['Pago efectivo', corte.fechaPagoEfectivo?.replace('T', ' ') ?? '—'],
+          ['Pago efectivo', corte.fechaPagoEfectivo ? [fecha(corte.fechaPagoEfectivo), corte.fechaPagoEfectivo.split('T')[1]].filter(Boolean).join(' · ') : '—'],
+          ['Días de mora', corte.diasAtraso ?? '—'],
           ['Medio', corte.medioPago ?? '—'],
           ['Estado', corte.estado],
           ['Capital', dinero(corte.capital, corte.moneda)],

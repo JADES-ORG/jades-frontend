@@ -28,13 +28,13 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-[#f3f6f5] flex flex-col md:flex-row font-sans">
       {/* SIDEBAR IZQUIERDO */}
-      <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
+      <aside className="w-full md:w-64 bg-[#102f2a] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
         <div>
           {/* Logo JADES */}
           <div className="p-6 border-b border-white/10 flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-[#139a6c] flex items-center justify-center text-white shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-[#087f5b] flex items-center justify-center text-white shadow-md">
               <ReceiptText className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
             <div>
@@ -73,7 +73,7 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
                 onClick={() => onSelectTab('resumen')}
                 className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                   currentTab === 'resumen'
-                    ? 'bg-[#139a6c] text-white shadow-sm'
+                    ? 'bg-[#087f5b] text-white shadow-sm'
                     : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                 }`}
               >
@@ -85,7 +85,7 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
                 onClick={() => onSelectTab('tiendas')}
                 className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                   currentTab === 'tiendas'
-                    ? 'bg-[#139a6c] text-white shadow-sm'
+                    ? 'bg-[#087f5b] text-white shadow-sm'
                     : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                 }`}
               >
@@ -97,7 +97,7 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
                 onClick={() => onSelectTab('registrar')}
                 className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                   currentTab === 'registrar'
-                    ? 'bg-[#139a6c] text-white shadow-sm'
+                    ? 'bg-[#087f5b] text-white shadow-sm'
                     : 'text-emerald-100/70 hover:bg-white/5 hover:text-white'
                 }`}
               >
@@ -146,7 +146,7 @@ export const AdminSystemLayout: React.FC<AdminSystemLayoutProps> = ({
                 aria-label="Buscar tienda"
                 value={busqueda}
                 onChange={e => onBuscar(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+                className="w-full min-h-11 pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#087f5b]"
               />
             </div>
 
