@@ -20,6 +20,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setErrorMsg(null);
     setIsLoading(true);
 
@@ -39,9 +40,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   return (
     <AuthLayout>
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Inicia sesión
-        </h2>
+        </h1>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
           Consulta y administra tus créditos con JADES.
@@ -93,9 +94,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               placeholder="••••••••"
               className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-2 focus:ring-[#139a6c]/20 outline-none transition"
             />
-            <p className="text-xs text-slate-400 mt-1.5 font-normal">
-              Tu contraseña distingue mayúsculas y minúsculas.
-            </p>
+
           </div>
 
           <button

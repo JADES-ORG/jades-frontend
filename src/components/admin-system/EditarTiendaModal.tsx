@@ -1,3 +1,4 @@
+import { ConfirmarEstado } from '../shared/ConfirmarEstado';
 import React, { useEffect, useState } from 'react';
 import { X, Info } from 'lucide-react';
 import { actualizarTienda, consultarTienda, desactivarTienda, reactivarTienda } from '../../api/tiendas';
@@ -22,6 +23,7 @@ export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, ti
   const [detalle, setDetalle] = useState(tienda);
   const [formulario, setFormulario] = useState(() => datosFormulario(tienda));
   const [cargando, setCargando] = useState(true);
+  const [confirmar, setConfirmar] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
@@ -76,7 +78,7 @@ export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, ti
   };
 
   const cambiarEstado = async () => {
-    if (bloqueado || !window.confirm(activa ? '¿Desactivar esta tienda? Se conservará el historial y no se permitirán nuevas ventas.' : '¿Reactivar esta tienda?')) return;
+    if (bloqueado) return;
     setError(null);
     setGuardando(true);
     try {
@@ -99,6 +101,11 @@ export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, ti
     { campo: 'correoTienda', etiqueta: 'Correo del negocio', max: 150, tipo: 'email' },
     { campo: 'documentoTienda', etiqueta: 'Documento del negocio', max: 11, required: true },
   ];
+
+  if (confirmar) return <ConfirmarEstado titulo={activa ? 'Desactivar tienda' : 'Reactivar tienda'}
+    descripcion={activa ? `${detalle.nombreTienda} seguirá disponible para consultas y cobros pendientes.` : `${detalle.nombreTienda} volverá a permitir nuevas ventas y modificaciones.`}
+    accion={activa ? 'Desactivar' : 'Reactivar'} guardando={guardando} error={error}
+    onCancelar={() => { setError(null); setConfirmar(false); }} onConfirmar={() => void cambiarEstado()} />;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -139,7 +146,7 @@ export const EditarTiendaModal: React.FC<EditarTiendaModalProps> = ({ isOpen, ti
             <p className="text-xs">{activa ? 'Al desactivar se impiden nuevas ventas y modificaciones, pero se conservan las consultas y cobranzas.' : 'La tienda inactiva solo puede consultarse. Reactívala para editar sus datos.'}</p>
           </div>
           <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-end gap-3">
-            <button type="button" disabled={bloqueado} onClick={() => void cambiarEstado()} className={`px-5 py-2.5 rounded-xl text-white text-xs font-semibold disabled:opacity-50 ${activa ? 'bg-red-600 hover:bg-red-700' : 'bg-[#139a6c]'}`}>{activa ? 'Desactivar tienda' : 'Reactivar tienda'}</button>
+            <button type="button" disabled={bloqueado} onClick={() => { setError(null); setConfirmar(true); }} className={`px-5 py-2.5 rounded-xl text-white text-xs font-semibold disabled:opacity-50 ${activa ? 'bg-red-600 hover:bg-red-700' : 'bg-[#139a6c]'}`}>{activa ? 'Desactivar tienda' : 'Reactivar tienda'}</button>
             <button type="button" disabled={guardando} onClick={onClose} className="px-5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold">Cancelar</button>
             {activa && <button type="submit" disabled={bloqueado} className="px-5 py-2.5 rounded-xl text-white bg-[#139a6c] text-xs font-semibold disabled:opacity-50">{guardando ? 'Guardando...' : 'Guardar cambios'}</button>}
           </div>

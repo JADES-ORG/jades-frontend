@@ -118,7 +118,7 @@ export const StoreAyudaPage: React.FC<StoreAyudaPageProps> = ({ onNavigateTab })
           </li>
           <li className="flex items-start">
             <span className="text-slate-400 mr-2">•</span>
-            <span>No se permiten pagos parciales ni pagos anticipados en el alcance actual; la imputación es mora → interés compensatorio → capital.</span>
+            <span>Puedes cobrar un pago único antes del vencimiento con el interés que calcule JADES, anticipar la cuota del mes sin reducir su interés pactado o liquidar el crédito completo desde el mes de la primera cuota. Los pagos parciales están restringidos.</span>
           </li>
         </ul>
       </div>

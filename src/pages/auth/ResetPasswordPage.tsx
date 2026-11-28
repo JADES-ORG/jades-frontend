@@ -51,9 +51,9 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({
   return (
     <AuthLayout>
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Crea una nueva contraseña
-        </h2>
+        </h1>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
           Define una contraseña para volver a ingresar.

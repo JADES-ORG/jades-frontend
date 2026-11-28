@@ -1,3 +1,4 @@
+import type { TiendaClienteResponse } from "../../types/finanzas";
 import { etiquetaPeriodo, etiquetaTipoTasa, horaCorta, porcentajeTasa } from "../../features/clientes/model";
 import { useCuentaCliente } from "../../features/client-portal/state";
 import {
@@ -19,11 +20,17 @@ interface Props {
   onVerPlan: (idVenta: number) => void;
   onVerMisCompras: () => void;
   busqueda?: string;
+  tiendas: TiendaClienteResponse[];
+  idTienda: number;
+  onSelectTienda: (id: number) => void;
 }
 export function ClientDashboardPage({
   onVerPlan,
   onVerMisCompras,
   busqueda = "",
+  tiendas,
+  idTienda,
+  onSelectTienda,
 }: Props) {
   const { cuenta } = useCuentaCliente();
   if (!cuenta) return null;
@@ -36,6 +43,23 @@ export function ClientDashboardPage({
         <h2>Hola, {cuenta.nombreCliente.trim().split(/\s+/)[0]}</h2>
         <p>Aquí puedes revisar tus compras y próximos pagos.</p>
       </div>
+      <section className="client-panel">
+        <div className="client-panel-heading"><h3>Mis establecimientos</h3></div>
+        <div className="client-table-scroll"><table className="client-table">
+          <thead><tr><th>Establecimiento</th><th>Estado</th><th>Pendientes</th><th>Moneda</th><th>Importe pendiente</th><th>Cuenta</th></tr></thead>
+          <tbody>{tiendas.map(tienda => {
+            const actual = tienda.idTienda === idTienda;
+            return <tr key={tienda.idTienda}>
+              <td><strong>{tienda.nombreTienda}</strong></td>
+              <td><Estado>{tienda.estadoTienda === 'ACTIVO' ? 'Activa' : 'Inactiva'}</Estado></td>
+              <td>{actual ? cuenta.resumen.cuotasPendientes : tienda.cuotasPendientes}</td>
+              <td>{tienda.monedaCredito ?? '—'}</td>
+              <td>{tienda.monedaCredito ? dinero(actual ? cuenta.resumen.totalPendienteRegistrado : tienda.totalPendiente, tienda.monedaCredito) : '—'}</td>
+              <td>{actual ? <span aria-current="true">Cuenta abierta</span> : <button type="button" className="client-button" aria-label={`Ver cuenta de ${tienda.nombreTienda}`} onClick={() => onSelectTienda(tienda.idTienda)}>Ver cuenta</button>}</td>
+            </tr>;
+          })}</tbody>
+        </table></div>
+      </section>
       <section className="client-hero" aria-label="Resumen de tu cuenta">
         <div>
           <p>Capital pendiente</p>

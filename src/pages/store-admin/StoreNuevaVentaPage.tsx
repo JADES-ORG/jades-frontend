@@ -1,3 +1,4 @@
+import { CronogramaCredito } from '../../components/store-admin/CronogramaCredito';
 import { porcentaje } from '../../features/client-portal/model';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
@@ -51,33 +52,6 @@ function Datos({ datos }: { datos: [string, React.ReactNode][] }) {
   </dl>;
 }
 
-function Cronograma({ plan, definitivo = false }: { plan: CronogramaResponse; definitivo?: boolean }) {
-  const m = (v: number) => dinero(v, plan.moneda);
-  return <section className="space-y-4">
-    <h4 className="text-sm font-bold text-slate-900">{definitivo ? 'Cronograma registrado' : 'Cronograma preliminar — método francés'}</h4>
-    <Datos datos={[
-      ['Fecha de venta', plan.fechaVenta], ['Fecha de corte', plan.fechaCorte],
-      ['Fin de gracia', plan.fechaFinGracia ?? '—'], ['Días de gracia', plan.diasGracia ?? '—'],
-      ['Capital inicial', m(plan.capitalVenta)], ['Interés de gracia', m(plan.interesGracia)],
-      ['Capital capitalizado', m(plan.capitalCapitalizado)], ['Cuota base', m(plan.cuotaBase)],
-      ['TEM', porcentaje(plan.tasaEfectivaMensual)],
-      ['Intereses de cuotas', m(plan.interesesTotales)], ['Interés total (incluye gracia)', m(plan.totalFinanciamiento - plan.capitalVenta)],
-      ['Total a pagar', m(plan.totalFinanciamiento)],
-    ]}/>
-    <div className="overflow-x-auto border border-slate-200 rounded-xl">
-      <table className="w-full text-left text-xs whitespace-nowrap">
-        <thead className="bg-slate-50 text-slate-500"><tr>{['N.°','Vencimiento','Saldo inicial','Interés','Amortización','Cuota','Saldo final'].map(h => <th key={h} className="p-3">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-slate-100">{plan.cuotas.map(c => <tr key={c.numeroCuota}>
-          <td className="p-3">{c.numeroCuota}</td><td className="p-3">{c.fechaVencimiento}</td>
-          <td className="p-3">{m(c.saldoInicial)}</td><td className="p-3">{m(c.interes)}</td>
-          <td className="p-3">{m(c.amortizacion)}</td><td className="p-3 font-semibold">{m(c.cuota)}</td><td className="p-3">{m(c.saldoFinal)}</td>
-        </tr>)}</tbody>
-      </table>
-    </div>
-    <p className="text-xs text-slate-500">Ajuste última cuota: {m(plan.ajusteUltimaCuota)}.</p>
-  </section>;
-}
-
 function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaResponse }) {
   const m = (v: number) => dinero(v, s.moneda);
   const u = s.pagoUnico;
@@ -89,7 +63,7 @@ function ResumenSimulacion({ simulacion: s }: { simulacion: SimulacionVentaRespo
       ['Total a pagar', m(s.totalPagar)], ['Disponible al cotizar', m(s.creditoDisponible)],
       ['Disponible posterior estimado', m(s.creditoDisponiblePosterior)],
     ]}/>
-    {s.cronograma && <Cronograma plan={s.cronograma}/>}
+    {s.cronograma && <CronogramaCredito plan={s.cronograma}/>}
     {u && <><h4 className="font-bold text-sm">Simulación de pago único</h4><Datos datos={[
       ['Capital', m(u.capital)], ['Días de financiamiento', u.diasFinanciamiento],
       ['TED', porcentaje(u.tasaEfectivaDiaria)],
@@ -289,7 +263,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
     {errorSaldoFinal && <div role="alert" className="text-xs text-red-700"><p>No se pudo consultar el saldo actualizado: {errorSaldoFinal}</p><button className={secundario} onClick={() => { setErrorSaldoFinal(''); setRecargaSaldoFinal(n => n + 1); }}>Reconsultar saldo</button></div>}
     {cargaFinal && <p role="status" className="text-xs text-slate-500">Consultando obligaciones registradas...</p>}
     {errorFinal && <div role="alert" className="text-sm text-red-700 space-y-2"><p>La venta ya fue registrada. No vuelvas a enviarla. {errorFinal}</p><button className={secundario} onClick={() => { setErrorFinal(''); setCargaFinal(true); setRecargaFinal(n => n + 1); }}>Consultar nuevamente</button></div>}
-    {planFinal && <Cronograma plan={planFinal} definitivo/>}
+    {planFinal && <CronogramaCredito plan={planFinal} definitivo/>}
     {unicoFinal && <><h3 className="font-bold text-sm">Obligación de pago único registrada</h3><Datos datos={[
       ['Capital', dinero(unicoFinal.capital, unicoFinal.moneda)], ['Fecha de pago', unicoFinal.fechaPago],
       ['Días de financiamiento', unicoFinal.diasFinanciamiento], ['Interés compensatorio', dinero(unicoFinal.interesCompensatorio, unicoFinal.moneda)],

@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { AyudaCampo } from '../../components/shared/AyudaCampo';
+import type { Moneda } from '../../types/finanzas';
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock, CreditCard, Plus } from 'lucide-react';
 import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
 import { obligacionesPendientes, proximosSieteDias, useCuentasTienda } from '../../features/cobranzas/cuentas';
@@ -14,6 +17,7 @@ interface Props {
 export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToClients, onGoToPayments, onGoToSales }: Props) {
   const { cuentas, cargando, error, recargar } = useCuentasTienda(idTienda, revision);
   const hoy = hoyLima();
+  const [monedaGrafico, setMonedaGrafico] = useState<Moneda>('PEN');
   const obligaciones = obligacionesPendientes(cuentas);
   const proximos = obligaciones.filter(o => o.fechaVencimiento === hoy || proximosSieteDias(o.fechaVencimiento, hoy));
   const pagos = cuentas.flatMap(cuenta => cuenta.pagos.map(pago => ({ ...pago, cliente: cuenta.nombreCliente })));
@@ -30,6 +34,23 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
       cliente: cuenta.nombreCliente, monto: dinero(compra.total, compra.moneda),
     }))),
   ].sort((a, b) => b.dia.localeCompare(a.dia)).slice(0, 6);
+
+  const meses = Array.from({ length: 6 }, (_, indice) => {
+    const fechaMes = new Date(hoy.slice(0, 7) + '-01T00:00:00Z');
+    fechaMes.setUTCMonth(fechaMes.getUTCMonth() - 5 + indice);
+    const periodo = fechaMes.toISOString().slice(0, 7);
+    const etiqueta = new Intl.DateTimeFormat('es-PE', { month: 'short', timeZone: 'UTC' }).format(fechaMes);
+    const esperado = cuentas.reduce((suma, cuenta) => {
+      const anuladas = new Set(cuenta.compras.filter(compra => compra.estado === 'ANULADA').map(compra => compra.idVenta));
+      return suma + cuenta.obligaciones.filter(cuota => cuota.moneda === monedaGrafico
+        && cuota.fechaVencimiento.startsWith(periodo) && !anuladas.has(cuota.idVenta))
+        .reduce((total, cuota) => total + cuota.importeCuota, 0);
+    }, 0);
+    const recibido = pagos.filter(pago => pago.moneda === monedaGrafico && pago.fechaPago.startsWith(periodo))
+      .reduce((suma, pago) => suma + pago.totalExigible, 0);
+    return { periodo, etiqueta, esperado, recibido };
+  });
+  const escala = Math.max(1, ...meses.flatMap(mes => [mes.esperado, mes.recibido]));
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -55,7 +76,29 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
           </div>
         </div>)}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <section className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex flex-wrap justify-between gap-3">
+            <div><h3 className="font-bold">Cobros de los últimos seis meses</h3><p className="text-sm text-slate-600">Pagos recibidos y esperados</p></div>
+            <select aria-label="Moneda de cobros" value={monedaGrafico} onChange={e => setMonedaGrafico(e.target.value as Moneda)} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm">
+              <option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
+            </select>
+          </div>
+          <ol className="mt-4 grid grid-cols-6 gap-2 border-b border-slate-200 text-center text-xs">
+            {meses.map(mes => <li key={mes.periodo}>
+              <div className="flex h-28 items-end justify-center gap-1" role="img" aria-label={`${mes.etiqueta}, esperado ${dinero(mes.esperado, monedaGrafico)}, recibido ${dinero(mes.recibido, monedaGrafico)}`}>
+                <span aria-hidden="true" title={`Esperado ${dinero(mes.esperado, monedaGrafico)}`} className="w-3 rounded-t bg-emerald-200 sm:w-5" style={{ height: `${mes.esperado / escala * 100}%` }} />
+                <span aria-hidden="true" title={`Recibido ${dinero(mes.recibido, monedaGrafico)}`} className="w-3 rounded-t bg-emerald-700 sm:w-5" style={{ height: `${mes.recibido / escala * 100}%` }} />
+              </div>
+              <p className="py-2 capitalize">{mes.etiqueta}</p>
+            </li>)}
+          </ol>
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-emerald-200" /> Esperado</span>
+            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-emerald-700" /> Recibido</span>
+            <AyudaCampo etiqueta="el resumen de cobros" texto="Esperado agrupa las cuotas por vencimiento. Recibido agrupa los pagos registrados por fecha efectiva." />
+          </div>
+        </section>
         <section className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-bold">Próximos cobros</h3>
@@ -69,7 +112,7 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
           </ul>
           {!proximos.length && <p className="py-4 text-sm text-slate-600">No hay vencimientos próximos.</p>}
         </section>
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-bold">Actividad reciente</h3>
             <button type="button" onClick={onGoToClients} className="flex items-center gap-1 text-sm font-semibold text-[#137b57]">Ver clientes <ChevronRight className="size-4" aria-hidden="true" /></button>

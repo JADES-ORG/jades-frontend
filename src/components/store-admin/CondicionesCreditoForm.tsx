@@ -1,3 +1,4 @@
+import { AyudaCampo } from '../shared/AyudaCampo';
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -22,11 +23,11 @@ interface CampoProps {
 
 export const Campo: React.FC<CampoProps> = ({ id, label, ayuda, children }) => (
     <div>
-        <label htmlFor={id} className="block text-sm font-semibold text-slate-800 mb-1.5">
-            {label}
-        </label>
+        <div className="mb-1 flex items-baseline gap-1">
+            <label htmlFor={id} className="text-sm font-semibold text-slate-800">{label}</label>
+            <AyudaCampo etiqueta={label} texto={ayuda} />
+        </div>
         {children}
-        <p className="text-[11px] text-slate-500 mt-1.5">{ayuda}</p>
     </div>
 );
 

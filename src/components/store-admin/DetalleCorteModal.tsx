@@ -5,6 +5,7 @@ import { cuerpoModal, ModalShell } from './ModalShell';
 
 export interface CorteItemData {
   id: string;
+  idVenta?: number;
   cliente: string;
   obligacion: string;
   fechaCorte: string | null;
@@ -21,8 +22,8 @@ export interface CorteItemData {
   detalles: DetalleVentaResponse[];
 }
 
-export function DetalleCorteModal({ corte, onClose }: { corte: CorteItemData; onClose: () => void }) {
-  return <ModalShell titulo="Detalle del corte" descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
+export function DetalleCorteModal({ corte, onClose, titulo = 'Detalle del corte' }: { corte: CorteItemData; onClose: () => void; titulo?: string }) {
+  return <ModalShell titulo={titulo} descripcion={`${corte.cliente} · ${corte.obligacion}`} onClose={onClose}>
     <div className={cuerpoModal}>
       <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
         {[

@@ -1,3 +1,4 @@
+import { Paginacion } from '../../components/shared/Paginacion';
 import React, { useState } from 'react';
 import {
   Clock,
@@ -6,6 +7,13 @@ import {
   Search,
   ChevronDown,
 } from 'lucide-react';
+import { consultarCreditoDisponible } from '../../api/clientes';
+import { obtenerMensajeError } from '../../api/errores';
+import { DetalleCorteModal, type CorteItemData } from '../../components/store-admin/DetalleCorteModal';
+import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
+import { ModalShell, cuerpoModal } from '../../components/store-admin/ModalShell';
+import type { LiquidacionResponse, Moneda, PagoResponse } from '../../types/finanzas';
+import type { CreditoDisponibleResponse } from '../../types/clientes';
 import { RegistrarPagoModal } from '../../components/store-admin/RegistrarPagoModal';
 import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
 import { obligacionesPendientes, proximosSieteDias, useCuentasTienda, type ObligacionCobro } from '../../features/cobranzas/cuentas';
@@ -25,12 +33,25 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('TODOS');
   const [seleccionada, setSeleccionada] = useState<ObligacionCobro | null>(null);
-  const [aviso, setAviso] = useState('');
+  const [moneda, setMoneda] = useState<Moneda>('PEN');
+  const [vista, setVista] = useState<'pendientes' | 'programadas' | 'historial'>('pendientes');
+  const [detalle, setDetalle] = useState<CorteItemData | null>(null);
+  const [confirmacion, setConfirmacion] = useState<{ operacion: PagoResponse | LiquidacionResponse; medio: string; idCliente: number } | null>(null);
+  const [credito, setCredito] = useState<CreditoDisponibleResponse | null>(null);
+  const [errorCredito, setErrorCredito] = useState('');
+  async function consultarSaldo(idCliente: number) {
+    setErrorCredito('');
+    try {
+      setCredito(await consultarCreditoDisponible(idTienda, idCliente));
+    } catch (causa) {
+      setErrorCredito(obtenerMensajeError(causa));
+    }
+  }
   const [pagina, setPagina] = useState(1);
-  const pagos = cargando || error ? [] : obligacionesPendientes(cuentas);
+  const pagos = cargando || error ? [] : obligacionesPendientes(cuentas).filter(pago => pago.moneda === moneda);
   const hoy = hoyLima();
   const indicadores = [
-    { titulo: 'Vence hoy', icono: Clock, filas: pagos.filter(p => p.fechaVencimiento === hoy) },
+    { titulo: 'Exigible hoy', icono: Clock, filas: pagos.filter(p => p.fechaVencimiento === hoy) },
     { titulo: 'En mora', icono: AlertTriangle, filas: pagos.filter(p => p.estado === 'En mora') },
     { titulo: 'Próximos 7 días', icono: Calendar, filas: pagos.filter(p => proximosSieteDias(p.fechaVencimiento, hoy)) },
   ];
@@ -41,10 +62,31 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
       item.cliente.toLowerCase().includes(term) ||
       item.obligacion.toLowerCase().includes(term);
 
-    return matchSearch && (estadoFilter === 'TODOS' || item.estado === estadoFilter);
+    const pertenece = vista === 'programadas' ? item.fechaVencimiento > hoy : item.fechaVencimiento <= hoy || item.gestionable;
+    return pertenece && matchSearch && (estadoFilter === 'TODOS' || item.estado === estadoFilter);
   });
 
-  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filteredPagos.length / 10)));
+  const historial = cuentas.flatMap(cuenta => cuenta.pagos.map(pago => ({
+    id: String(pago.idPago),
+    cliente: cuenta.nombreCliente,
+    obligacion: `${cuenta.compras.find(compra => compra.idVenta === pago.idVenta)?.codigoCredito ?? 'Venta #' + pago.idVenta} · Cuota ${pago.numeroCuota}`,
+    fechaCorte: null,
+    fechaPago: pago.fechaPagoPactada,
+    fechaCompra: pago.fechaCompra,
+    fechaPagoEfectivo: [pago.fechaPago, pago.horaPagoEfectivo].filter(Boolean).join('T'),
+    medioPago: pago.medioPago,
+    capital: pago.capitalPagado,
+    interesCompensatorio: pago.interesPagado,
+    mora: pago.moraPagada,
+    totalPagar: pago.totalExigible,
+    moneda: pago.moneda,
+    estado: 'Pagado',
+    detalles: pago.detalles,
+  }))).filter(pago => pago.moneda === moneda && `${pago.cliente} ${pago.obligacion}`.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    .sort((a, b) => b.fechaPagoEfectivo.localeCompare(a.fechaPagoEfectivo));
+  const esHistorial = vista === 'historial';
+  const total = esHistorial ? historial.length : filteredPagos.length;
+  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(total / 10)));
   const visibles = filteredPagos.slice((paginaActual - 1) * 10, paginaActual * 10);
 
   return (
@@ -59,7 +101,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
         </p>
       </div>
 
-      {aviso && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{aviso}</p>}
+
       {cargando && <p role="status" className="text-sm text-slate-600">Cargando obligaciones…</p>}
       {error && <p role="alert" className="text-sm text-red-700">{error} <button onClick={recargar} className="font-semibold underline">Reintentar</button></p>}
       {!cargando && !error && <div className="grid gap-4 md:grid-cols-3">
@@ -67,7 +109,8 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
           <div key={titulo} className="rounded-xl border border-slate-200 bg-white p-5 flex items-center justify-between">
             <div>
               <p className="text-sm text-slate-600">{titulo}</p>
-              <p className="text-2xl font-bold text-slate-900">{filas.length}</p>
+              <p className="text-2xl font-bold text-slate-900">{dinero(filas.reduce((suma, fila) => suma + fila.importePendiente, 0), moneda)}</p>
+              <p className="text-sm text-slate-600">{filas.length} obligaciones</p>
             </div>
             <Icono aria-hidden="true" className="size-5 text-[#139a6c]" />
           </div>
@@ -76,6 +119,16 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
 
       {/* Contenedor de Tabla con Buscador y Filtro */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="flex flex-wrap justify-between gap-3 border-b border-slate-100 p-4">
+          <div className="flex flex-wrap gap-2" aria-label="Vista de pagos">
+            {([['pendientes', 'Obligaciones pendientes'], ['programadas', 'Obligaciones programadas'], ['historial', 'Historial de pagos']] as const).map(([valor, etiqueta]) => (
+              <button key={valor} type="button" aria-pressed={vista === valor} className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm aria-pressed:border-emerald-700 aria-pressed:bg-emerald-50" onClick={() => { setVista(valor); setEstadoFilter('TODOS'); setPagina(1); }}>{etiqueta}</button>
+            ))}
+          </div>
+          <select aria-label="Moneda" value={moneda} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm" onChange={e => { setMoneda(e.target.value as Moneda); setPagina(1); }}>
+            <option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
+          </select>
+        </div>
         {/* Buscador y Dropdown */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
@@ -90,7 +143,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
             />
           </div>
 
-          <div className="relative w-full sm:w-auto">
+          {!esHistorial && <div className="relative w-full sm:w-auto">
             <select
               value={estadoFilter}
               aria-label="Estado de la obligación"
@@ -103,7 +156,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               <option value="Por vencer">Por vencer</option>
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          </div>}
         </div>
 
         {/* Tabla */}
@@ -112,7 +165,7 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
             <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="py-3 px-6">CLIENTE / OBLIGACIÓN</th>
-                <th className="py-3 px-4">VENCE</th>
+                <th className="py-3 px-4">{esHistorial ? 'PAGO EFECTIVO' : 'VENCE'}</th>
                 <th className="py-3 px-4">CAPITAL</th>
                 <th className="py-3 px-4">INTERÉS COMPENSATORIO</th>
                 <th className="py-3 px-4">MORA</th>
@@ -122,7 +175,16 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {visibles.map((item) => (
+              {esHistorial && historial.slice((paginaActual - 1) * 10, paginaActual * 10).map(pago => (
+                <tr key={pago.id}>
+                  <td className="px-6 py-4"><strong className="block">{pago.cliente}</strong>{pago.obligacion}</td>
+                  <td className="px-4 py-4">{fecha(pago.fechaPagoEfectivo)} {pago.fechaPagoEfectivo.split('T')[1]}</td>
+                  {[pago.capital, pago.interesCompensatorio, pago.mora, pago.totalPagar].map((importe, indice) => <td className="px-4 py-4" key={indice}>{dinero(importe, pago.moneda)}</td>)}
+                  <td className="px-4 py-4"><EstadoBadge estado="Pagado" /></td>
+                  <td className="px-6 py-4 text-right"><button type="button" className="min-h-11 rounded-lg border border-slate-200 px-3" onClick={() => setDetalle(pago)}>Ver detalle</button></td>
+                </tr>
+              ))}
+              {!esHistorial && visibles.map((item) => (
                 <tr key={item.idCuota} className="hover:bg-slate-50/60 transition">
                   {/* Cliente y Obligación */}
                   <td className="py-4 px-6">
@@ -157,40 +219,26 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
 
                   {/* Estado */}
                   <td className="py-4 px-4">
-                    {item.estado === 'Pendiente' && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        • Pendiente
-                      </span>
-                    )}
-                    {item.estado === 'En mora' && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                        • En mora
-                      </span>
-                    )}
-                    {item.estado === 'Por vencer' && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                        • Por vencer
-                      </span>
-                    )}
+                    <EstadoBadge estado={item.estado} />
                   </td>
 
                   {/* Botón Registrar */}
                   <td className="py-4 px-6 text-right">
-                    {item.gestionable && <button
+                    {item.gestionable ? <button
                       type="button"
-                      onClick={() => { setAviso(''); setSeleccionada(item); }}
+                      onClick={() => { setSeleccionada(item); }}
                       className="min-h-11 px-4 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50"
                     >
                       Gestionar pago
-                    </button>}
+                    </button> : <span className="text-slate-600">{item.inicioCobro > hoy.slice(0, 7) ? 'Disponible desde ' + item.inicioCobro : 'Gestionar desde la primera cuota pendiente'}</span>}
                   </td>
                 </tr>
               ))}
 
-              {!cargando && !error && filteredPagos.length === 0 && (
+              {!cargando && !error && total === 0 && (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
-                    No hay obligaciones pendientes registradas.
+                    {esHistorial ? 'No se encontraron pagos registrados.' : 'No se encontraron obligaciones.'}
                   </td>
                 </tr>
               )}
@@ -198,20 +246,38 @@ export const StorePagosPage: React.FC<StorePagosPageProps> = ({
           </table>
         </div>
 
-        {filteredPagos.length > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-4 text-sm">
-          <span>{filteredPagos.length} obligaciones</span>
-          <div className="flex items-center gap-3">
-            <button type="button" disabled={paginaActual <= 1} onClick={() => setPagina(paginaActual - 1)} className="min-h-11 px-3 disabled:opacity-40">Anterior</button>
-            <span>{paginaActual} de {Math.ceil(filteredPagos.length / 10)}</span>
-            <button type="button" disabled={paginaActual * 10 >= filteredPagos.length} onClick={() => setPagina(paginaActual + 1)} className="min-h-11 px-3 disabled:opacity-40">Siguiente</button>
-          </div>
-        </div>}
+        <Paginacion total={total} pagina={paginaActual} onCambiar={setPagina} etiqueta={esHistorial ? 'pagos' : 'obligaciones'} />
       </div>
-      {seleccionada && <RegistrarPagoModal obligacion={seleccionada} onClose={() => setSeleccionada(null)} onRegistrado={mensaje => {
+      {seleccionada && <RegistrarPagoModal obligacion={seleccionada} onClose={() => setSeleccionada(null)} onRegistrado={(operacion, medio) => {
         setSeleccionada(null);
-        setAviso(mensaje);
+        setConfirmacion({ operacion, medio, idCliente: seleccionada.idCliente });
+        setCredito(null);
+        void consultarSaldo(seleccionada.idCliente);
         onPagoRegistrado();
       }} />}
+      {detalle && <DetalleCorteModal titulo="Detalle del pago" corte={detalle} onClose={() => setDetalle(null)} />}
+      {confirmacion && <ModalShell titulo={'totalPagar' in confirmacion.operacion ? 'Liquidación registrada' : 'Pago registrado'} descripcion={`Venta #${confirmacion.operacion.idVenta}`} onClose={() => setConfirmacion(null)}>
+        <div className={cuerpoModal}>
+          <dl className="grid grid-cols-2 gap-4 text-sm">
+            {(() => {
+              const pago = confirmacion.operacion;
+              const liquidado = 'totalPagar' in pago;
+              return [
+                ['Pago efectivo', `${fecha(pago.fechaPagoEfectivo)} · ${pago.horaPagoEfectivo ?? '—'}`],
+                ['Medio', liquidado ? confirmacion.medio : pago.medioPago],
+                ['Capital', dinero(liquidado ? pago.capital : pago.capitalPagado, pago.moneda)],
+                ['Interés compensatorio', dinero(liquidado ? pago.interesCompensatorio : pago.interesPagado, pago.moneda)],
+                ['Mora', dinero(liquidado ? pago.mora : pago.moraPagada, pago.moneda)],
+                ['Total cobrado', dinero(liquidado ? pago.totalPagar : pago.totalExigible, pago.moneda)],
+                ['Saldo del crédito', dinero(liquidado ? pago.saldoCapitalRestante : pago.saldoCredito, pago.moneda)],
+              ].map(([titulo, valor]) => <div key={titulo}><dt className="text-slate-600">{titulo}</dt><dd className="font-semibold">{valor}</dd></div>);
+            })()}
+          </dl>
+          {credito && <p className="rounded-lg bg-emerald-50 p-3 text-sm">Disponible <strong>{dinero(credito.creditoDisponible, credito.monedaCredito)}</strong> · Utilizado <strong>{dinero(credito.creditoUtilizado, credito.monedaCredito)}</strong></p>}
+          {!credito && !errorCredito && <p role="status" className="text-sm">Consultando crédito actualizado…</p>}
+          {errorCredito && <p role="alert" className="text-sm text-red-700">{errorCredito} <button className="font-semibold underline" onClick={() => void consultarSaldo(confirmacion.idCliente)}>Consultar saldo</button></p>}
+        </div>
+      </ModalShell>}
     </div>
   );
 };

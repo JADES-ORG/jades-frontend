@@ -1,3 +1,6 @@
+import { ConfirmarEstado } from '../../components/shared/ConfirmarEstado';
+import { CronogramaCredito } from '../../components/store-admin/CronogramaCredito';
+import { consultarCronograma } from '../../api/finanzas';
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { ArrowLeft, Check, ChevronDown, ChevronRight, Info, Plus } from 'lucide-react';
@@ -13,7 +16,7 @@ import { obtenerMensajeError } from '../../api/errores';
 import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
 import { anulada, cuotasDe, estadoCompra, estadoObligacion } from '../../features/client-portal/model';
 import type { ClienteResponse, CondicionCrediticiaResponse } from '../../types/clientes';
-import type { CompraCuentaCorriente, CuentaCorrienteResponse } from '../../types/finanzas';
+import type { CompraCuentaCorriente, CuentaCorrienteResponse, CronogramaResponse } from '../../types/finanzas';
 import type { VentaResponse } from '../../types/ventas';
 import {
   dinero,
@@ -104,7 +107,20 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
   const [pestana, setPestana] = useState<Pestana>('creditos');
-  const [abierto, setAbierto] = useState<number | null>(null);
+  const [abierto, setAbierto] = useState<CompraCuentaCorriente | null>(null);
+  const [plan, setPlan] = useState<CronogramaResponse | null>(null);
+  const [errorPlan, setErrorPlan] = useState('');
+  const [intentoPlan, setIntentoPlan] = useState(0);
+
+  useEffect(() => {
+    if (abierto?.modalidadPago !== 'MENSUAL') return;
+    const controller = new AbortController();
+    consultarCronograma(abierto.idVenta, controller.signal)
+      .then(resultado => { if (!controller.signal.aborted) setPlan(resultado); })
+      .catch((causa: unknown) => { if (!controller.signal.aborted) setErrorPlan(obtenerMensajeError(causa)); });
+    return () => controller.abort();
+  }, [abierto, intentoPlan]);
+  const [confirmarEstado, setConfirmarEstado] = useState(false);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [errorEstado, setErrorEstado] = useState<string | null>(null);
   // Referencia estable al callback: avisar el nombre no debe volver a disparar la carga.
@@ -206,15 +222,13 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
   };
 
   const cambiarEstado = async () => {
-    const mensaje = activo
-        ? `¿Desactivar a ${cliente.nombreCliente}? No podrá recibir nuevas ventas; sus deudas y pagos se conservan.`
-        : `¿Reactivar a ${cliente.nombreCliente}?`;
-    if (!window.confirm(mensaje)) return;
+    if (soloConsulta || cambiandoEstado) return;
     setCambiandoEstado(true);
     setErrorEstado(null);
     try {
       const actualizado = activo ? await desactivarCliente(idTienda, cliente.id) : await reactivarCliente(idTienda, cliente.id);
       setDatos({ ...datos, cliente: actualizado });
+      setConfirmarEstado(false);
     } catch (err) {
       setErrorEstado(obtenerMensajeError(err));
     } finally {
@@ -243,7 +257,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
             const cuotas = cuotasDe(cuenta!, compra.idVenta).sort((a, b) => a.numeroCuota - b.numeroCuota);
             const pagadas = cuotas.filter((o) => o.importePendiente <= 0).length;
             const saldo = cuotas.filter((o) => o.importePendiente > 0).reduce((s, o) => s + o.importePendiente, 0);
-            const expandido = abierto === compra.idVenta;
+            const expandido = abierto?.idVenta === compra.idVenta;
             return (
                 <React.Fragment key={compra.idVenta}>
                   <tr className="hover:bg-slate-50/60">
@@ -266,7 +280,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                               type="button"
                               aria-expanded={expandido}
                               aria-label={`${expandido ? 'Ocultar' : 'Ver'} cuotas de ${codigo(compra)}`}
-                              onClick={() => setAbierto(expandido ? null : compra.idVenta)}
+                              onClick={() => { setPlan(null); setErrorPlan(''); setAbierto(expandido ? null : compra); }}
                               className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
                           >
                             {expandido ? (
@@ -281,6 +295,17 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                   {expandido && (
                       <tr className="bg-slate-50/50">
                         <td colSpan={7} className="px-5 py-3">
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold">Productos y servicios · {dinero(compra.total, compra.moneda)}</p>
+                            <ul className="mt-2 text-sm">{ventas.find(venta => venta.id === compra.idVenta)?.detalles.map(d => <li key={d.idProducto}>
+                              {d.cantidad} × {d.nombreProducto} · {dinero(d.subtotal, compra.moneda)}
+                            </li>)}</ul>
+                          </div>
+                          {compra.modalidadPago === 'MENSUAL' && <div className="mb-4">
+                            {plan?.idVenta === compra.idVenta ? <CronogramaCredito plan={plan} definitivo /> : errorPlan
+                              ? <p role="alert" className="text-sm text-red-700">{errorPlan} <button className="underline" onClick={() => { setErrorPlan(''); setIntentoPlan(n => n + 1); }}>Reintentar</button></p>
+                              : <p role="status" className="text-sm">Consultando cronograma…</p>}
+                          </div>}
                           <table className="w-full text-[11px]">
                             <thead className="text-slate-400 text-left">
                             <tr>
@@ -342,7 +367,7 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
           </div>
           {!soloConsulta && (
               <div className="flex flex-wrap items-center gap-2.5">
-                <button type="button" onClick={cambiarEstado} disabled={cambiandoEstado} className={botonSecundario}>
+                <button type="button" onClick={() => { setErrorEstado(null); setConfirmarEstado(true); }} disabled={cambiandoEstado} className={botonSecundario}>
                   {cambiandoEstado ? 'Guardando...' : activo ? 'Desactivar' : 'Reactivar'}
                 </button>
                 <button type="button" onClick={() => onEditClient(cliente)} className={botonSecundario}>
@@ -361,11 +386,10 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
               </div>
           )}
         </div>
-        {errorEstado && (
-            <p role="alert" className="text-xs rounded-xl bg-red-50 border border-red-200 text-red-700 p-3">
-              {errorEstado}
-            </p>
-        )}
+        {confirmarEstado && <ConfirmarEstado titulo={activo ? 'Desactivar cliente' : 'Reactivar cliente'}
+          descripcion={activo ? `${cliente.nombreCliente} conservará sus deudas y pagos. No podrá recibir nuevas ventas.` : `${cliente.nombreCliente} volverá a estar disponible para nuevas ventas.`}
+          accion={activo ? 'Desactivar' : 'Reactivar'} guardando={cambiandoEstado} error={errorEstado}
+          onCancelar={() => setConfirmarEstado(false)} onConfirmar={() => void cambiarEstado()} />}
 
         {/* Resumen financiero */}
         <div className="bg-[#0e3b2e] rounded-2xl p-6 text-white grid grid-cols-1 md:grid-cols-3 gap-6 md:divide-x divide-white/10 shadow-xs">
@@ -445,6 +469,8 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                 <Dato etiqueta="Tipo y valor de tasa">{resumenTasaCompensatoria(condicion)}</Dato>
                 <Dato etiqueta="Moneda">{etiquetaMoneda(condicion.monedaCredito)}</Dato>
                 <Dato etiqueta="Límite máximo">{dinero(condicion.limiteCredito, condicion.monedaCredito)}</Dato>
+                      <Dato etiqueta="Crédito utilizado">{dinero(condicion.creditoUtilizado, condicion.monedaCredito)}</Dato>
+                      <Dato etiqueta="Crédito disponible">{dinero(condicion.creditoDisponible, condicion.monedaCredito)}</Dato>
                 <Dato etiqueta="Plazo máximo">{condicion.plazoMaximo} meses</Dato>
                 <Dato etiqueta="Corte mensual">
                   Día {condicion.diaCorte} · {horaCorta(condicion.horaCorte)}
@@ -546,9 +572,13 @@ export const StoreClienteDetailPage: React.FC<StoreClienteDetailPageProps> = ({
                                       <td className="py-4 px-5">{dinero(p.interesPagado, p.moneda)}</td>
                                       <td className="py-4 px-5">{dinero(p.moraPagada, p.moneda)}</td>
                                       <td className="py-4 px-5 font-semibold">
-                                        {dinero(p.capitalPagado + p.interesPagado + p.moraPagada, p.moneda)}
+                                        {dinero(p.totalExigible, p.moneda)}
                                       </td>
-                                      <td className="py-4 px-5 capitalize">{p.medioPago ? p.medioPago.toLowerCase() : '—'}</td>
+                                      <td className="py-4 px-5 capitalize">{p.medioPago ? p.medioPago.toLowerCase() : '—'}
+                                        {!!p.detalles.length && <details className="mt-1"><summary className="cursor-pointer font-semibold">Productos y servicios</summary>
+                                          <ul>{p.detalles.map(d => <li key={d.idProducto}>{d.cantidad} × {d.nombreProducto} · {dinero(d.subtotal, p.moneda)}</li>)}</ul>
+                                        </details>}
+                                      </td>
                                     </tr>
                                 ))}
                             </tbody>

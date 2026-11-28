@@ -35,9 +35,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
   return (
     <AuthLayout>
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Recuperar contraseña
-        </h2>
+        </h1>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
           Generaremos un código para recuperar tu cuenta en el modo demostración.
@@ -65,9 +65,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({
               placeholder="luis@ejemplo.com"
               className="w-full px-4 py-3 text-sm text-slate-800 bg-white border border-slate-200 rounded-xl focus:border-[#139a6c] focus:ring-2 focus:ring-[#139a6c]/20 outline-none transition"
             />
-            <p className="text-xs text-slate-400 mt-2 font-normal">
-              Usa el correo asociado a tu usuario.
-            </p>
+
           </div>
 
           <button

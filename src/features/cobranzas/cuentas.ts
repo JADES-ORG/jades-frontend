@@ -61,6 +61,7 @@ export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
         ? 'En mora' as const : cuota.fechaVencimiento === hoy ? 'Pendiente' as const : 'Por vencer' as const;
       return [{
         ...cuota,
+        idCliente: cuenta.idCliente,
         cliente: cuenta.nombreCliente,
         obligacion: compra.codigoCredito ?? `Venta #${cuota.idVenta}`,
         mensual,

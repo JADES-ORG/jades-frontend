@@ -1,23 +1,29 @@
+import { Paginacion } from '../../components/shared/Paginacion';
 import { useEffect, useState } from 'react';
 import { Download, Eye } from 'lucide-react';
 import { consultarCorteTienda } from '../../api/finanzas';
+import { listarVentas } from '../../api/ventas';
+import type { VentaResponse } from '../../types/ventas';
 import { obtenerMensajeError } from '../../api/errores';
 import { DetalleCorteModal, type CorteItemData } from '../../components/store-admin/DetalleCorteModal';
+import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
 import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
 import type { CorteResponse } from '../../types/finanzas';
 
-function filasDelCorte(cortes: CorteResponse[], dia: string): CorteItemData[] {
+function filasDelCorte(cortes: CorteResponse[], dia: string, ventas: VentaResponse[]): CorteItemData[] {
+  const fechas = new Map(ventas.map(venta => [venta.id, venta.fechaVenta]));
   return cortes.flatMap(corte => {
     const cliente = corte.nombreCliente;
     const compras = new Map(corte.compras.map(compra => [compra.idVenta, compra]));
     return [
       ...corte.obligaciones.map(obligacion => ({
+        idVenta: obligacion.idVenta,
         id: `cuota-${obligacion.idCuota}`,
         cliente,
         obligacion: `${obligacion.codigoCredito} · Cuota ${obligacion.numeroCuota}`,
         fechaCorte: obligacion.fechaCorteObligacion,
         fechaPago: obligacion.fechaVencimiento,
-        fechaCompra: compras.get(obligacion.idVenta)?.fechaVenta,
+        fechaCompra: compras.get(obligacion.idVenta)?.fechaVenta ?? fechas.get(obligacion.idVenta),
         capital: obligacion.amortizacion,
         interesCompensatorio: obligacion.interes,
         mora: obligacion.moraCalculada,
@@ -27,6 +33,7 @@ function filasDelCorte(cortes: CorteResponse[], dia: string): CorteItemData[] {
         detalles: obligacion.detalles,
       })),
       ...corte.pagosRegistrados.map(pago => ({
+        idVenta: pago.idVenta,
         id: `pago-${pago.idPago}`,
         cliente,
         obligacion: `${pago.codigoCredito} · Cuota ${pago.numeroCuota}`,
@@ -47,16 +54,20 @@ function filasDelCorte(cortes: CorteResponse[], dia: string): CorteItemData[] {
   });
 }
 
+function comprasOrdenadas(corte: CorteResponse) {
+  return [...corte.compras].sort((a, b) => (a.fechaVenta + a.horaVenta).localeCompare(b.fechaVenta + b.horaVenta) || a.idVenta - b.idVenta);
+}
+
 function descargarInforme(ciclo: string, cortes: CorteResponse[], filas: CorteItemData[]) {
   const celdas = [
     ['Tipo', 'Cliente', 'Referencia', 'Compra', 'Corte', 'Pago pactado', 'Pago efectivo', 'Medio', 'Moneda', 'Capital', 'Interés', 'Mora', 'Total', 'Estado', 'Productos'],
-    ...cortes.flatMap(corte => corte.compras.map(compra => [
-      'Compra', corte.nombreCliente, compra.codigoCredito ?? compra.idVenta, compra.fechaVenta, compra.fechaCorteAsignada,
-      compra.fechaPagoAsignada, '', '', corte.moneda, '', compra.interesEstimado, '', compra.totalVenta, '',
+    ...cortes.flatMap(corte => comprasOrdenadas(corte).map(compra => [
+      'Compra', corte.nombreCliente, compra.codigoCredito ?? compra.idVenta, [compra.fechaVenta, compra.horaVenta].filter(Boolean).join(' '), compra.fechaCorteAsignada,
+      compra.fechaPagoAsignada, '', '', corte.moneda, compra.totalVenta, compra.interesEstimado, '', '', '',
       compra.detalles.map(detalle => `${detalle.cantidad} × ${detalle.nombreProducto}`).join(' / '),
     ])),
     ...filas.map(fila => [
-      'Obligación', fila.cliente, fila.obligacion, fila.fechaCompra, fila.fechaCorte, fila.fechaPago,
+      fila.estado === 'Pagado' ? 'Pago registrado' : 'Obligación pendiente', fila.cliente, fila.obligacion, fila.fechaCompra, fila.fechaCorte, fila.fechaPago,
       fila.fechaPagoEfectivo, fila.medioPago, fila.moneda, fila.capital, fila.interesCompensatorio, fila.mora,
       fila.totalPagar, fila.estado, fila.detalles.map(detalle => `${detalle.cantidad} × ${detalle.nombreProducto}`).join(' / '),
     ]),
@@ -80,10 +91,12 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
   const [ciclo, setCiclo] = useState(hoy.slice(0, 7));
   const [dia, setDia] = useState(hoy);
   const [intento, setIntento] = useState(0);
-  const [consulta, setConsulta] = useState<{ clave: string; datos: CorteResponse[]; error: string }>();
+  const [consulta, setConsulta] = useState<{ clave: string; datos: CorteResponse[]; error: string; ventas?: VentaResponse[]; errorVentas?: string }>();
   const [seleccionado, setSeleccionado] = useState<CorteItemData | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
+  const [moneda, setMoneda] = useState('');
+  const [vista, setVista] = useState<'obligaciones' | 'compras'>('obligaciones');
   const [pagina, setPagina] = useState(1);
   const clave = `${ciclo}|${dia}|${intento}`;
   const resultado = consulta?.clave === clave ? consulta : null;
@@ -92,16 +105,40 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
     if (!ciclo || !dia || dia > hoy) return;
     const controller = new AbortController();
     consultarCorteTienda(idTienda, { ciclo, fechaEvaluacion: dia }, controller.signal)
-      .then(datos => { if (!controller.signal.aborted) setConsulta({ clave, datos, error: '' }); })
+      .then(async datos => {
+        const requiereVentas = datos.some(corte => {
+          const incluidas = new Set(corte.compras.map(compra => compra.idVenta));
+          return corte.obligaciones.some(obligacion => !incluidas.has(obligacion.idVenta));
+        });
+        if (!requiereVentas) {
+          if (!controller.signal.aborted) setConsulta({ clave, datos, error: '' });
+          return;
+        }
+        try {
+          const ventas = await listarVentas(idTienda, undefined, controller.signal);
+          if (!controller.signal.aborted) setConsulta({ clave, datos, ventas, error: '' });
+        } catch (causa) {
+          if (!controller.signal.aborted) setConsulta({ clave, datos, error: '', errorVentas: obtenerMensajeError(causa) });
+        }
+      })
       .catch((error: unknown) => { if (!controller.signal.aborted) setConsulta({ clave, datos: [], error: obtenerMensajeError(error) }); });
     return () => controller.abort();
   }, [idTienda, ciclo, dia, hoy, clave]);
 
-  const cortes = resultado?.datos ?? [];
-  const filas = filasDelCorte(cortes, dia);
-  const filtradas = filas.filter(fila => (!estado || estado === fila.estado)
-    && `${fila.cliente} ${fila.obligacion}`.toLocaleLowerCase('es-PE').includes(busqueda.trim().toLocaleLowerCase('es-PE')));
-  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(filtradas.length / 10)));
+  const cortes = (resultado?.datos ?? []).filter(corte => !moneda || corte.moneda === moneda);
+  const filas = filasDelCorte(cortes, dia, resultado?.ventas ?? []);
+  const coincide = (texto: string) => texto.toLocaleLowerCase('es-PE').includes(busqueda.trim().toLocaleLowerCase('es-PE'));
+  const filtradas = filas.filter(fila => (!estado || estado === fila.estado) && coincide(`${fila.cliente} ${fila.obligacion}`));
+  const compras = cortes.flatMap(corte => comprasOrdenadas(corte)
+    .filter(compra => coincide(`${corte.nombreCliente} ${compra.codigoCredito ?? compra.idVenta} ${compra.detalles.map(detalle => detalle.nombreProducto).join(' ')}`))
+    .map(compra => ({ corte, compra })));
+  const total = vista === 'compras' ? compras.length : filtradas.length;
+  const paginaActual = Math.min(pagina, Math.max(1, Math.ceil(total / 10)));
+  const monedas = moneda ? [moneda] : ['PEN', 'USD'];
+  const metricas = [
+    ['Capital pendiente', 'totalCapitalExigible'], ['Interés compensatorio pendiente', 'totalInteresesPeriodo'],
+    ['Interés moratorio', 'totalMoraAcumulada'], ['Total pendiente', 'totalExigible'],
+  ] as const;
 
   return <div className="space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -115,28 +152,49 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
     {ciclo && dia && dia <= hoy && !resultado && <p role="status" className="text-sm text-slate-600">Consultando el corte…</p>}
     {resultado?.error && <p role="alert" className="text-sm text-red-700">{resultado.error} <button className="font-semibold underline" onClick={() => setIntento(n => n + 1)}>Reintentar</button></p>}
     {resultado && !resultado.error && <>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {([['Compras del ciclo', 'totalComprasCiclo'], ['Total exigible', 'totalExigible'], ['Total pagado', 'totalPagadoListado']] as const).map(([titulo, campo]) => (
-          <div key={campo} className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-sm text-slate-600">{titulo}</p>
-            {(['PEN', 'USD'] as const).map(moneda => <p key={moneda} className="text-lg font-bold text-slate-900">
-              {dinero(cortes.filter(corte => corte.moneda === moneda).reduce((suma, corte) => suma + corte.resumen[campo], 0), moneda)}
-            </p>)}
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-sm text-slate-600">Clientes incluidos</p><p className="text-xl font-bold">{new Set(cortes.filter(corte => corte.compras.length || corte.obligaciones.length || corte.pagosRegistrados.length).map(corte => corte.idCliente)).size}</p></div>
+        {metricas.map(([titulo, campo]) => <div key={campo} className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className="text-sm text-slate-600">{titulo}</p>
+          {monedas.map(m => <p key={m} className="font-bold text-slate-900">{dinero(cortes.filter(corte => corte.moneda === m).reduce((suma, corte) => suma + corte.resumen[campo], 0), m)}</p>)}
+        </div>)}
       </div>
+      <p className="text-sm text-slate-700">Cobrado en el listado {monedas.map(m => dinero(cortes.filter(corte => corte.moneda === m).reduce((suma, corte) => suma + corte.resumen.totalPagadoListado, 0), m)).join(' · ')}</p>
+      {resultado.errorVentas && <p role="alert" className="text-sm text-red-700">No se pudieron consultar algunas fechas de compra. {resultado.errorVentas} <button className="font-semibold underline" onClick={() => setIntento(n => n + 1)}>Reintentar</button></p>}
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex flex-wrap gap-3 border-b border-slate-100 p-4">
           <input aria-label="Buscar cliente u obligación" placeholder="Buscar cliente u obligación" className={control} value={busqueda} onChange={e => { setBusqueda(e.target.value); setPagina(1); }} />
-          <select aria-label="Estado" className={control} value={estado} onChange={e => { setEstado(e.target.value); setPagina(1); }}>
+          <select aria-label="Contenido del corte" className={control} value={vista} onChange={e => { setVista(e.target.value as typeof vista); setPagina(1); }}>
+            <option value="obligaciones">Obligaciones y pagos</option><option value="compras">Compras por cliente</option>
+          </select>
+          <select aria-label="Moneda" className={control} value={moneda} onChange={e => { setMoneda(e.target.value); setPagina(1); }}>
+            <option value="">Todas las monedas</option><option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
+          </select>
+          {vista === 'obligaciones' && <select aria-label="Estado" className={control} value={estado} onChange={e => { setEstado(e.target.value); setPagina(1); }}>
             <option value="">Todos los estados</option>
             {['Pendiente', 'Por vencer', 'En mora', 'Pagado'].map(valor => <option key={valor}>{valor}</option>)}
-          </select>
+          </select>}
           <button type="button" className={control + ' ml-auto inline-flex items-center gap-2 font-semibold disabled:opacity-50'} disabled={!filas.length && !cortes.some(corte => corte.compras.length)} onClick={() => descargarInforme(ciclo, cortes, filas)}>
             <Download aria-hidden="true" className="size-4" /> Descargar informe CSV
           </button>
         </div>
-        <div className="overflow-x-auto">
+        {vista === 'compras' ? <div className="divide-y divide-slate-100">
+          {compras.slice((paginaActual - 1) * 10, paginaActual * 10).map(({ corte, compra }) => (
+            <details key={compra.idVenta} className="p-4 text-sm">
+              <summary className="cursor-pointer font-semibold">{corte.nombreCliente} · {fecha(compra.fechaVenta)} · {compra.codigoCredito ?? `Venta #${compra.idVenta}`} · {dinero(compra.totalVenta, corte.moneda)}</summary>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+                <div><dt>Corte histórico</dt><dd>{compra.fechaCorteAsignada?.replace('T', ' ') ?? '—'}</dd></div>
+                <div><dt>Pago pactado</dt><dd>{fecha(compra.fechaPagoAsignada)}</dd></div>
+                <div><dt>Interés del ciclo</dt><dd>{dinero(compra.interesEstimado, corte.moneda)}</dd></div>
+              </dl>
+              <ul className="my-3">{compra.detalles.map(item => <li key={item.idProducto}>{item.cantidad} × {item.nombreProducto} · {dinero(item.subtotal, corte.moneda)}</li>)}</ul>
+              <div className="flex flex-wrap gap-2">
+                {filas.filter(item => item.idVenta === compra.idVenta).map(item => <button key={item.id} type="button" className={control} onClick={() => setSeleccionado(item)}>{item.obligacion} · {item.estado} · {dinero(item.totalPagar, item.moneda)}</button>)}
+              </div>
+            </details>
+          ))}
+          {!compras.length && <p className="p-8 text-center text-sm text-slate-600">No hay compras para esta consulta.</p>}
+        </div> : <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600">
               <tr>{['Cliente / obligación', 'Corte', 'Pago pactado', 'Capital', 'Interés', 'Mora', 'Total', 'Estado', 'Detalle'].map(label => <th key={label} scope="col" className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
@@ -147,21 +205,14 @@ export function StoreCortesPage({ idTienda }: { idTienda: number }) {
                 <td className="whitespace-nowrap px-4 py-3">{fecha(fila.fechaCorte)} {fila.fechaCorte?.split('T')[1]?.slice(0, 5)}</td>
                 <td className="whitespace-nowrap px-4 py-3">{fecha(fila.fechaPago)}</td>
                 {[fila.capital, fila.interesCompensatorio, fila.mora, fila.totalPagar].map((valor, i) => <td key={i} className="whitespace-nowrap px-4 py-3">{dinero(valor, fila.moneda)}</td>)}
-                <td className="whitespace-nowrap px-4 py-3">{fila.estado}</td>
+                <td className="whitespace-nowrap px-4 py-3"><EstadoBadge estado={fila.estado} /></td>
                 <td className="px-4 py-3"><button type="button" aria-label={`Ver detalle de ${fila.cliente}, ${fila.obligacion}`} className="grid size-11 place-items-center rounded-lg hover:bg-slate-100" onClick={() => setSeleccionado(fila)}><Eye aria-hidden="true" className="size-4" /></button></td>
               </tr>)}
               {!filtradas.length && <tr><td colSpan={9} className="p-8 text-center text-slate-600">No hay obligaciones para esta consulta.</td></tr>}
             </tbody>
           </table>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-2 text-sm">
-          <span>{filtradas.length} obligaciones</span>
-          {filtradas.length > 10 && <div className="flex gap-3 items-center">
-            <button className="min-h-11 disabled:opacity-40" disabled={paginaActual === 1} onClick={() => setPagina(paginaActual - 1)}>Anterior</button>
-            <span>{paginaActual} de {Math.ceil(filtradas.length / 10)}</span>
-            <button className="min-h-11 disabled:opacity-40" disabled={paginaActual * 10 >= filtradas.length} onClick={() => setPagina(paginaActual + 1)}>Siguiente</button>
-          </div>}
-        </div>
+        </div>}
+        <Paginacion total={total} pagina={paginaActual} onCambiar={setPagina} etiqueta={vista === 'compras' ? 'compras' : 'obligaciones'} />
       </div>
     </>}
     {seleccionado && <DetalleCorteModal corte={seleccionado} onClose={() => setSeleccionado(null)} />}

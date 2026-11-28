@@ -26,6 +26,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
                                                                             }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [datos, setDatos] = useState<DatosClienteForm>({ nombre: '', dni: '', telefono: '', correo: '', estado: 'ACTIVO' });
+  const [vinculacion, setVinculacion] = useState(false);
   const [contrasena, setContrasena] = useState('');
   const [condiciones, setCondiciones] = useState<CondicionesForm>(CONDICIONES_INICIALES);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +45,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
   const continuar = (e: React.FormEvent) => {
     e.preventDefault();
     const problema = validarDatosCliente(datos)
-        ?? (contrasena && (contrasena.length < 8 || contrasena.length > 72) ? 'La contraseña inicial debe tener entre 8 y 72 caracteres.' : null);
+        ?? (!vinculacion && (contrasena.length < 8 || new TextEncoder().encode(contrasena).length > 72) ? 'La contraseña inicial debe tener entre 8 y 72 caracteres.' : null);
     setError(problema);
     if (!problema) setStep(2);
   };
@@ -66,7 +67,7 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
           dniCliente: datos.dni.trim(),
           telefonoCliente: datos.telefono.trim() || null,
           correoCliente: datos.correo.trim(),
-          contrasenaTemporal: contrasena || null,
+          contrasenaTemporal: vinculacion ? null : contrasena,
         });
         setClienteCreado(cliente);
       }
@@ -115,7 +116,12 @@ export const RegistrarClienteModal: React.FC<RegistrarClienteModalProps> = ({
       >
         {step === 1 ? (
             <form onSubmit={continuar} noValidate className={cuerpoModal}>
-              <DatosClienteFields valores={datos} onChange={setDatos} contrasena={{ valor: contrasena, onChange: setContrasena }} />
+              <fieldset className="flex flex-wrap gap-4 text-sm">
+                <legend className="mb-2 font-semibold">Cuenta de acceso</legend>
+                <label><input type="radio" name="cuenta-cliente" checked={!vinculacion} onChange={() => { setVinculacion(false); setError(null); }} /> Crear cuenta nueva</label>
+                <label><input type="radio" name="cuenta-cliente" checked={vinculacion} onChange={() => { setVinculacion(true); setContrasena(''); setError(null); }} /> Vincular cuenta existente</label>
+              </fieldset>
+              <DatosClienteFields valores={datos} onChange={setDatos} vinculacion={vinculacion} contrasena={vinculacion ? undefined : { valor: contrasena, onChange: setContrasena }} />
               <AvisoError mensaje={error} />
               <BotonesModal onCancelar={cerrar} textoGuardar="Continuar" textoGuardando="Continuar" guardando={false} />
             </form>

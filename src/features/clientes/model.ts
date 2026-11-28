@@ -188,7 +188,7 @@ export function formatearPlazo(texto: string): string {
 
 /** Convierte la fracción del backend (0.025) a porcentaje sin perder precisión ("2.5"). */
 function fraccionAPorcentaje(fraccion: number): string {
-    return String(Number((fraccion * 100).toPrecision(15)));
+    return (fraccion * 100).toFixed(7);
 }
 
 export function condicionesDesdeRespuesta(c: CondicionCrediticiaResponse): CondicionesForm {
@@ -201,7 +201,7 @@ export function condicionesDesdeRespuesta(c: CondicionCrediticiaResponse): Condi
         limiteCredito: formatearLimite(String(c.limiteCredito), c.monedaCredito),
         plazoMaximo: formatearPlazo(String(c.plazoMaximo)),
         diaCorte: String(c.diaCorte),
-        horaCorte: (c.horaCorte ?? '18:00').slice(0, 5),
+        horaCorte: c.horaCorte ?? '18:00:00',
         diaPago: String(c.diaPago),
         tipoTasaMora: c.tipoTasaMora,
         valorMora: formatearPorcentaje(fraccionAPorcentaje(c.tasaMoratoria)),
@@ -213,7 +213,9 @@ export function condicionesDesdeRespuesta(c: CondicionCrediticiaResponse): Condi
 function porcentajeAFraccion(texto: string): number {
     const limpio = texto.replace(/[%\s]/g, '').replace(',', '.');
     if (!/^\d+(\.\d+)?$/.test(limpio)) return NaN;
-    return Number((Number(limpio) / 100).toPrecision(15));
+    const [parteEntera, decimales = ''] = limpio.split('.');
+    const digitos = parteEntera.padStart(3, '0');
+    return Number(digitos.slice(0, -2) + '.' + digitos.slice(-2) + decimales);
 }
 
 const entero = (texto: string): number => (/^\d+$/.test(texto.trim()) ? Number(texto.trim()) : NaN);
@@ -223,6 +225,8 @@ const entero = (texto: string): number => (/^\d+$/.test(texto.trim()) ? Number(t
  * Devuelve un mensaje de error si algo no es válido.
  */
 export function validarCondiciones(f: CondicionesForm): { solicitud: CondicionCrediticiaRequest } | { error: string } {
+    const precisionValida = (texto: string) => /^\d+(?:[.,]\d{1,7})?$/.test(texto.replace(/[%\s]/g, ''));
+    if (![f.valorTasa, f.valorMora].every(precisionValida)) return { error: 'Ingresa las tasas como porcentaje con hasta siete decimales.' };
     const tasa = porcentajeAFraccion(f.valorTasa);
     const mora = porcentajeAFraccion(f.valorMora);
     const montoLimite = limpiarMonto(f.limiteCredito);
@@ -238,7 +242,7 @@ export function validarCondiciones(f: CondicionesForm): { solicitud: CondicionCr
     if (!Number.isInteger(corte) || corte < 1 || corte > 31) return { error: 'El día de corte debe estar entre 1 y 31.' };
     if (!Number.isInteger(pago) || pago < 1 || pago > 31) return { error: 'El día de pago debe estar entre 1 y 31.' };
     if (corte === pago) return { error: 'El día de pago debe ser distinto al día de corte.' };
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(f.horaCorte)) return { error: 'Ingresa la hora de corte en formato HH:MM.' };
+    if (!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(f.horaCorte)) return { error: 'Ingresa la hora de corte en formato HH:MM.' };
     for (const [nombre, tipo, periodo, cap] of [
         ['de interés', f.tipoTasa, f.periodoTasa, f.capitalizacionTasa],
         ['moratoria', f.tipoTasaMora, f.periodoMora, f.capitalizacionMora],
@@ -255,7 +259,7 @@ export function validarCondiciones(f: CondicionesForm): { solicitud: CondicionCr
             plazoMaximo: plazo,
             diaCorte: corte,
             diaPago: pago,
-            horaCorte: `${f.horaCorte}:00`,
+            horaCorte: f.horaCorte.length === 5 ? `${f.horaCorte}:00` : f.horaCorte,
             tipoTasa: f.tipoTasa,
             tasaInteres: tasa,
             periodoTasa: f.periodoTasa,

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ModalShell, botonPrincipalModal, cuerpoModal } from "../../components/store-admin/ModalShell";
 import { AuthLayout } from '../../layouts/AuthLayout';
 import { solicitarRecuperacion, verificarCodigoRecuperacion, type CodigoRecuperacionResponse } from '../../api/autenticacion';
 import { obtenerMensajeError } from '../../api/errores';
@@ -15,6 +16,7 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
   correo, emailMasked, codigoInicial, onVerify, onBackToLogin,
 }) => {
   const [code, setCode] = useState('');
+  const campoCodigo = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [reenviando, setReenviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -66,16 +68,21 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
     }
   };
 
+  const cerrarCorreo = () => {
+    setMostrarCorreo(false);
+    requestAnimationFrame(() => campoCodigo.current?.focus());
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCode(e.target.value.replace(/\D/g, '').slice(0, 5));
   };
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+      <div inert={mostrarCorreo} className="bg-white rounded-3xl shadow-xl shadow-slate-200/70 p-8 sm:p-10 border border-slate-100">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Verifica tu correo
-        </h2>
+        </h1>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
           Código de recuperación simulado para <span className="font-medium text-slate-700">{emailMasked}</span>.
@@ -93,6 +100,7 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
             </label>
             <input
               id="verification-code"
+              ref={campoCodigo}
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -146,19 +154,13 @@ export const VerifyCodePage: React.FC<VerifyCodePageProps> = ({
         </p>
       </div>
       {mostrarCorreo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div role="dialog" aria-modal="true" aria-labelledby="correo-simulado-titulo" className="w-full max-w-sm bg-white rounded-3xl p-7 shadow-2xl border border-slate-100">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#139a6c] flex items-center justify-center mb-4" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-            </div>
-            <h3 id="correo-simulado-titulo" className="text-lg font-bold text-slate-900">Correo simulado</h3>
-            <p className="mt-2 text-xs text-slate-500 break-all">Para: {correo}</p>
-            <p className="mt-4 text-sm text-slate-700">Tu código de verificación es:</p>
-            <div className="mt-3 py-4 text-3xl font-bold tracking-[0.25em] text-center text-[#139a6c] bg-emerald-50 rounded-xl select-text">{respuesta.codigo}</div>
-            <p className="mt-3 text-xs text-slate-500">{restantes > 0 ? 'Ingresa este código en la pantalla de verificación.' : 'El código ha vencido. Solicita otro.'} No se envió un correo real.</p>
-            <button autoFocus type="button" onClick={() => setMostrarCorreo(false)} className="mt-5 w-full bg-[#139a6c] hover:bg-[#0f825b] text-white text-sm font-semibold py-3 rounded-xl">Aceptar</button>
+        <ModalShell titulo="Correo simulado" descripcion={correo} onClose={cerrarCorreo}>
+          <div className={cuerpoModal}>
+            <p className="text-sm text-slate-700">{restantes > 0 ? 'Código de verificación' : 'El código ha vencido. Solicita otro.'}</p>
+            {restantes > 0 && <div className="rounded-lg bg-emerald-50 px-4 py-5 text-center text-3xl font-bold tracking-[0.25em] text-emerald-800">{respuesta.codigo}</div>}
+            <div className="flex justify-end"><button type="button" className={botonPrincipalModal} onClick={cerrarCorreo}>Aceptar</button></div>
           </div>
-        </div>
+        </ModalShell>
       )}
     </AuthLayout>
   );

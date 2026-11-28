@@ -1,3 +1,5 @@
+import { Paginacion } from '../../components/shared/Paginacion';
+import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
 import React, { useState } from 'react';
 import { Search, ChevronDown, Plus } from 'lucide-react';
 import type { TiendaDetalleResponse } from '../../types/tiendas';
@@ -25,6 +27,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
   onGoToRegister,
   onEditTienda,
 }) => {
+  const [paginacion, setPaginacion] = useState({ busqueda, pagina: 1 });
   const [estadoFilter, setEstadoFilter] = useState<'TODOS' | 'Activo' | 'Inactivo'>('TODOS');
 
   // Filtrado reactivo en tiempo real
@@ -36,6 +39,8 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
     const matchesEstado = estadoFilter === 'TODOS' || t.estadoTienda === (estadoFilter === 'Activo' ? 'ACTIVO' : 'INACTIVO');
     return matchesSearch && matchesEstado;
   });
+
+  const pagina = Math.min(paginacion.busqueda === busqueda ? paginacion.pagina : 1, Math.max(1, Math.ceil(tiendasFiltradas.length / 10)));
 
   return (
     <div className="space-y-6">
@@ -91,6 +96,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            aria-label="Buscar tiendas"
             value={busqueda}
             onChange={(e) => onBuscar(e.target.value)}
             placeholder="Buscar tienda, documento, administrador o ubicación"
@@ -101,7 +107,8 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
         <div className="relative sm:w-48">
           <select
             value={estadoFilter}
-            onChange={(e) => setEstadoFilter(e.target.value as 'TODOS' | 'Activo' | 'Inactivo')}
+            aria-label="Estado de la tienda"
+            onChange={(e) => { setEstadoFilter(e.target.value as 'TODOS' | 'Activo' | 'Inactivo'); setPaginacion({ busqueda, pagina: 1 }); }}
             className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] pr-8 cursor-pointer"
           >
             <option value="TODOS">Todos los estados</option>
@@ -129,7 +136,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {tiendasFiltradas.map((t) => (
+              {tiendasFiltradas.slice((pagina - 1) * 10, pagina * 10).map((t) => (
                 <tr key={t.idTienda} className="hover:bg-slate-50/60 transition">
                   <td className="py-4 px-6 font-semibold text-slate-900">{t.nombreTienda}<p className="text-[10px] font-normal text-slate-400">ID {t.idTienda}</p></td>
                   <td className="py-4 px-6 text-slate-600">{t.documentoTienda}</td>
@@ -138,20 +145,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
                   <td className="py-4 px-6 text-slate-500">{t.direccion}</td>
                   <td className="py-4 px-6 text-slate-500">{t.telefonoTienda || '—'}</td>
                   <td className="py-4 px-6">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border ${
-                        t.estadoTienda === 'ACTIVO'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
-                          : 'bg-rose-50 text-rose-700 border-rose-200/60'
-                      }`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                          t.estadoTienda === 'ACTIVO' ? 'bg-emerald-500' : 'bg-rose-500'
-                        }`}
-                      ></span>
-                      {t.estadoTienda === 'ACTIVO' ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <EstadoBadge estado={t.estadoTienda === 'ACTIVO' ? 'Activo' : 'Inactivo'} />
                   </td>
                   <td className="py-4 px-6 text-right">
                     <button
@@ -159,7 +153,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
                       onClick={() => onEditTienda(t)}
                       className="px-3 py-1.5 border border-slate-200 text-slate-700 hover:border-[#139a6c] hover:text-[#139a6c] hover:bg-slate-50 text-xs font-semibold rounded-lg transition cursor-pointer"
                     >
-                      {t.estadoTienda === 'ACTIVO' ? 'Editar' : 'Gestionar'}
+                      Gestionar tienda
                     </button>
                   </td>
                 </tr>
@@ -169,9 +163,7 @@ export const TiendasListPage: React.FC<TiendasListPageProps> = ({
           </table>
         </div>
 
-        <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-          <span>Mostrando {tiendasFiltradas.length} de {tiendas.length} tiendas</span>
-        </div>
+        <Paginacion total={tiendasFiltradas.length} pagina={pagina} onCambiar={nueva => setPaginacion({ busqueda, pagina: nueva })} etiqueta="tiendas" />
       </div>
     </div>
   );

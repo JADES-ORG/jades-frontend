@@ -17,9 +17,9 @@ export const PasswordUpdatedPage: React.FC<PasswordUpdatedPageProps> = ({
           <Check className="w-6 h-6 text-emerald-600 stroke-[2.5]" />
         </div>
 
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Contraseña actualizada
-        </h2>
+        </h1>
 
         <p className="text-sm text-slate-500 mt-2 font-normal">
           Ya puedes ingresar a tu cuenta con tu nueva contraseña.

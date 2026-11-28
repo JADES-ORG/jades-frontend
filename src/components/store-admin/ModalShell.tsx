@@ -1,4 +1,4 @@
-import React, { useEffect, useId } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { Info, X } from 'lucide-react';
 
 interface ModalShellProps {
@@ -18,10 +18,31 @@ export const ModalShell: React.FC<ModalShellProps> = ({
                                                           children,
                                                       }) => {
     const idTitulo = useId();
+    const panel = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const anterior = document.activeElement;
+        panel.current?.focus();
+        return () => {
+            if (anterior instanceof HTMLElement && anterior.isConnected) anterior.focus();
+        };
+    }, []);
 
     useEffect(() => {
         const alPresionar = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && !bloqueado) onClose();
+            if (e.key !== 'Tab' || !panel.current) return;
+            const elementos = Array.from(panel.current.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], summary, [tabindex]'))
+                .filter(elemento => elemento.tabIndex >= 0 && !elemento.matches(':disabled') && elemento.getClientRects().length > 0);
+            const primero = elementos[0];
+            const ultimo = elementos.at(-1);
+            if (!primero || !ultimo) {
+                e.preventDefault();
+            } else if ((e.shiftKey && (document.activeElement === primero || document.activeElement === panel.current))
+                || (!e.shiftKey && document.activeElement === ultimo) || !panel.current.contains(document.activeElement)) {
+                e.preventDefault();
+                (e.shiftKey ? ultimo : primero).focus();
+            }
         };
         window.addEventListener('keydown', alPresionar);
         return () => window.removeEventListener('keydown', alPresionar);
@@ -32,10 +53,12 @@ export const ModalShell: React.FC<ModalShellProps> = ({
             {/* Si el modal es más alto que la pantalla, se desplaza todo el fondo, no una caja interna. */}
             <div className="min-h-full flex items-center justify-center p-4">
                 <div
+                    ref={panel}
+                    tabIndex={-1}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby={idTitulo}
-                    className="bg-white rounded-3xl shadow-2xl max-w-[55rem] w-full border border-slate-100 my-8"
+                    className="bg-white rounded-2xl shadow-2xl outline-none max-w-[55rem] w-full border border-slate-100 my-8"
                 >
                     <div className="px-6 sm:px-10 pt-8 sm:pt-10 flex items-start justify-between gap-4">
                         <div>

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import type { TiendaResumenResponse } from '../types/tiendas';
 import {
   ReceiptText,
+  ChevronDown,
+  Check,
   Home,
   Users,
   Package,
@@ -53,6 +55,8 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
                                                                     children,
                                                                   }) => {
   const tiendaActiva = tiendas.find(tienda => tienda.idTienda === idTiendaActiva);
+  const [selectorAbierto, setSelectorAbierto] = useState(false);
+  const botonTiendas = useRef<HTMLButtonElement>(null);
   const inicialUsuario = correoUsuario.slice(0, 2).toUpperCase();
   return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
@@ -75,21 +79,35 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
             </div>
 
             {/* Tiendas autorizadas por el backend */}
-            <div className="px-4 py-3 border-b border-white/10">
-              <label htmlFor="tienda-activa" className="block text-[10px] uppercase tracking-wider text-emerald-200/70 mb-2">Tienda seleccionada</label>
-              <select
-                  id="tienda-activa"
-                  value={idTiendaActiva ?? ''}
-                  disabled={cargandoTiendas || tiendas.length === 0}
-                  onChange={(e) => onSelectTienda(Number(e.target.value))}
-                  className="w-full rounded-xl bg-[#195342] border border-white/15 p-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
-              >
-                {tiendas.length === 0 && <option value="">{cargandoTiendas ? 'Cargando...' : 'Sin tiendas disponibles'}</option>}
-                {tiendas.map(tienda => (
-                    <option key={tienda.idTienda} value={tienda.idTienda}>{tienda.nombreTienda}{tienda.estadoTienda !== 'ACTIVO' ? ' (Inactiva)' : ''}</option>
-                ))}
-              </select>
-              {tiendaActiva && <p className="mt-2 text-[10px] text-emerald-200/70">Documento: {tiendaActiva.documentoTienda} · {tiendaActiva.estadoTienda === 'ACTIVO' ? 'Activa' : 'Solo consulta y cobranza'}</p>}
+            <div className="relative px-3 py-3" onBlur={e => {
+              if (!e.currentTarget.contains(e.relatedTarget)) setSelectorAbierto(false);
+            }} onKeyDown={e => {
+              if (e.key === 'Escape' && selectorAbierto) {
+                setSelectorAbierto(false);
+                botonTiendas.current?.focus();
+              }
+            }}>
+              <button type="button" ref={botonTiendas} aria-label="Cambiar establecimiento" aria-expanded={selectorAbierto} aria-controls="tiendas-autorizadas"
+                disabled={cargandoTiendas || !tiendas.length} onClick={() => setSelectorAbierto(abierto => !abierto)}
+                className="flex w-full items-center gap-3 rounded-lg border border-white/15 bg-white/10 p-3 text-left text-white focus-visible:outline-2 focus-visible:outline-emerald-300 disabled:opacity-60">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-50 text-xs font-bold text-[#0e3b2e]">{tiendaActiva?.nombreTienda.trim().split(/\s+/).slice(0, 2).map(palabra => palabra[0]).join('').toUpperCase() ?? '—'}</span>
+                <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{tiendaActiva?.nombreTienda ?? (cargandoTiendas ? 'Cargando tiendas…' : 'Sin tiendas disponibles')}</strong>
+                  {tiendaActiva && <small className="block truncate text-emerald-100">{tiendaActiva.estadoTienda === 'ACTIVO' ? tiendaActiva.documentoTienda : 'Tienda inactiva'}</small>}
+                </span>
+                <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+              </button>
+              <ul id="tiendas-autorizadas" hidden={!selectorAbierto} className="absolute inset-x-3 top-full z-20 -mt-2 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                {tiendas.map(tienda => <li key={tienda.idTienda}>
+                  <button type="button" aria-current={tienda.idTienda === idTiendaActiva ? 'true' : undefined} onClick={() => {
+                    setSelectorAbierto(false);
+                    if (tienda.idTienda !== idTiendaActiva) onSelectTienda(tienda.idTienda);
+                    botonTiendas.current?.focus();
+                  }} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-800 hover:bg-emerald-50 aria-current:bg-emerald-50">
+                    <span><strong className="block">{tienda.nombreTienda}</strong><small>{tienda.estadoTienda === 'ACTIVO' ? tienda.documentoTienda : 'Inactiva'}</small></span>
+                    {tienda.idTienda === idTiendaActiva && <Check aria-hidden="true" className="size-4 text-emerald-700" />}
+                  </button>
+                </li>)}
+              </ul>
             </div>
 
             {/* Menú de Navegación Principal */}

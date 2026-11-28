@@ -87,6 +87,9 @@ function PortalTienda({ tiendas, idTienda, onSelectTienda, onLogout }: PortalTie
           ) : tab === "resumen" ? (
             <ClientDashboardPage
               onVerPlan={verPlan}
+              tiendas={tiendas}
+              idTienda={idTienda}
+              onSelectTienda={onSelectTienda}
               onVerMisCompras={() => navigate("compras")}
               busqueda={busqueda}
             />

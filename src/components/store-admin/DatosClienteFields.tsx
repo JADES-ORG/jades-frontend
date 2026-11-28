@@ -13,10 +13,11 @@ interface DatosClienteFieldsProps {
     valores: DatosClienteForm;
     onChange: (valores: DatosClienteForm) => void;
     /** Datos de acceso al portal (correo y contraseña): solo se piden al registrar. */
+    vinculacion?: boolean;
     contrasena?: { valor: string; onChange: (valor: string) => void };
 }
 
-export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores, onChange, contrasena }) => {
+export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores, onChange, contrasena, vinculacion = false }) => {
     const set = <K extends keyof DatosClienteForm>(campo: K, valor: DatosClienteForm[K]) =>
         onChange({ ...valores, [campo]: valor });
 
@@ -39,7 +40,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                 <Campo id="dc-dni" label="DNI" ayuda="Documento de 8 dígitos; no puede repetirse.">
                     <input
                         id="dc-dni"
-                        readOnly={!contrasena}
+                        readOnly={!contrasena && !vinculacion}
                         type="text"
                         inputMode="numeric"
                         required
@@ -71,7 +72,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                         <option value="INACTIVO">Inactivo</option>
                     </Selector>
                 </Campo>
-                {contrasena && (
+                {(contrasena || vinculacion) && (
                     <>
                         <Campo id="dc-correo" label="Correo de acceso" ayuda="Usuario del portal de consulta del cliente.">
                             <input
@@ -85,10 +86,11 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                                 className={inputClase}
                             />
                         </Campo>
-                        <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="Requerida para una cuenta nueva. Si el cliente ya tiene una cuenta con este correo y DNI, déjala vacía.">
+                        {contrasena && <Campo id="dc-contrasena" label="Contraseña inicial" ayuda="La titular usará esta contraseña para ingresar al portal.">
                             <input
                                 id="dc-contrasena"
                                 type="password"
+                                required
                                 minLength={8}
                                 maxLength={72}
                                 autoComplete="new-password"
@@ -97,7 +99,7 @@ export const DatosClienteFields: React.FC<DatosClienteFieldsProps> = ({ valores,
                                 placeholder="••••••••"
                                 className={inputClase}
                             />
-                        </Campo>
+                        </Campo>}
                     </>
                 )}
             </div>

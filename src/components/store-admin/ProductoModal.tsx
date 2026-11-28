@@ -351,7 +351,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               {/* Precio contado */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Precio contado
+                  Precio contado PEN (obligatorio)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">
@@ -374,7 +374,7 @@ export const ProductoModal: React.FC<ProductoModalProps> = ({
               {/* Precio de lista / crédito */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Precio de lista / crédito
+                  Precio crédito PEN (obligatorio)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-medium">

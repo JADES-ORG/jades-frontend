@@ -1,3 +1,4 @@
+import { ConfirmarEstado } from '../../components/shared/ConfirmarEstado';
 import React, { useEffect, useState } from 'react';
 import { Plus, Search, ChevronDown, Package, ExternalLink } from 'lucide-react';
 import { ImagenProducto, ProductoModal, type ProductoData } from '../../components/store-admin/ProductoModal';
@@ -35,6 +36,8 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   const [error, setError] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
   const [modal, setModal] = useState<{ mode: 'nuevo' | 'editar' | 'detalle'; producto?: ProductoData } | null>(null);
+  const [confirmar, setConfirmar] = useState<ProductoData | null>(null);
+  const [errorEstado, setErrorEstado] = useState<string | null>(null);
   const [desactivando, setDesactivando] = useState<number | null>(null);
 
   useEffect(() => {
@@ -81,14 +84,14 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
   const cambiarEstado = async (producto: ProductoData) => {
     if (soloConsulta || producto.id === undefined || desactivando !== null) return;
     const activo = producto.estado === 'Activo';
-    if (!window.confirm(`¿${activo ? 'Desactivar' : 'Reactivar'} ${producto.nombre}?`)) return;
     setDesactivando(producto.id);
-    setError(null);
+    setErrorEstado(null);
     try {
       const guardado = convertirProducto(await (activo ? desactivarProducto(idTienda, producto.id) : reactivarProducto(idTienda, producto.id)));
       setProductos(prev => prev.map(p => p.id === guardado.id ? guardado : p));
+      setConfirmar(null);
     } catch (e) {
-      setError(obtenerMensajeError(e));
+      setErrorEstado(obtenerMensajeError(e));
     } finally {
       setDesactivando(null);
     }
@@ -284,7 +287,7 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
                     >
                       {soloConsulta ? 'Ver detalle' : 'Editar'}
                     </button>
-                    {!soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => void cambiarEstado(item)} className="ml-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{desactivando === item.id ? 'Guardando…' : item.estado === 'Activo' ? 'Desactivar' : 'Reactivar'}</button>}
+                    {!soloConsulta && <button type="button" disabled={desactivando !== null} onClick={() => { setErrorEstado(null); setConfirmar(item); }} className="ml-2 text-xs font-semibold text-slate-700 disabled:opacity-50">{desactivando === item.id ? 'Guardando…' : item.estado === 'Activo' ? 'Desactivar' : 'Reactivar'}</button>}
                   </td>
                 </tr>
               ))}
@@ -308,6 +311,10 @@ export const StoreProductosListPage: React.FC<StoreProductosListPageProps> = ({ 
           </div>}
         </div>}
       </div>
+      {confirmar && <ConfirmarEstado titulo={confirmar.estado === 'Activo' ? 'Desactivar producto o servicio' : 'Reactivar producto o servicio'}
+        descripcion={confirmar.estado === 'Activo' ? `${confirmar.nombre} dejará de estar disponible para nuevas ventas.` : `${confirmar.nombre} volverá a estar disponible para ventas.`}
+        accion={confirmar.estado === 'Activo' ? 'Desactivar' : 'Reactivar'} guardando={desactivando !== null}
+        error={errorEstado} onCancelar={() => setConfirmar(null)} onConfirmar={() => void cambiarEstado(confirmar)} />}
       {modal && (!soloConsulta || modal.mode === 'detalle') && <ProductoModal isOpen mode={modal.mode} initialData={modal.producto} idTienda={idTienda} onClose={() => setModal(null)} onSave={guardarProducto} />}
     </div>
   );

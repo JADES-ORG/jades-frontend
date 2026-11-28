@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Paginacion } from "../../components/shared/Paginacion";
 import { useCuentaCliente } from "../../features/client-portal/state";
 import {
   codigo,
@@ -15,12 +17,21 @@ import {
 
 export function ClientPagosPage() {
   const { cuenta } = useCuentaCliente();
+  const [busqueda, setBusqueda] = useState('');
+  const [estado, setEstado] = useState('todos');
+  const [paginaPendientes, setPaginaPendientes] = useState(1);
+  const [paginaPagos, setPaginaPagos] = useState(1);
   if (!cuenta) return null;
-  const faltantes = pendientes(cuenta);
   const referencia = (idVenta: number) => {
     const c = cuenta.compras.find((c) => c.idVenta === idVenta);
     return c ? codigo(c) : `Venta #${idVenta}`;
   };
+  const coincide = (idVenta: number) => referencia(idVenta).toLowerCase().includes(busqueda.trim().toLowerCase());
+  const faltantes = pendientes(cuenta).filter(o => coincide(o.idVenta) && (estado === 'todos' || estadoObligacion(o) === estado));
+  const pagos = cuenta.pagos.filter(p => coincide(p.idVenta))
+    .sort((a, b) => b.fechaPago.localeCompare(a.fechaPago) || b.idPago - a.idPago);
+  const paginaActiva = Math.min(paginaPendientes, Math.max(1, Math.ceil(faltantes.length / 10)));
+  const paginaHistorial = Math.min(paginaPagos, Math.max(1, Math.ceil(pagos.length / 10)));
   return (
     <div className="client-sections">
       <div className="client-heading">
@@ -28,6 +39,13 @@ export function ClientPagosPage() {
         <p>
           Consulta tus próximos pagos y el historial de obligaciones canceladas.
         </p>
+      </div>
+      <div className="client-filters">
+        <label className="client-search"><input aria-label="Buscar obligación" placeholder="Buscar por crédito o venta" value={busqueda} onChange={e => { setBusqueda(e.target.value); setPaginaPendientes(1); setPaginaPagos(1); }} /></label>
+        <label className="client-select"><select aria-label="Estado de la obligación" value={estado} onChange={e => { setEstado(e.target.value); setPaginaPendientes(1); }}>
+          <option value="todos">Todas las obligaciones</option>
+          {['En mora', 'Vence hoy', 'Programada', 'Próxima'].map(valor => <option key={valor}>{valor}</option>)}
+        </select></label>
       </div>
       <Aviso pagos>
         Esta es una vista de consulta. Para registrar un pago, comunícate con el
@@ -60,7 +78,7 @@ export function ClientPagosPage() {
                 </tr>
               </thead>
               <tbody>
-                {faltantes.map((o) => (
+                {faltantes.slice((paginaActiva - 1) * 10, paginaActiva * 10).map((o) => (
                   <tr key={o.idCuota}>
                     <td>
                       Cuota {String(o.numeroCuota).padStart(2, "0")} ·{" "}
@@ -80,6 +98,7 @@ export function ClientPagosPage() {
             </table>
           </div>
         )}
+        <Paginacion total={faltantes.length} pagina={paginaActiva} onCambiar={setPaginaPendientes} etiqueta="obligaciones" />
       </section>
       <section className="client-panel client-payments">
         <div className="client-panel-heading with-icon">
@@ -91,7 +110,7 @@ export function ClientPagosPage() {
             <p>Obligaciones pagadas anteriormente.</p>
           </div>
         </div>
-        {!cuenta.pagos.length ? (
+        {!pagos.length ? (
           <Empty>Todavía no hay pagos registrados en tu historial.</Empty>
         ) : (
           <div className="client-table-scroll">
@@ -108,13 +127,7 @@ export function ClientPagosPage() {
                 </tr>
               </thead>
               <tbody>
-                {[...cuenta.pagos]
-                  .sort(
-                    (a, b) =>
-                      b.fechaPago.localeCompare(a.fechaPago) ||
-                      b.idPago - a.idPago,
-                  )
-                  .map((p) => {
+                {pagos.slice((paginaHistorial - 1) * 10, paginaHistorial * 10).map((p) => {
                     const o = cuenta.obligaciones.find(
                       (o) => o.idCuota === p.idCuota,
                     );
@@ -147,6 +160,7 @@ export function ClientPagosPage() {
             </table>
           </div>
         )}
+        <Paginacion total={pagos.length} pagina={paginaHistorial} onCambiar={setPaginaPagos} etiqueta="pagos" />
       </section>
     </div>
   );
