@@ -34,7 +34,8 @@ export function RegistrarPagoModal({ obligacion, onClose, onRegistrado }: Props)
   const clave = `${dia}|${hora}|${cotizarLiquidacion}|${intento}`;
   const importe = cotizacion?.clave === clave ? cotizacion.datos : null;
   const errorCotizacion = error?.clave === clave ? error.mensaje : null;
-  const valido = !!dia && dia <= hoy && !!hora;
+  const fechaHabilitada = !obligacion.mensual || dia.slice(0, 7) >= obligacion.inicioCobro;
+  const valido = !!dia && dia <= hoy && !!hora && fechaHabilitada;
 
   useEffect(() => {
     if (!valido) return;
@@ -89,7 +90,7 @@ export function RegistrarPagoModal({ obligacion, onClose, onRegistrado }: Props)
           {cuotaFutura && <p className="w-full text-slate-600">La cuota individual se habilita en su mes de vencimiento.</p>}
         </div>}
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-sm font-semibold">Fecha de pago<input type="date" required max={hoy} className={campo} value={dia} onChange={e => { setDia(e.target.value); setErrorRegistro(null); setIntento(n => n + 1); }} /></label>
+          <label className="text-sm font-semibold">Fecha de pago<input type="date" required min={obligacion.mensual ? obligacion.inicioCobro + "-01" : undefined} max={hoy} className={campo} value={dia} onChange={e => { setDia(e.target.value); setErrorRegistro(null); setIntento(n => n + 1); }} /></label>
           <label className="text-sm font-semibold">Hora de pago<input type="time" required step={1} className={campo} value={hora} onChange={e => { setHora(e.target.value); setErrorRegistro(null); setIntento(n => n + 1); }} /></label>
           <label className="text-sm font-semibold">Medio de pago<select className={campo} value={medio} onChange={e => setMedio(e.target.value)}>
             <option value="EFECTIVO">Efectivo</option>
@@ -100,6 +101,7 @@ export function RegistrarPagoModal({ obligacion, onClose, onRegistrado }: Props)
           </select></label>
         </div>
       </fieldset>
+      {dia && !fechaHabilitada && <p role="alert" className="text-sm text-red-700">El cobro se habilita en el mes de la primera cuota.</p>}
       {valido && !importe && !errorCotizacion && <p role="status" className="text-sm text-slate-600">Cotizando importe…</p>}
       <AvisoError mensaje={errorCotizacion} />
       <AvisoError mensaje={errorRegistro} />

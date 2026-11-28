@@ -42,6 +42,11 @@ export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
   return cuentas.flatMap(cuenta => {
     const compras = new Map(cuenta.compras.filter(compra => !anulada(compra)).map(compra => [compra.idVenta, compra]));
     const cuotas = pendientes(cuenta);
+    const primerVencimiento = new Map<number, string>();
+    for (const cuota of cuenta.obligaciones) {
+      const anterior = primerVencimiento.get(cuota.idCredito);
+      if (!anterior || cuota.fechaVencimiento < anterior) primerVencimiento.set(cuota.idCredito, cuota.fechaVencimiento);
+    }
     const primeraPorCredito = new Map<number, number>();
     for (const cuota of cuotas) {
       const primera = primeraPorCredito.get(cuota.idCredito);
@@ -51,6 +56,7 @@ export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
       const compra = compras.get(cuota.idVenta);
       if (!compra) return [];
       const mensual = compra.modalidadPago === 'MENSUAL';
+      const inicioCobro = (primerVencimiento.get(cuota.idCredito) ?? cuota.fechaVencimiento).slice(0, 7);
       const estado = cuota.vencida || cuota.fechaVencimiento < hoy
         ? 'En mora' as const : cuota.fechaVencimiento === hoy ? 'Pendiente' as const : 'Por vencer' as const;
       return [{
@@ -58,8 +64,9 @@ export function obligacionesPendientes(cuentas: CuentaCorrienteResponse[]) {
         cliente: cuenta.nombreCliente,
         obligacion: compra.codigoCredito ?? `Venta #${cuota.idVenta}`,
         mensual,
+        inicioCobro,
         estado,
-        gestionable: !mensual || cuota.numeroCuota === primeraPorCredito.get(cuota.idCredito),
+        gestionable: !mensual || (inicioCobro <= hoy.slice(0, 7) && cuota.numeroCuota === primeraPorCredito.get(cuota.idCredito)),
       }];
     });
   }).sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento) || a.idCuota - b.idCuota);
