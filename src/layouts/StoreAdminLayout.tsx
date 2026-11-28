@@ -57,7 +57,7 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
   return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
         {/* SIDEBAR IZQUIERDO */}
-        <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0">
+        <aside className="w-full md:w-64 bg-[#0e3b2e] text-white flex flex-col justify-between shrink-0 md:sticky md:top-0 md:h-dvh md:self-start md:overflow-y-auto">
           <div>
             {/* Logo JADES */}
             <div className="p-5 border-b border-white/10 flex items-center space-x-3">
