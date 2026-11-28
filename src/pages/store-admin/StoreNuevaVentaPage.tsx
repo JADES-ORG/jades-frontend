@@ -200,7 +200,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   function agregarProducto(p: ProductoResponse) {
     setItems(prev => prev.some(i => i.producto.id === p.id) || prev.length >= 50 ? prev : [...prev, { producto: p, cantidad: '1' }]);
     setBusquedaProducto('');
-    setMostrandoProductos(false);
+    setMostrandoProductos(true);
     invalidaSimulacion();
   }
 
@@ -463,9 +463,8 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
             <dd className="mt-1 break-words text-sm font-bold tabular-nums text-jades-ink">{validas ? m(capital) : items.length ? '—' : m(0)}</dd>
           </div>
           <div className="min-w-0 bg-white px-4 py-3">
-            <dt className="text-xs text-jades-muted">Crédito disponible</dt>
-            <dd className="mt-1 break-words text-sm font-bold tabular-nums text-jades-ink">{condicion && saldoVigente ? m(condicion.creditoDisponible) : '—'}</dd>
-            <dd className="mt-1 text-[11px] text-jades-muted">Disponible tras capital inicial (estimado): {condicion && saldoVigente && validas ? m(Math.max(0, condicion.creditoDisponible - capital)) : '—'}</dd>
+            <dt className="text-xs text-jades-muted">Crédito disponible estimado</dt>
+            <dd className="mt-1 break-words text-sm font-bold tabular-nums text-jades-primary">{condicion && saldoVigente && (items.length === 0 || (validas && Number.isSafeInteger(centavos))) ? m(Math.max(0, condicion.creditoDisponible - capital)) : '—'}</dd>
           </div>
         </dl>
         {items.length > 0 && !unicoPermitido && !mensualPermitido && aviso('Los productos no comparten una modalidad de pago. Retira los incompatibles.')}
