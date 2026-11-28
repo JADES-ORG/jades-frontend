@@ -13,7 +13,6 @@ import {
   HelpCircle,
   Settings,
   Search,
-  LogOut,
 } from 'lucide-react';
 
 export type StoreTab =
@@ -222,20 +221,19 @@ export const StoreAdminLayout: React.FC<StoreAdminLayoutProps> = ({
               <span>Configuración</span>
             </button>
 
-            <div className="jades-profile flex items-center justify-between">
-              <div className="flex min-w-0 items-center space-x-2.5">
-                <div className="size-9 shrink-0 rounded-full bg-[#edf1f6] flex items-center justify-center font-bold text-xs text-jades-navy">
+            <div className="jades-profile flex items-center">
+              <div className="flex w-full min-w-0 items-center gap-[9px]">
+                <div className="grid size-[35px] shrink-0 place-items-center rounded-full bg-[#edf1f6] text-xs font-bold text-jades-navy">
                   {inicialUsuario}
                 </div>
-                <div className="min-w-0">
-                  <p title={nombreVisible} className="truncate text-xs font-bold text-white leading-tight">
+                <div className="min-w-0 flex-1">
+                  <p title={nombreVisible} className="truncate text-xs font-semibold text-white leading-tight">
                     {nombreVisible}
                   </p>
                   <button
                       onClick={onLogout}
-                      className="text-[10px] text-jades-on-navy hover:text-red-300 transition cursor-pointer flex items-center gap-1 mt-0.5"
+                      className="mt-0.5 block text-left text-xs font-normal text-jades-on-navy transition hover:text-white"
                   >
-                    <LogOut className="w-3 h-3" />
                     Cerrar sesión
                   </button>
                 </div>
