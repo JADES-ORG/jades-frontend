@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Plus, ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { consultarCondicionCrediticia, consultarCuentaCorriente, listarClientes } from '../../api/clientes';
 import { obtenerMensajeError } from '../../api/errores';
 import type { ClienteResponse, CondicionCrediticiaResponse } from '../../types/clientes';
 import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
-import { dinero, enLotes, iniciales, resumirDeuda, type EstadoDeuda, type ResumenDeuda } from '../../features/clientes/model';
+import { dinero, enLotes, iniciales, resumirDeuda, type ResumenDeuda } from '../../features/clientes/model';
 
 const POR_PAGINA = 10;
 const PETICIONES_SIMULTANEAS = 4;
@@ -15,7 +15,8 @@ interface Finanzas {
     deuda: ResumenDeuda | null;
 }
 
-type Filtro = 'TODOS' | EstadoDeuda | 'INACTIVOS';
+type Filtro = 'TODOS' | 'SIN_MORA' | 'EN_MORA' | 'INACTIVOS';
+type OrdenDeuda = 'desc' | 'asc' | null;
 
 interface StoreClientesListPageProps {
     idTienda: number;
@@ -44,6 +45,7 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
     const [recarga, setRecarga] = useState(0);
     const [filtro, setFiltro] = useState<Filtro>('TODOS');
     const [pagina, setPagina] = useState(1);
+    const [ordenDeuda, setOrdenDeuda] = useState<OrdenDeuda>(null);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -90,12 +92,31 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
         if (!coincide) return false;
         if (filtro === 'TODOS') return true;
         if (filtro === 'INACTIVOS') return c.estadoCliente !== 'ACTIVO';
-        return finanzas[c.id]?.deuda?.estado === filtro;
+        if (c.estadoCliente !== 'ACTIVO') return false;
+        const estado = finanzas[c.id]?.deuda?.estado;
+        if (filtro === 'EN_MORA') return estado === 'En mora';
+        return estado === 'Al día' || estado === 'Por vencer' || estado === 'Sin deuda';
+    });
+    const ordenados = ordenDeuda === null ? filtrados : [...filtrados].sort((a, b) => {
+        const datosA = finanzas[a.id];
+        const datosB = finanzas[b.id];
+        const deudaA = datosA?.deuda;
+        const deudaB = datosB?.deuda;
+        if (!deudaA || !deudaB) {
+            return deudaA ? -1 : deudaB ? 1 : a.id - b.id;
+        }
+        const monedaA = deudaA.moneda ?? datosA.condicion?.monedaCredito ?? 'PEN';
+        const monedaB = deudaB.moneda ?? datosB.condicion?.monedaCredito ?? 'PEN';
+        if (monedaA !== monedaB) return monedaA.localeCompare(monedaB);
+        const diferencia = ordenDeuda === 'desc'
+            ? deudaB.deudaActual - deudaA.deudaActual
+            : deudaA.deudaActual - deudaB.deudaActual;
+        return diferencia || a.id - b.id;
     });
     const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
     const paginaActual = Math.min(pagina, totalPaginas);
     const inicio = (paginaActual - 1) * POR_PAGINA;
-    const visibles = filtrados.slice(inicio, inicio + POR_PAGINA);
+    const visibles = ordenados.slice(inicio, inicio + POR_PAGINA);
 
     return (
         <div className="space-y-[18px]">
@@ -161,16 +182,20 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                             }}
                             className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-jades-line rounded-xl text-slate-700 font-medium focus:outline-none focus:border-jades-primary pr-8 cursor-pointer"
                         >
-                            <option value="TODOS">Todos los estados</option>
-                            <option value="Al día">Al día</option>
-                            <option value="Por vencer">Por vencer</option>
-                            <option value="En mora">En mora</option>
-                            <option value="Sin deuda">Sin deuda</option>
+                            <option value="TODOS">Todos los clientes</option>
+                            <option value="SIN_MORA">Sin mora</option>
+                            <option value="EN_MORA">En mora</option>
                             <option value="INACTIVOS">Inactivos</option>
                         </select>
                         <ChevronDown className="w-4 h-4 text-jades-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                 </div>
+
+                {ordenDeuda !== null && !cargando && !error && (
+                    <p role="status" className="px-4 pb-3 text-xs text-jades-muted">
+                        Deuda {ordenDeuda === 'desc' ? 'de mayor a menor' : 'de menor a mayor'} por moneda (soles y dólares por separado).
+                    </p>
+                )}
 
                 {cargando ? (
                     <p role="status" className="px-6 py-10 text-center text-sm text-jades-muted border-t border-jades-line">
@@ -199,7 +224,21 @@ export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
                                 <tr>
                                     <th className="py-3 px-6">Cliente</th>
                                     <th className="py-3 px-6">DNI</th>
-                                    <th className="py-3 px-6">Deuda actual</th>
+                                    <th className="py-3 px-6" aria-sort={ordenDeuda === 'desc' ? 'descending' : ordenDeuda === 'asc' ? 'ascending' : 'none'}>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setOrdenDeuda(actual => actual === 'desc' ? 'asc' : 'desc');
+                                                setPagina(1);
+                                            }}
+                                            title="Ordenar por importe dentro de cada moneda"
+                                            className="inline-flex items-center gap-1.5 uppercase tracking-wider hover:text-jades-primary"
+                                            aria-label={ordenDeuda === 'desc' ? 'Ordenar deuda actual de menor a mayor por moneda' : 'Ordenar deuda actual de mayor a menor por moneda'}
+                                        >
+                                            Deuda actual
+                                            {ordenDeuda === 'desc' ? <ArrowDown aria-hidden="true" className="size-3.5 text-jades-primary" /> : ordenDeuda === 'asc' ? <ArrowUp aria-hidden="true" className="size-3.5 text-jades-primary" /> : <ChevronsUpDown aria-hidden="true" className="size-3.5 text-jades-muted" />}
+                                        </button>
+                                    </th>
                                     <th className="py-3 px-6">Crédito disponible</th>
                                     <th className="py-3 px-6">Estado</th>
                                     <th className="py-3 px-6">
