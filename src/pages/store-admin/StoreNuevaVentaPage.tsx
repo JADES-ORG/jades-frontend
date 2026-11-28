@@ -1,8 +1,9 @@
 import { AyudaCampo } from '../../components/shared/AyudaCampo';
 import { CronogramaCredito } from '../../components/store-admin/CronogramaCredito';
 import { porcentaje } from '../../features/client-portal/model';
+import { etiquetaMoneda, etiquetaPeriodo, horaCorta, iniciales, resumenTasaCompensatoria, resumenTasaMoratoria } from '../../features/clientes/model';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Trash2, Info, CheckCircle } from 'lucide-react';
+import { Search, Trash2, Info, CheckCircle, ChevronRight, ArrowLeft } from 'lucide-react';
 import { listarClientes, consultarCondicionCrediticia, consultarCreditoDisponible } from '../../api/clientes';
 import { listarProductos } from '../../api/productos';
 import { admiteCantidadDecimal } from '../../types/productos';
@@ -83,6 +84,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const [errorCarga, setErrorCarga] = useState('');
   const [recarga, setRecarga] = useState(0);
   const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [mostrandoClientes, setMostrandoClientes] = useState(true);
   const [cliente, setCliente] = useState<ClienteResponse | null>(null);
   const [condicion, setCondicion] = useState<CondicionCrediticiaResponse | null>(null);
   const [cargaCondicion, setCargaCondicion] = useState(false);
@@ -122,6 +124,7 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
         const inicial = cs.find(c => c.id === idClienteInicial);
         if (inicial) {
           setCliente(inicial);
+          setMostrandoClientes(false);
           setCargaCondicion(true);
         }
         setCarga(false);
@@ -186,6 +189,8 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   };
 
   function seleccionarCliente(c: ClienteResponse) {
+    setMostrandoClientes(false);
+    setBusquedaCliente('');
     if (cliente?.id === c.id) return;
     setCliente(c); setCondicion(null); setCargaCondicion(true); setErrorCondicion('');
     setItems([]); setBusquedaProducto(''); setErrorSaldo(''); invalidaSimulacion();
@@ -289,34 +294,86 @@ export const StoreNuevaVentaPage: React.FC<StoreNuevaVentaPageProps> = ({ idTien
   const aviso = (mensaje: string) => <div className="flex gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><Info className="w-4 h-4 shrink-0"/><span>{mensaje}</span></div>;
 
   return <div className="space-y-[18px]">
-    <div><h2 className="text-xl font-bold text-jades-ink">Nueva venta a crédito</h2><p className="text-xs text-jades-muted mt-1">Selecciona un cliente, agrega productos y confirma el financiamiento.</p></div>
-    <div className="jades-sale-steps grid grid-cols-2 gap-3 rounded-xl border border-jades-line bg-white p-4 text-[13px] font-semibold lg:grid-cols-4">{['Cliente','Productos / servicios','Modalidad de pago','Confirmación'].map((t,i) => <div key={t} className={`flex gap-2 items-center ${paso === i+1 ? 'text-jades-primary' : paso > i+1 ? 'text-jades-ink' : 'text-jades-muted'}`}><span className={`size-7 shrink-0 rounded-full flex items-center justify-center border ${paso >= i+1 ? 'border-jades-primary bg-jades-primary text-white' : 'border-jades-line bg-white'}`}>{i+1}</span>{t}</div>)}</div>
+    <div><h2 className="text-xl font-bold text-jades-ink">Nueva venta a crédito</h2><p className="text-xs text-jades-muted mt-1">Completa los datos para registrar el crédito.</p></div>
+    <div className="grid grid-cols-2 gap-3 py-1 text-[13px] font-medium lg:grid-cols-4">{['Cliente','Productos / servicios','Modalidad de pago','Confirmación'].map((t,i) => <div key={t} className={`flex gap-2 items-center ${paso === i+1 ? 'text-jades-primary' : paso > i+1 ? 'text-jades-ink' : 'text-jades-muted'}`}><span className={`size-[26px] shrink-0 rounded-full flex items-center justify-center border ${paso >= i+1 ? 'border-jades-primary bg-jades-primary text-white' : 'border-jades-line bg-white'}`}>{i+1}</span>{t}</div>)}</div>
     {carga ? <p role="status" className={panel}>Cargando clientes y catálogo...</p> : errorCarga ? <div role="alert" className={panel}><p className="text-red-700">{errorCarga}</p><button className={secundario} onClick={() => { setErrorCarga(''); setCarga(true); setRecarga(n => n+1); }}>Reintentar</button></div> : <>
-    {paso === 1 && <section className={panel}>
-      <div className="flex items-baseline gap-1"><h3 className="font-bold">1. Selecciona el cliente</h3><AyudaCampo etiqueta="el cliente" texto="Busca por nombre o DNI. Selecciona un cliente activo con condiciones de crédito." /></div>
-      <div className="relative"><Search className="absolute left-3 top-3 w-4 h-4 text-jades-muted"/><input className={campo + ' pl-10'} aria-label="Buscar cliente por nombre o DNI" placeholder="Buscar por nombre o DNI" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)}/></div>
-      <div className="max-h-64 overflow-auto border border-jades-line rounded-lg divide-y divide-jades-line">
-        {encontrados.map(c => <button key={c.id} type="button" onClick={() => seleccionarCliente(c)} className={`block min-h-11 w-full p-3 text-left text-sm ${cliente?.id === c.id ? 'bg-emerald-50 text-emerald-800' : 'hover:bg-jades-subtle'}`}><strong>{c.nombreCliente}</strong><span className="ml-3">DNI {c.dniCliente}</span></button>)}
-        {!encontrados.length && <p className="p-4 text-xs text-jades-muted">No se encontraron clientes activos.</p>}
+    {paso === 1 && <>
+      <section className={panel}>
+        <div>
+          <h3 className="font-bold">1. Selecciona el cliente</h3>
+          <p className="mt-1 text-[13px] text-jades-muted">Busca al cliente para consultar sus condiciones de crédito.</p>
+        </div>
+        {mostrandoClientes ? <>
+          <div className="relative">
+            <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-jades-muted"/>
+            <input className={campo + ' pl-10'} aria-label="Buscar cliente por nombre o DNI" placeholder="Buscar por nombre o DNI" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)}/>
+          </div>
+          <div className="max-h-64 overflow-auto rounded-lg border border-jades-line divide-y divide-jades-line">
+            {encontrados.map(c => <button key={c.id} type="button" onClick={() => seleccionarCliente(c)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-jades-soft focus-visible:bg-jades-soft">
+              <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-[#edf1f6] text-xs font-bold text-jades-navy">{iniciales(c.nombreCliente)}</span>
+              <span className="min-w-0 flex-1">
+                <strong className="block truncate text-sm font-semibold text-jades-ink">{c.nombreCliente}</strong>
+                <span className="block text-xs text-jades-muted">DNI {c.dniCliente}</span>
+              </span>
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-jades-muted"/>
+            </button>)}
+            {!encontrados.length && <p className="p-4 text-xs text-jades-muted">No se encontraron clientes activos.</p>}
+          </div>
+          {cliente && <button type="button" onClick={() => setMostrandoClientes(false)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-jades-primary hover:underline">
+            <ArrowLeft aria-hidden="true" className="size-4"/> Volver al cliente seleccionado
+          </button>}
+        </> : cliente && <>
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-jades-line bg-jades-soft px-4 py-4 sm:px-5">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[#edf1f6] text-xs font-bold text-jades-navy">{iniciales(cliente.nombreCliente)}</span>
+              <div className="min-w-0">
+                <p className="break-words text-sm font-bold text-jades-ink">{cliente.nombreCliente}</p>
+                <p className="mt-0.5 text-xs text-jades-muted">DNI {cliente.dniCliente} · Cliente activo</p>
+              </div>
+            </div>
+            <div className="min-w-0 sm:flex-1">
+              <p className="text-xs text-jades-muted">Crédito disponible antes de esta venta</p>
+              <p className="mt-0.5 break-words text-lg font-bold tabular-nums text-jades-primary">{cargaCondicion ? 'Consultando…' : condicion && saldoVigente ? m(condicion.creditoDisponible) : '—'}</p>
+            </div>
+            <button type="button" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-jades-line bg-white px-3 text-xs font-semibold text-jades-primary hover:bg-jades-subtle" onClick={() => { setBusquedaCliente(''); setMostrandoClientes(true); }}>
+              <ArrowLeft aria-hidden="true" className="size-4"/> Cambiar cliente
+            </button>
+          </div>
+          {cargaCondicion && <p role="status" className="text-sm text-jades-muted">Consultando condiciones crediticias...</p>}
+          {errorCondicion && <div role="alert" className="space-y-2 rounded-lg border border-jades-line p-4 text-sm text-red-700"><p>{errorCondicion}</p><button type="button" className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
+          {condicion && <>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-jades-line bg-jades-line lg:grid-cols-4">
+              {([
+                ['Tasa de interés', resumenTasaCompensatoria(condicion), condicion.capitalizacionTasa ? 'Capitalización: ' + etiquetaPeriodo(condicion.capitalizacionTasa) : 'Capitalización: No aplica'],
+                ['Límite de crédito', m(condicion.limiteCredito), 'Utilizado: ' + (saldoVigente ? m(condicion.creditoUtilizado) : '—')],
+                ['Plazo máximo', condicion.plazoMaximo + ' cuotas', ''],
+                ['Corte / pago', 'Día ' + condicion.diaCorte + ' · ' + horaCorta(condicion.horaCorte) + ' / Día ' + condicion.diaPago, ''],
+                ['Tasa moratoria', resumenTasaMoratoria(condicion), condicion.capitalizacionMora ? 'Capitalización: ' + etiquetaPeriodo(condicion.capitalizacionMora) : 'Capitalización: No aplica'],
+                ['Convenciones', '360 días / meses de 30 días', ''],
+                ['Moneda', etiquetaMoneda(moneda), ''],
+                ['Estado', cliente.estadoCliente === 'ACTIVO' ? 'Activo' : 'Inactivo', ''],
+              ] as const).map(([label, valor, detalle]) => <div key={label} className="min-w-0 bg-white px-4 py-3">
+                <dt className="text-xs text-jades-muted">{label}</dt>
+                <dd className="mt-1 break-words text-[13px] font-semibold text-jades-ink">{valor}</dd>
+                {detalle && <dd className="mt-1 break-words text-[11px] text-jades-muted">{detalle}</dd>}
+              </div>)}
+            </dl>
+            <div className="flex items-start gap-2 rounded-lg bg-jades-soft px-4 py-3 text-xs leading-relaxed text-jades-navy">
+              <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-jades-primary"/>
+              <p>Las condiciones mostradas son las pactadas con el cliente y se aplicarán al cálculo de esta venta.</p>
+            </div>
+            {!saldoVigente && <div role="alert" className="space-y-2">
+              {aviso('No pudimos consultar el crédito disponible. Vuelve a intentarlo para continuar.')}
+              <button type="button" className={secundario} disabled={cargaCondicion} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n + 1); }}>Volver a consultar</button>
+            </div>}
+          </>}
+        </>}
+      </section>
+      <div className="flex flex-wrap justify-end gap-3">
+        <button type="button" className={secundario + ' bg-white'} onClick={onCancel}>Cancelar</button>
+        <button type="button" className={principal} disabled={mostrandoClientes || !cliente || !condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button>
       </div>
-      {cliente && <p className="font-semibold text-sm text-jades-primary">{cliente.nombreCliente} · DNI {cliente.dniCliente}</p>}
-      {cargaCondicion && <p role="status" className="text-xs">Consultando condiciones crediticias...</p>}
-      {errorCondicion && <div role="alert" className="text-xs text-red-700 space-y-2"><p>{errorCondicion}</p><button className={secundario} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n+1); }}>Reintentar</button></div>}
-      {condicion && <><Datos datos={[
-        ['Límite pactado', m(condicion.limiteCredito)], ['Crédito utilizado', saldoVigente ? m(condicion.creditoUtilizado) : '—'], ['Crédito disponible', saldoVigente ? m(condicion.creditoDisponible) : '—'],
-        ['Tasa de interés', `${condicion.tipoTasa} · ${porcentaje(condicion.tasaInteres)} ${condicion.periodoTasa}`],
-        ['Capitalización', condicion.capitalizacionTasa ?? 'No aplica'],
-        ['Plazo máximo', `${condicion.plazoMaximo} cuotas`], ['Corte', `Día ${condicion.diaCorte} · ${condicion.horaCorte}`], ['Pago', `Día ${condicion.diaPago}`],
-        ['Mora', `${condicion.tipoTasaMora} · ${porcentaje(condicion.tasaMoratoria)} ${condicion.periodoTasaMora}`],
-        ['Capitalización mora', condicion.capitalizacionMora ?? 'No aplica'], ['Moneda', moneda],
-      ]}/>
-        {!saldoVigente && <div role="alert" className="space-y-2">
-          {aviso('No pudimos consultar el crédito disponible. Vuelve a intentarlo para continuar.')}
-          <button type="button" className={secundario} disabled={cargaCondicion} onClick={() => { setErrorCondicion(''); setCargaCondicion(true); setRecargaCondicion(n => n + 1); }}>Volver a consultar</button>
-        </div>}
-      </>}
-      <div className="flex flex-wrap justify-end gap-3 border-t border-jades-line pt-4"><button className={secundario} onClick={onCancel}>Cancelar</button><button className={principal} disabled={!condicion || !saldoVigente || cargaCondicion} onClick={() => setPaso(2)}>Continuar</button></div>
-    </section>}
+    </>}
     {paso === 2 && <section className={panel}>
       <div className="flex items-baseline gap-1"><h3 className="font-bold">2. Agrega productos o servicios</h3><AyudaCampo etiqueta="los productos y cantidades" texto="Elige artículos con precio de crédito en la moneda del cliente. Usa decimales solo cuando la unidad los admita." /></div>
       <input className={campo} aria-label="Buscar productos" placeholder="Buscar producto o servicio" value={busquedaProducto} onChange={e => setBusquedaProducto(e.target.value)}/>
