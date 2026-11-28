@@ -1,141 +1,297 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ChevronDown, ChevronRight } from 'lucide-react';
-import { listarClientes } from '../../api/clientes';
+import { Search, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { consultarCondicionCrediticia, consultarCuentaCorriente, listarClientes } from '../../api/clientes';
 import { obtenerMensajeError } from '../../api/errores';
-import type { ClienteResponse } from '../../types/clientes';
+import type { ClienteResponse, CondicionCrediticiaResponse } from '../../types/clientes';
+import { EstadoBadge } from '../../components/store-admin/EstadoBadge';
+import { dinero, enLotes, iniciales, resumirDeuda, type EstadoDeuda, type ResumenDeuda } from '../../features/clientes/model';
 
-// Tipo legado utilizado por el modal de registro aún no integrado.
-export interface ClienteStoreItem {
-  id: number;
-  nombre: string;
-  avatar: string;
-  dni: string;
-  deudaActual: number;
-  creditoDisponible: number;
-  estado: 'Al día' | 'Por vencer' | 'En mora' | 'Sin deuda';
+const POR_PAGINA = 10;
+const PETICIONES_SIMULTANEAS = 4;
+
+/** Datos financieros de cada cliente. `undefined` = cargando; `null` = no disponible. */
+interface Finanzas {
+    condicion: CondicionCrediticiaResponse | null;
+    deuda: ResumenDeuda | null;
 }
 
+type Filtro = 'TODOS' | EstadoDeuda | 'INACTIVOS';
 
 interface StoreClientesListPageProps {
-  idTienda: number;
+    idTienda: number;
+    onSelectCliente: (idCliente: number) => void;
+    onNewClient: () => void;
+    soloConsulta?: boolean;
 }
 
-export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({ idTienda }) => {
-  const [clientes, setClientes] = useState<ClienteResponse[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('TODOS');
-  const [seleccionado, setSeleccionado] = useState<ClienteResponse | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [recarga, setRecarga] = useState(0);
+const normalizar = (texto: string) =>
+    texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es-PE');
 
-  useEffect(() => {
-    const controller = new AbortController();
-    listarClientes(idTienda, false, controller.signal).then(resultado => {
-      if (controller.signal.aborted) return;
-      setClientes(resultado);
-      setCargando(false);
-    }).catch((err: unknown) => {
-      if (controller.signal.aborted) return;
-      setError(obtenerMensajeError(err));
-      setCargando(false);
+export const StoreClientesListPage: React.FC<StoreClientesListPageProps> = ({
+                                                                                idTienda,
+                                                                                onSelectCliente,
+                                                                                onNewClient,
+                                                                                soloConsulta = false,
+                                                                            }) => {
+    const [clientes, setClientes] = useState<ClienteResponse[]>([]);
+    const [finanzas, setFinanzas] = useState<Record<number, Finanzas>>({});
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [recarga, setRecarga] = useState(0);
+    const [busqueda, setBusqueda] = useState('');
+    const [filtro, setFiltro] = useState<Filtro>('TODOS');
+    const [pagina, setPagina] = useState(1);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const { signal } = controller;
+        listarClientes(idTienda, false, signal)
+            .then(async (lista) => {
+                if (signal.aborted) return;
+                setClientes(lista);
+                setFinanzas({});
+                setCargando(false);
+                // La deuda y el crédito de cada cliente se completan a medida que llegan.
+                await enLotes(lista, PETICIONES_SIMULTANEAS, async (cliente) => {
+                    if (signal.aborted) return;
+                    const [condicion, cuenta] = await Promise.allSettled([
+                        consultarCondicionCrediticia(idTienda, cliente.id, signal),
+                        consultarCuentaCorriente(cliente.id, signal),
+                    ]);
+                    if (signal.aborted) return;
+                    setFinanzas((previo) => ({
+                        ...previo,
+                        [cliente.id]: {
+                            condicion: condicion.status === 'fulfilled' ? condicion.value : null,
+                            deuda: cuenta.status === 'fulfilled' ? resumirDeuda(cuenta.value) : null,
+                        },
+                    }));
+                });
+            })
+            .catch((err: unknown) => {
+                if (signal.aborted) return;
+                setError(obtenerMensajeError(err));
+                setCargando(false);
+            });
+        return () => controller.abort();
+    }, [idTienda, recarga]);
+
+    const activos = clientes.filter((c) => c.estadoCliente === 'ACTIVO');
+    const completos = clientes.every((c) => finanzas[c.id]);
+    const deudas = activos.map((c) => finanzas[c.id]?.deuda).filter((d): d is ResumenDeuda => !!d);
+    const metrica = (valor: number) => (cargando || error ? '—' : completos ? String(valor) : '…');
+
+    const termino = normalizar(busqueda.trim());
+    const filtrados = clientes.filter((c) => {
+        const coincide = !termino || normalizar(c.nombreCliente).includes(termino) || c.dniCliente.includes(termino);
+        if (!coincide) return false;
+        if (filtro === 'TODOS') return true;
+        if (filtro === 'INACTIVOS') return c.estadoCliente !== 'ACTIVO';
+        return finanzas[c.id]?.deuda?.estado === filtro;
     });
-    return () => controller.abort();
-  }, [idTienda, recarga]);
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+    const paginaActual = Math.min(pagina, totalPaginas);
+    const inicio = (paginaActual - 1) * POR_PAGINA;
+    const visibles = filtrados.slice(inicio, inicio + POR_PAGINA);
 
-  const termino = searchTerm.trim().toLocaleLowerCase('es-PE');
-  const filtrados = clientes.filter(cliente =>
-    (cliente.dniCliente.includes(termino) || cliente.nombreCliente.toLocaleLowerCase('es-PE').includes(termino)) &&
-    (estadoFilter === 'TODOS' || cliente.estadoCliente === estadoFilter)
-  );
-  const activos = clientes.filter(cliente => cliente.estadoCliente === 'ACTIVO').length;
-  const inactivos = clientes.filter(cliente => cliente.estadoCliente === 'INACTIVO').length;
+    return (
+        <div className="space-y-6">
+            {/* Encabezado y botón Nuevo cliente */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">Clientes</h2>
+                    <p className="text-xs text-slate-500 mt-1">Gestiona límites, condiciones y deudas de tus clientes.</p>
+                </div>
+                {!soloConsulta && (
+                    <button
+                        type="button"
+                        onClick={onNewClient}
+                        className="inline-flex items-center justify-center space-x-2 bg-[#139a6c] hover:bg-[#0f825b] active:bg-[#0c6b4a] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                    >
+                        <Plus className="w-4 h-4 stroke-[2.5]" />
+                        <span>Nuevo cliente</span>
+                    </button>
+                )}
+            </div>
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Clientes</h2>
-        <p className="text-xs text-slate-500 mt-1">Consulta los clientes registrados en la tienda seleccionada.</p>
-      </div>
+            {/* Resumen */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-y-4 sm:divide-x divide-slate-100">
+                {[
+                    { etiqueta: 'Clientes activos', valor: cargando || error ? '—' : String(activos.length), alerta: false },
+                    { etiqueta: 'Con crédito activo', valor: metrica(deudas.filter((d) => d.deudaActual > 0).length), alerta: false },
+                    { etiqueta: 'Sin deuda', valor: metrica(deudas.filter((d) => d.estado === 'Sin deuda').length), alerta: false },
+                    { etiqueta: 'En mora', valor: metrica(deudas.filter((d) => d.estado === 'En mora').length), alerta: true },
+                ].map((m) => (
+                    <div key={m.etiqueta} className="px-2 sm:px-4">
+                        <p className="text-[11px] text-slate-400 font-medium">{m.etiqueta}</p>
+                        <p className={`text-2xl font-bold mt-1 ${m.alerta && m.valor !== '0' && /^\d+$/.test(m.valor) ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {m.valor}
+                        </p>
+                    </div>
+                ))}
+            </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-slate-100">
-        {[['Clientes registrados', clientes.length], ['Clientes activos', activos], ['Clientes inactivos', inactivos]].map(([etiqueta, valor]) => (
-          <div key={etiqueta} className="p-2 sm:px-4">
-            <p className="text-[11px] text-slate-400 font-medium">{etiqueta}</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{cargando || error ? '—' : valor}</p>
-          </div>
-        ))}
-      </div>
+            {/* Tabla con buscador y filtro */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="relative sm:w-72">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="search"
+                            aria-label="Buscar por nombre o DNI"
+                            value={busqueda}
+                            onChange={(e) => {
+                                setBusqueda(e.target.value);
+                                setPagina(1);
+                            }}
+                            placeholder="Buscar por nombre o DNI"
+                            className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]"
+                        />
+                    </div>
+                    <div className="relative sm:w-48">
+                        <select
+                            aria-label="Filtrar por estado"
+                            value={filtro}
+                            onChange={(e) => {
+                                setFiltro(e.target.value as Filtro);
+                                setPagina(1);
+                            }}
+                            className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] pr-8 cursor-pointer"
+                        >
+                            <option value="TODOS">Todos los estados</option>
+                            <option value="Al día">Al día</option>
+                            <option value="Por vencer">Por vencer</option>
+                            <option value="En mora">En mora</option>
+                            <option value="Sin deuda">Sin deuda</option>
+                            <option value="INACTIVOS">Inactivos</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input type="search" aria-label="Buscar cliente por nombre o DNI" value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setSeleccionado(null); }}
-            placeholder="Buscar por nombre o DNI"
-            className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#139a6c]" />
+                {cargando ? (
+                    <p role="status" className="px-6 py-10 text-center text-sm text-slate-500 border-t border-slate-100">
+                        Cargando clientes...
+                    </p>
+                ) : error ? (
+                    <div role="alert" className="px-6 py-8 text-center text-sm text-red-700 space-y-3 border-t border-slate-100">
+                        <p>{error}</p>
+                        <button
+                            type="button"
+                            className="font-semibold text-[#139a6c] cursor-pointer"
+                            onClick={() => {
+                                setError(null);
+                                setCargando(true);
+                                setRecarga((n) => n + 1);
+                            }}
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-50/70 border-y border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                <tr>
+                                    <th className="py-3 px-6">Cliente</th>
+                                    <th className="py-3 px-6">DNI</th>
+                                    <th className="py-3 px-6">Deuda actual</th>
+                                    <th className="py-3 px-6">Crédito disponible</th>
+                                    <th className="py-3 px-6">Estado</th>
+                                    <th className="py-3 px-6">
+                                        <span className="sr-only">Ver detalle</span>
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                {visibles.map((c) => {
+                                    const datos = finanzas[c.id];
+                                    const deuda = datos?.deuda;
+                                    const condicion = datos?.condicion;
+                                    return (
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => onSelectCliente(c.id)}
+                                            className="hover:bg-slate-50/60 transition cursor-pointer"
+                                        >
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-700 shrink-0">
+                                                        {iniciales(c.nombreCliente)}
+                                                    </div>
+                                                    <span className="font-semibold text-slate-900">{c.nombreCliente}</span>
+                                                    {c.estadoCliente !== 'ACTIVO' && (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
+                                Inactivo
+                              </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-slate-600">{c.dniCliente}</td>
+                                            <td className="py-4 px-6 font-bold text-slate-900">
+                                                {!datos ? '…' : deuda ? dinero(deuda.deudaActual, deuda.moneda ?? condicion?.monedaCredito ?? 'PEN') : '—'}
+                                            </td>
+                                            <td className="py-4 px-6 text-slate-600">
+                                                {!datos ? '…' : condicion ? dinero(condicion.creditoDisponible, condicion.monedaCredito) : 'Sin condiciones'}
+                                            </td>
+                                            <td className="py-4 px-6">{deuda ? <EstadoBadge estado={deuda.estado} /> : datos ? '—' : '…'}</td>
+                                            <td className="py-4 px-6 text-right">
+                                                <button
+                                                    type="button"
+                                                    aria-label={`Ver detalle de ${c.nombreCliente}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onSelectCliente(c.id);
+                                                    }}
+                                                    className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                                                >
+                                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {visibles.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="py-10 text-center text-slate-400">
+                                            {clientes.length === 0
+                                                ? 'Aún no hay clientes registrados en esta tienda.'
+                                                : 'No se encontraron clientes con esos filtros.'}
+                                        </td>
+                                    </tr>
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span>
+                {filtrados.length === 0
+                    ? 'Mostrando 0 clientes'
+                    : `Mostrando ${inicio + 1}–${inicio + visibles.length} de ${filtrados.length} clientes`}
+              </span>
+                            <div className="flex space-x-2">
+                                <button
+                                    type="button"
+                                    disabled={paginaActual <= 1}
+                                    onClick={() => setPagina(paginaActual - 1)}
+                                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    Anterior
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={paginaActual >= totalPaginas}
+                                    onClick={() => setPagina(paginaActual + 1)}
+                                    className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
-        <div className="relative sm:w-48">
-          <select aria-label="Filtrar por estado" value={estadoFilter} onChange={e => { setEstadoFilter(e.target.value); setSeleccionado(null); }}
-            className="w-full appearance-none px-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:border-[#139a6c] pr-8">
-            <option value="TODOS">Todos los estados</option>
-            <option value="ACTIVO">Activos</option>
-            <option value="INACTIVO">Inactivos</option>
-          </select>
-          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-        </div>
-      </div>
-
-      {cargando ? <p role="status" className="p-5 bg-white rounded-2xl border border-slate-200 text-sm text-slate-500">Cargando clientes...</p>
-      : error ? <div role="alert" className="p-5 bg-white rounded-2xl border border-red-200 text-sm text-red-700 space-y-3">
-          <p>{error}</p>
-          <button type="button" className="font-semibold text-[#139a6c]" onClick={() => {
-            setError(null); setCargando(true); setSeleccionado(null); setRecarga(n => n + 1);
-          }}>Reintentar</button>
-        </div>
-      : <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              <tr>
-                <th className="py-3 px-6">Cliente</th>
-                <th className="py-3 px-6">DNI</th>
-                <th className="py-3 px-6">Teléfono</th>
-                <th className="py-3 px-6">Correo</th>
-                <th className="py-3 px-6">Estado</th>
-                <th className="py-3 px-6"><span className="sr-only">Detalle</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filtrados.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50/60">
-                  <td className="py-4 px-6 font-semibold text-slate-900">{c.nombreCliente}</td>
-                  <td className="py-4 px-6">{c.dniCliente}</td>
-                  <td className="py-4 px-6">{c.telefonoCliente || '—'}</td>
-                  <td className="py-4 px-6">{c.correoCliente || '—'}</td>
-                  <td className="py-4 px-6"><span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border ${c.estadoCliente === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>{c.estadoCliente}</span></td>
-                  <td className="py-4 px-6 text-right"><button type="button" aria-label={`Ver datos de ${c.nombreCliente}`} aria-expanded={seleccionado?.id === c.id} onClick={() => setSeleccionado(seleccionado?.id === c.id ? null : c)} className="p-2 rounded-lg hover:bg-slate-100"><ChevronRight className="w-4 h-4 text-slate-400" /></button></td>
-                </tr>
-              ))}
-              {filtrados.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-slate-500">{clientes.length === 0 ? 'No hay clientes registrados en esta tienda.' : 'No se encontraron clientes con esos filtros.'}</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <p className="p-4 border-t border-slate-100 text-xs text-slate-500">Mostrando {filtrados.length} de {clientes.length} clientes.</p>
-      </div>}
-      {seleccionado && !cargando && !error && <section className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-slate-900">{seleccionado.nombreCliente}</h3>
-          <button type="button" onClick={() => setSeleccionado(null)} className="text-xs text-[#139a6c]">Cerrar detalle</button>
-        </div>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700">
-          <div><dt className="text-slate-400">DNI</dt><dd>{seleccionado.dniCliente}</dd></div>
-          <div><dt className="text-slate-400">Estado</dt><dd>{seleccionado.estadoCliente}</dd></div>
-          <div><dt className="text-slate-400">Teléfono</dt><dd>{seleccionado.telefonoCliente || '—'}</dd></div>
-          <div><dt className="text-slate-400">Correo</dt><dd>{seleccionado.correoCliente || '—'}</dd></div>
-        </dl>
-        <p className="text-[11px] text-slate-500">Por ahora puedes consultar los datos personales del cliente.</p>
-      </section>}
-    </div>
-  );
+    );
 };

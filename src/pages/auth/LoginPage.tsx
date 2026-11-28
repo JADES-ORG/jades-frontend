@@ -111,6 +111,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <button
             type="button"
             onClick={onForgotPassword}
+            disabled={isLoading}
             className="text-xs font-semibold text-[#139a6c] hover:underline cursor-pointer"
           >
             ¿Olvidaste tu contraseña?

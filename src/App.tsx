@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { cerrarSesion, recuperarSesion } from './api/autenticacion';
+import { cerrarSesion, recuperarSesion, type CodigoRecuperacionResponse } from './api/autenticacion';
 import { SESSION_EXPIRED_EVENT } from './api/client';
 import { listarMisTiendas, listarTiendas } from './api/tiendas';
 import { obtenerMensajeError } from './api/errores';
@@ -20,7 +20,7 @@ import { EditarTiendaModal } from './components/admin-system/EditarTiendaModal';
 // Módulo 2: Administrador del Negocio (Bodega San Blas / Luis Alvarez)
 import { StoreAdminLayout, type StoreTab } from './layouts/StoreAdminLayout';
 import { StoreDashboardPage } from './pages/store-admin/StoreDashboardPage';
-import { StoreClientesListPage, type ClienteStoreItem } from './pages/store-admin/StoreClientesListPage';
+import { StoreClientesListPage } from './pages/store-admin/StoreClientesListPage';
 import { StoreClienteDetailPage } from './pages/store-admin/StoreClienteDetailPage';
 import { StorePlanPagosPage } from './pages/store-admin/StorePlanPagosPage';
 import { RegistrarClienteModal } from './components/store-admin/RegistrarClienteModal';
@@ -40,16 +40,17 @@ import { StoreConfiguracionPage } from './pages/store-admin/StoreConfiguracionPa
 import { ClientPortal } from './features/client-portal/ClientPortal';
 
 import type { LoginResponse } from './types/finanzas';
+import type { ClienteResponse, CondicionCrediticiaResponse } from './types/clientes';
 
 export type MainView =
-  | 'login'             // 1. Inicia sesión
-  | 'forgot_password'   // 2. Recuperar contraseña
-  | 'verify_code'       // 3. Verifica tu correo
-  | 'reset_password'    // 4. Crea una nueva contraseña
-  | 'password_updated'  // 5. Contraseña actualizada
-  | 'admin_system'      // 6. Panel Administrador del Sistema
-  | 'store_admin'       // 7. Panel Administrador del Negocio (Bodega San Blas)
-  | 'client_portal';    // 8. Portal Cliente (María Quispe)
+    | 'login'             // 1. Inicia sesión
+    | 'forgot_password'   // 2. Recuperar contraseña
+    | 'verify_code'       // 3. Verifica tu correo
+    | 'reset_password'    // 4. Crea una nueva contraseña
+    | 'password_updated'  // 5. Contraseña actualizada
+    | 'admin_system'      // 6. Panel Administrador del Sistema
+    | 'store_admin'       // 7. Panel Administrador del Negocio (Bodega San Blas)
+    | 'client_portal';    // 8. Portal Cliente (María Quispe)
 
 export type StoreSubView = 'lista' | 'detalle_cliente' | 'plan_pagos';
 
@@ -65,7 +66,8 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<LoginResponse | null>(() => recuperarSesion('CLIENTE'));
   const [currentView, setCurrentView] = useState<MainView>(() => currentUser ? 'client_portal' : 'login');
   const [userEmail, setUserEmail] = useState<string>(() => currentUser?.correo ?? '');
-  const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
+  const [codigoRecuperacion, setCodigoRecuperacion] = useState<CodigoRecuperacionResponse | null>(null);
+  const [tokenRecuperacion, setTokenRecuperacion] = useState<string | null>(null);
   const [misTiendas, setMisTiendas] = useState<TiendaResumenResponse[]>([]);
   const [idTiendaActiva, setIdTiendaActiva] = useState<number | null>(null);
   const [cargandoTiendas, setCargandoTiendas] = useState(false);
@@ -79,7 +81,7 @@ export function App() {
       if (controller.signal.aborted) return;
       setMisTiendas(resultado);
       setIdTiendaActiva((anterior) => resultado.some(t => t.idTienda === anterior)
-        ? anterior : resultado[0]?.idTienda ?? null);
+          ? anterior : resultado[0]?.idTienda ?? null);
       setCargandoTiendas(false);
     }).catch((error: unknown) => {
       if (controller.signal.aborted) return;
@@ -93,6 +95,9 @@ export function App() {
 
   useEffect(() => {
     const expirar = () => {
+      setCodigoRecuperacion(null);
+      setTokenRecuperacion(null);
+      setUserEmail('');
       setTiendas([]);
       setAvisoTiendas(null);
       setBusquedaTiendas('');
@@ -139,12 +144,22 @@ export function App() {
   // Estados del Administrador del Negocio (Bodega San Blas)
   const [storeTab, setStoreTab] = useState<StoreTab>('inicio');
   const [storeSubView, setStoreSubView] = useState<StoreSubView>('lista');
-  const [activeCreditoCode, setActiveCreditoCode] = useState<string>('CR-001284');
+  const [activeCreditoCode] = useState<string>('CR-001284');
 
-  // Modales de Clientes (Bodega San Blas)
+  // Clientes y condiciones crediticias
+  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState<number | null>(null);
+  const [nombreClienteSeleccionado, setNombreClienteSeleccionado] = useState('');
+  const [recargaClientes, setRecargaClientes] = useState(0);
   const [isRegisterClientModalOpen, setIsRegisterClientModalOpen] = useState(false);
-  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
-  const [isEditConditionsModalOpen, setIsEditConditionsModalOpen] = useState(false);
+  const [clienteEnEdicion, setClienteEnEdicion] = useState<ClienteResponse | null>(null);
+  // undefined: modal cerrado; null: registrar condiciones; objeto: editar condiciones.
+  const [condicionEnEdicion, setCondicionEnEdicion] = useState<CondicionCrediticiaResponse | null | undefined>(undefined);
+  const cerrarModalesClientes = () => {
+    setIsRegisterClientModalOpen(false);
+    setClienteEnEdicion(null);
+    setCondicionEnEdicion(undefined);
+  };
+  const recargarClientes = () => setRecargaClientes((n) => n + 1);
 
   // Estados de Pagos y Cobranzas (Bodega San Blas)
   const [pagosList, setPagosList] = useState<PagoItemData[]>(initialPagos);
@@ -200,6 +215,8 @@ export function App() {
   const handleLoginSuccess = (user: LoginResponse) => {
     setCurrentUser(user);
     setUserEmail(user.correo);
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
 
     if (user.rol === 'CLIENTE') {
       setCurrentView('client_portal');
@@ -225,24 +242,29 @@ export function App() {
   };
 
   const handleGoToForgotPassword = () => {
-    setIsRecoveringPassword(true);
+    cerrarSesion();
+    setCurrentUser(null);
+    setUserEmail('');
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
     setCurrentView('forgot_password');
   };
 
-  const handleCodeSent = (email: string) => {
+  const handleCodeSent = (email: string, respuesta: CodigoRecuperacionResponse) => {
     setUserEmail(email);
+    setCodigoRecuperacion(respuesta);
     setCurrentView('verify_code');
   };
 
-  const handleCodeVerified = () => {
-    if (isRecoveringPassword) {
-      setCurrentView('reset_password');
-    } else {
-      setCurrentView('login');
-    }
+  const handleCodeVerified = (token: string) => {
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(token);
+    setCurrentView('reset_password');
   };
 
   const handlePasswordSaved = () => {
+    setTokenRecuperacion(null);
+    setUserEmail('');
     setCurrentView('password_updated');
   };
 
@@ -259,10 +281,11 @@ export function App() {
     setErrorTiendas(null);
     setCargandoTiendas(false);
     setStoreSubView('lista');
-    setIsRegisterClientModalOpen(false);
-    setIsEditClientModalOpen(false);
-    setIsEditConditionsModalOpen(false);
-    setIsRecoveringPassword(false);
+    setIdClienteSeleccionado(null);
+    cerrarModalesClientes();
+    setCodigoRecuperacion(null);
+    setTokenRecuperacion(null);
+    setUserEmail('');
     setCurrentView('login');
   };
 
@@ -303,110 +326,117 @@ export function App() {
   // La navegación protegida depende exclusivamente del rol autenticado.
   const vistaProtegida = currentView === 'admin_system' || currentView === 'store_admin' || currentView === 'client_portal';
   const vistaAutorizada = currentUser && (
-    (currentView === 'admin_system' && currentUser.rol === 'ADMIN_SISTEMA') ||
-    (currentView === 'store_admin' && currentUser.rol === 'ADMIN_NEGOCIO') ||
-    (currentView === 'client_portal' && currentUser.rol === 'CLIENTE')
+      (currentView === 'admin_system' && currentUser.rol === 'ADMIN_SISTEMA') ||
+      (currentView === 'store_admin' && currentUser.rol === 'ADMIN_NEGOCIO') ||
+      (currentView === 'client_portal' && currentUser.rol === 'CLIENTE')
   );
-
   if (currentView === 'login' || (vistaProtegida && !vistaAutorizada)) {
     return (
-      <LoginPage
-        onLoginSuccess={handleLoginSuccess}
-        onForgotPassword={handleGoToForgotPassword}
-      />
+        <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onForgotPassword={handleGoToForgotPassword}
+        />
     );
   }
 
   if (currentView === 'forgot_password') {
     return (
-      <ForgotPasswordPage
-        onCodeSent={handleCodeSent}
-        onBackToLogin={handleLogout}
-      />
+        <ForgotPasswordPage
+            onCodeSent={handleCodeSent}
+            onBackToLogin={handleLogout}
+        />
     );
   }
 
-  if (currentView === 'verify_code') {
+  if (currentView === 'verify_code' && codigoRecuperacion && userEmail) {
     return (
       <VerifyCodePage
+        correo={userEmail}
         emailMasked={maskEmail(userEmail)}
+        codigoInicial={codigoRecuperacion}
         onVerify={handleCodeVerified}
-        onResend={() => alert('Por el momento no podemos reenviar el código. Comunícate con el administrador para recuperar tu acceso.')}
         onBackToLogin={handleLogout}
       />
     );
   }
 
-  if (currentView === 'reset_password') {
+  if (currentView === 'reset_password' && tokenRecuperacion && userEmail) {
     return (
       <ResetPasswordPage
+        correo={userEmail}
+        tokenRecuperacion={tokenRecuperacion}
         onPasswordSaved={handlePasswordSaved}
         onBackToLogin={handleLogout}
+        onRestart={handleGoToForgotPassword}
       />
     );
+  }
+
+  if (currentView === 'verify_code' || currentView === 'reset_password') {
+    return <ForgotPasswordPage onCodeSent={handleCodeSent} onBackToLogin={handleLogout} />;
   }
 
   if (currentView === 'password_updated') {
     return (
-      <PasswordUpdatedPage
-        onBackToLogin={handleLogout}
-      />
+        <PasswordUpdatedPage
+            onBackToLogin={handleLogout}
+        />
     );
   }
 
   // VISTA: ADMINISTRADOR DEL SISTEMA
   if (currentView === 'admin_system') {
     return (
-      <>
+        <>
 
-        <AdminSystemLayout
-          currentTab={adminTab}
-          busqueda={busquedaTiendas}
-          onBuscar={(valor) => { setBusquedaTiendas(valor); setAdminTab('tiendas'); }}
-          onSelectTab={setAdminTab}
-          onLogout={handleLogout}
-        >
-          {adminTab === 'resumen' && (
-            <DashboardOverviewPage
-              tiendas={tiendas}
-              cargando={cargandoAdminTiendas}
-              error={errorAdminTiendas}
-              onRecargar={recargarAdminTiendas}
-              onGoToRegister={() => setAdminTab('registrar')}
-              onGoToStores={() => setAdminTab('tiendas')}
-            />
-          )}
-
-          {adminTab === 'tiendas' && (
-            <TiendasListPage
-              tiendas={tiendas}
-              aviso={avisoTiendas}
+          <AdminSystemLayout
+              currentTab={adminTab}
               busqueda={busquedaTiendas}
-              onBuscar={setBusquedaTiendas}
-              cargando={cargandoAdminTiendas}
-              error={errorAdminTiendas}
-              onRecargar={recargarAdminTiendas}
-              onGoToRegister={() => setAdminTab('registrar')}
-              onEditTienda={handleOpenEdit}
-            />
-          )}
+              onBuscar={(valor) => { setBusquedaTiendas(valor); setAdminTab('tiendas'); }}
+              onSelectTab={setAdminTab}
+              onLogout={handleLogout}
+          >
+            {adminTab === 'resumen' && (
+                <DashboardOverviewPage
+                    tiendas={tiendas}
+                    cargando={cargandoAdminTiendas}
+                    error={errorAdminTiendas}
+                    onRecargar={recargarAdminTiendas}
+                    onGoToRegister={() => setAdminTab('registrar')}
+                    onGoToStores={() => setAdminTab('tiendas')}
+                />
+            )}
 
-          {adminTab === 'registrar' && (
-            <RegistrarTiendaPage
-              onCancel={() => setAdminTab('tiendas')}
-              onRegisterSuccess={handleRegisterSuccess}
-            />
-          )}
-        </AdminSystemLayout>
+            {adminTab === 'tiendas' && (
+                <TiendasListPage
+                    tiendas={tiendas}
+                    aviso={avisoTiendas}
+                    busqueda={busquedaTiendas}
+                    onBuscar={setBusquedaTiendas}
+                    cargando={cargandoAdminTiendas}
+                    error={errorAdminTiendas}
+                    onRecargar={recargarAdminTiendas}
+                    onGoToRegister={() => setAdminTab('registrar')}
+                    onEditTienda={handleOpenEdit}
+                />
+            )}
 
-        {isEditModalOpen && editingTienda && <EditarTiendaModal
-          key={editingTienda.idTienda}
-          isOpen={isEditModalOpen}
-          tienda={editingTienda}
-          onClose={() => setIsEditModalOpen(false)}
-          onSave={handleSaveEdit}
-        />}
-      </>
+            {adminTab === 'registrar' && (
+                <RegistrarTiendaPage
+                    onCancel={() => setAdminTab('tiendas')}
+                    onRegisterSuccess={handleRegisterSuccess}
+                />
+            )}
+          </AdminSystemLayout>
+
+          {isEditModalOpen && editingTienda && <EditarTiendaModal
+              key={editingTienda.idTienda}
+              isOpen={isEditModalOpen}
+              tienda={editingTienda}
+              onClose={() => setIsEditModalOpen(false)}
+              onSave={handleSaveEdit}
+          />}
+        </>
     );
   }
 
@@ -415,198 +445,213 @@ export function App() {
     const tiendaSeleccionada = misTiendas.find(t => t.idTienda === idTiendaActiva);
     const soloConsulta = tiendaSeleccionada?.estadoTienda !== 'ACTIVO';
     return (
-      <>
+        <>
 
-      <StoreAdminLayout
-        tiendas={misTiendas}
-        idTiendaActiva={idTiendaActiva}
-        cargandoTiendas={cargandoTiendas}
-        correoUsuario={currentUser?.correo ?? ''}
-        onSelectTienda={(id) => {
-          setIdTiendaActiva(id);
-          setStoreSubView('lista');
-          setStoreTab('clientes');
-          setIsRegisterClientModalOpen(false);
-          setIsEditClientModalOpen(false);
-          setIsEditConditionsModalOpen(false);
-        }}
-        currentTab={storeTab}
-        onSelectTab={(tab) => {
-          setStoreTab(tab);
-          setStoreSubView('lista');
-        }}
-        onLogout={handleLogout}
-      >
-        {cargandoTiendas ? (
-          <p role="status" className="text-sm text-slate-500">Cargando tiendas autorizadas...</p>
-        ) : errorTiendas ? (
-          <div role="alert" className="rounded-2xl bg-white border border-red-200 p-5 space-y-3">
-            <p className="text-sm text-red-700">{errorTiendas}</p>
-            <button type="button" className="text-sm font-semibold text-[#139a6c]" onClick={() => {
-              setErrorTiendas(null);
-              setCargandoTiendas(true);
-              setRecargaTiendas(n => n + 1);
-            }}>Reintentar</button>
-          </div>
-        ) : idTiendaActiva === null ? (
-          <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas asignadas.</p>
-        ) : (
-          <>
-        {soloConsulta && <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Tienda inactiva: se permiten consultas y cobranzas, no nuevas ventas ni modificaciones.</p>}
-        {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes') && (
-          <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
-            {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
-            {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
-            {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
-          </p>
-        )}
-        {/* Pestaña: Inicio (Dashboard de la Bodega) */}
-        {storeTab === 'inicio' && (
-          <StoreDashboardPage
-            onGoToClients={() => {
-              setStoreTab('clientes');
-              setStoreSubView('lista');
-            }}
-            onGoToSales={() => setStoreTab('nueva_venta')}
-          />
-        )}
+          <StoreAdminLayout
+              tiendas={misTiendas}
+              idTiendaActiva={idTiendaActiva}
+              cargandoTiendas={cargandoTiendas}
+              correoUsuario={currentUser?.correo ?? ''}
+              onSelectTienda={(id) => {
+                setIdTiendaActiva(id);
+                setStoreSubView('lista');
+                setStoreTab('clientes');
+                setIdClienteSeleccionado(null);
+                cerrarModalesClientes();
+              }}
+              currentTab={storeTab}
+              encabezado={
+                storeTab === 'clientes' && storeSubView === 'detalle_cliente'
+                    ? { titulo: 'Detalle del cliente', subtitulo: `Clientes / ${nombreClienteSeleccionado || '...'}` }
+                    : undefined
+              }
+              onSelectTab={(tab) => {
+                setStoreTab(tab);
+                setStoreSubView('lista');
+              }}
+              onLogout={handleLogout}
+          >
+            {cargandoTiendas ? (
+                <p role="status" className="text-sm text-slate-500">Cargando tiendas autorizadas...</p>
+            ) : errorTiendas ? (
+                <div role="alert" className="rounded-2xl bg-white border border-red-200 p-5 space-y-3">
+                  <p className="text-sm text-red-700">{errorTiendas}</p>
+                  <button type="button" className="text-sm font-semibold text-[#139a6c]" onClick={() => {
+                    setErrorTiendas(null);
+                    setCargandoTiendas(true);
+                    setRecargaTiendas(n => n + 1);
+                  }}>Reintentar</button>
+                </div>
+            ) : idTiendaActiva === null ? (
+                <p className="text-sm text-slate-600 bg-white rounded-2xl border border-slate-200 p-5">No tienes tiendas asignadas.</p>
+            ) : (
+                <>
+                  {soloConsulta && <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">Tienda inactiva: se permiten consultas y cobranzas, no nuevas ventas ni modificaciones.</p>}
+                  {(storeTab === 'inicio' || storeTab === 'pagos' || storeTab === 'cortes') && (
+                      <p className="mb-4 text-xs rounded-xl bg-amber-50 border border-amber-200 text-amber-800 p-3">
+                        {storeTab === 'inicio' && 'Este resumen muestra datos de ejemplo, no los saldos reales de tu tienda.'}
+                        {storeTab === 'pagos' && 'Los pagos de esta sección son de ejemplo. Los cambios no se registran en tu cuenta real.'}
+                        {storeTab === 'cortes' && 'Los reportes de esta sección muestran datos de ejemplo. No los utilices para realizar cobros.'}
+                      </p>
+                  )}
+                  {/* Pestaña: Inicio (Dashboard de la Bodega) */}
+                  {storeTab === 'inicio' && (
+                      <StoreDashboardPage
+                          onGoToClients={() => {
+                            setStoreTab('clientes');
+                            setStoreSubView('lista');
+                          }}
+                          onGoToSales={() => setStoreTab('nueva_venta')}
+                      />
+                  )}
 
-        {/* Pestaña: Clientes */}
-        {storeTab === 'clientes' && (
-          <>
-            {/* 1. Lista de Clientes */}
-            {storeSubView === 'lista' && (
-              <StoreClientesListPage key={idTiendaActiva} idTienda={idTiendaActiva} />
+                  {/* Pestaña: Clientes */}
+                  {storeTab === 'clientes' && (
+                      <>
+                        {/* 1. Lista de Clientes */}
+                        {storeSubView === 'lista' && (
+                            <StoreClientesListPage
+                                key={`${idTiendaActiva}-${recargaClientes}`}
+                                idTienda={idTiendaActiva}
+                                soloConsulta={soloConsulta}
+                                onNewClient={() => setIsRegisterClientModalOpen(true)}
+                                onSelectCliente={(idCliente) => {
+                                  setIdClienteSeleccionado(idCliente);
+                                  setNombreClienteSeleccionado('');
+                                  setStoreSubView('detalle_cliente');
+                                }}
+                            />
+                        )}
+
+                        {/* 2. Detalle del Cliente */}
+                        {storeSubView === 'detalle_cliente' && idClienteSeleccionado !== null && (
+                            <StoreClienteDetailPage
+                                key={`${idClienteSeleccionado}-${recargaClientes}`}
+                                idTienda={idTiendaActiva}
+                                idCliente={idClienteSeleccionado}
+                                soloConsulta={soloConsulta}
+                                onClienteCargado={(cliente) => setNombreClienteSeleccionado(cliente.nombreCliente)}
+                                onBack={() => setStoreSubView('lista')}
+                                onEditClient={(cliente) => setClienteEnEdicion(cliente)}
+                                onEditConditions={(condicion) => setCondicionEnEdicion(condicion)}
+                                onNewSale={() => setStoreTab('nueva_venta')}
+                            />
+                        )}
+
+                        {/* 3. Plan de Pagos / Cronograma Francés (HU-12) */}
+                        {storeSubView === 'plan_pagos' && (
+                            <StorePlanPagosPage
+                                codigoCredito={activeCreditoCode}
+                                onBackToClient={() => setStoreSubView('detalle_cliente')}
+                            />
+                        )}
+                      </>
+                  )}
+
+                  {/* Pestaña: Productos y servicios */}
+                  {storeTab === 'productos' && (
+                      <StoreProductosListPage
+                          key={idTiendaActiva}
+                          idTienda={idTiendaActiva}
+                          soloConsulta={misTiendas.find(t => t.idTienda === idTiendaActiva)?.estadoTienda !== 'ACTIVO'}
+                      />
+                  )}
+
+                  {/* Pestaña: Nueva venta a crédito */}
+                  {storeTab === 'nueva_venta' && soloConsulta && <p className="text-sm text-slate-600">No se pueden registrar ventas en una tienda inactiva.</p>}
+                  {storeTab === 'nueva_venta' && !soloConsulta && (
+                      <StoreNuevaVentaPage
+                          key={idTiendaActiva}
+                          idTienda={idTiendaActiva}
+                          onCancel={() => { setStoreTab('clientes'); setStoreSubView('lista'); }}
+                      />
+                  )}
+
+                  {/* Pestaña: Pagos */}
+                  {storeTab === 'pagos' && (
+                      <StorePagosPage
+                          pagos={pagosList}
+                          onOpenRegistrarPago={handleOpenRegistrarPago}
+                      />
+                  )}
+
+                  {/* Pestaña: Cortes y cobranzas */}
+                  {storeTab === 'cortes' && (
+                      <StoreCortesPage
+                          cortes={cortesList}
+                          onViewDetalle={handleOpenDetalleCorte}
+                      />
+                  )}
+
+                  {/* Pestaña: Ayuda */}
+                  {storeTab === 'ayuda' && (
+                      <StoreAyudaPage onNavigateTab={(tab) => setStoreTab(tab)} />
+                  )}
+
+                  {/* Pestaña: Configuración */}
+                  {storeTab === 'configuracion' && tiendaSeleccionada && (
+                      <StoreConfiguracionPage
+                          key={idTiendaActiva}
+                          tienda={tiendaSeleccionada}
+                          correoUsuario={currentUser?.correo ?? ''}
+                          onActualizar={actualizarTiendaSeleccionada}
+                      />
+                  )}
+                </>
             )}
+          </StoreAdminLayout>
 
-            {/* 2. Detalle del Cliente (María Quispe) */}
-            {storeSubView === 'detalle_cliente' && (
-              <StoreClienteDetailPage
-                onBack={() => setStoreSubView('lista')}
-                onViewPlanPagos={(codigo) => {
-                  setActiveCreditoCode(codigo);
-                  setStoreSubView('plan_pagos');
-                }}
-                onEditClient={() => setIsEditClientModalOpen(true)}
-                onEditConditions={() => setIsEditConditionsModalOpen(true)}
-                onNewSale={() => setStoreTab('nueva_venta')}
+          {/* Modales del Administrador del Negocio */}
+          {isRegisterClientModalOpen && idTiendaActiva !== null && (
+              <RegistrarClienteModal
+                  idTienda={idTiendaActiva}
+                  onClose={() => setIsRegisterClientModalOpen(false)}
+                  onClientRegistered={recargarClientes}
               />
-            )}
+          )}
 
-            {/* 3. Plan de Pagos / Cronograma Francés (HU-12) */}
-            {storeSubView === 'plan_pagos' && (
-              <StorePlanPagosPage
-                codigoCredito={activeCreditoCode}
-                onBackToClient={() => setStoreSubView('detalle_cliente')}
+          {clienteEnEdicion && idTiendaActiva !== null && (
+              <EditarClienteModal
+                  idTienda={idTiendaActiva}
+                  cliente={clienteEnEdicion}
+                  onClose={() => setClienteEnEdicion(null)}
+                  onSave={recargarClientes}
               />
-            )}
-          </>
-        )}
+          )}
 
-        {/* Pestaña: Productos y servicios */}
-        {storeTab === 'productos' && (
-          <StoreProductosListPage
-            key={idTiendaActiva}
-            idTienda={idTiendaActiva}
-            soloConsulta={misTiendas.find(t => t.idTienda === idTiendaActiva)?.estadoTienda !== 'ACTIVO'}
+          {condicionEnEdicion !== undefined && idTiendaActiva !== null && idClienteSeleccionado !== null && (
+              <EditarCondicionesModal
+                  idTienda={idTiendaActiva}
+                  idCliente={idClienteSeleccionado}
+                  condicion={condicionEnEdicion}
+                  onClose={() => setCondicionEnEdicion(undefined)}
+                  onSave={recargarClientes}
+              />
+          )}
+
+          <RegistrarPagoModal
+              isOpen={isRegistrarPagoModalOpen}
+              pagoItem={selectedPagoForRegister}
+              onClose={() => setIsRegistrarPagoModalOpen(false)}
+              onConfirmPago={handleConfirmPago}
           />
-        )}
 
-        {/* Pestaña: Nueva venta a crédito */}
-        {storeTab === 'nueva_venta' && soloConsulta && <p className="text-sm text-slate-600">No se pueden registrar ventas en una tienda inactiva.</p>}
-        {storeTab === 'nueva_venta' && !soloConsulta && (
-          <StoreNuevaVentaPage
-            key={idTiendaActiva}
-            idTienda={idTiendaActiva}
-            onCancel={() => { setStoreTab('clientes'); setStoreSubView('lista'); }}
+          <PagoRegistradoModal
+              isOpen={isPagoRegistradoModalOpen}
+              pagoItem={lastPaidItem}
+              onClose={() => setIsPagoRegistradoModalOpen(false)}
           />
-        )}
 
-        {/* Pestaña: Pagos */}
-        {storeTab === 'pagos' && (
-          <StorePagosPage
-            pagos={pagosList}
-            onOpenRegistrarPago={handleOpenRegistrarPago}
+          <DetalleCorteModal
+              isOpen={isDetalleCorteModalOpen}
+              corte={selectedCorteForDetail}
+              onClose={() => setIsDetalleCorteModalOpen(false)}
+              onRegistrarPago={handleRegistrarPagoFromCorte}
           />
-        )}
 
-        {/* Pestaña: Cortes y cobranzas */}
-        {storeTab === 'cortes' && (
-          <StoreCortesPage
-            cortes={cortesList}
-            onViewDetalle={handleOpenDetalleCorte}
-          />
-        )}
-
-        {/* Pestaña: Ayuda */}
-        {storeTab === 'ayuda' && (
-          <StoreAyudaPage onNavigateTab={(tab) => setStoreTab(tab)} />
-        )}
-
-        {/* Pestaña: Configuración */}
-        {storeTab === 'configuracion' && tiendaSeleccionada && (
-          <StoreConfiguracionPage
-            key={idTiendaActiva}
-            tienda={tiendaSeleccionada}
-            correoUsuario={currentUser?.correo ?? ''}
-            onActualizar={actualizarTiendaSeleccionada}
-          />
-        )}
-          </>
-        )}
-      </StoreAdminLayout>
-
-      {/* Modales del Administrador del Negocio */}
-      <RegistrarClienteModal
-        isOpen={isRegisterClientModalOpen}
-        onClose={() => setIsRegisterClientModalOpen(false)}
-        onClientRegistered={(nuevoCliente: ClienteStoreItem) => {
-          console.log('Cliente registrado:', nuevoCliente);
-          setIsRegisterClientModalOpen(false);
-        }}
-      />
-
-      <EditarClienteModal
-        isOpen={isEditClientModalOpen}
-        onClose={() => setIsEditClientModalOpen(false)}
-        onSave={(datosActualizados) => {
-          console.log('Cliente actualizado:', datosActualizados);
-          setIsEditClientModalOpen(false);
-        }}
-      />
-
-      <EditarCondicionesModal
-        isOpen={isEditConditionsModalOpen}
-        onClose={() => setIsEditConditionsModalOpen(false)}
-        onSave={(condicionesActualizadas) => {
-          console.log('Condiciones actualizadas:', condicionesActualizadas);
-          setIsEditConditionsModalOpen(false);
-        }}
-      />
-
-      <RegistrarPagoModal
-        isOpen={isRegistrarPagoModalOpen}
-        pagoItem={selectedPagoForRegister}
-        onClose={() => setIsRegistrarPagoModalOpen(false)}
-        onConfirmPago={handleConfirmPago}
-      />
-
-      <PagoRegistradoModal
-        isOpen={isPagoRegistradoModalOpen}
-        pagoItem={lastPaidItem}
-        onClose={() => setIsPagoRegistradoModalOpen(false)}
-      />
-
-      <DetalleCorteModal
-        isOpen={isDetalleCorteModalOpen}
-        corte={selectedCorteForDetail}
-        onClose={() => setIsDetalleCorteModalOpen(false)}
-        onRegistrarPago={handleRegistrarPagoFromCorte}
-      />
-
-    </>
-  );
-}
+        </>
+    );
+  }
 
   // El portal gestiona su propia navegación y cuenta; la autorización sigue en App y el servidor.
   if (currentUser?.rol !== 'CLIENTE') return null;

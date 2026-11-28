@@ -43,3 +43,36 @@ export function recuperarSesion(rolRequerido?: LoginResponse['rol']): LoginRespo
     return null;
   }
 }
+
+export interface CodigoRecuperacionResponse {
+  codigo: string;
+  expiraEnSegundos: number;
+  simulacion: boolean;
+}
+
+export interface VerificacionRecuperacionResponse {
+  tokenRecuperacion: string;
+  expiraEnSegundos: number;
+}
+
+export async function solicitarRecuperacion(correo: string): Promise<CodigoRecuperacionResponse> {
+  const { data } = await api.post<CodigoRecuperacionResponse>('/autenticacion/recuperar-contrasena', { correo });
+  if (!data || data.simulacion !== true || typeof data.codigo !== 'string' ||
+      !/^[0-9]{5}$/.test(data.codigo) || !Number.isFinite(data.expiraEnSegundos) || data.expiraEnSegundos <= 0) {
+    throw new Error('La respuesta de recuperación no es válida.');
+  }
+  return data;
+}
+
+export async function verificarCodigoRecuperacion(correo: string, codigo: string): Promise<VerificacionRecuperacionResponse> {
+  const { data } = await api.post<VerificacionRecuperacionResponse>('/autenticacion/verificar-codigo', { correo, codigo });
+  if (!data || typeof data.tokenRecuperacion !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(data.tokenRecuperacion) ||
+      !Number.isFinite(data.expiraEnSegundos) || data.expiraEnSegundos <= 0) {
+    throw new Error('La autorización de recuperación no es válida.');
+  }
+  return data;
+}
+
+export async function restablecerContrasena(correo: string, tokenRecuperacion: string, nuevaContrasena: string): Promise<void> {
+  await api.post('/autenticacion/restablecer-contrasena', { correo, tokenRecuperacion, nuevaContrasena });
+}
