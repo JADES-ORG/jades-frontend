@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import './store-dashboard.css';
 import { AyudaCampo } from '../../components/shared/AyudaCampo';
 import type { Moneda } from '../../types/finanzas';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock, CreditCard, Plus } from 'lucide-react';
+import { AlertTriangle, Check, ChevronRight, Clock, CreditCard, Plus, ShoppingCart, Wallet, CalendarClock } from 'lucide-react';
 import { dinero, fecha, hoyLima } from '../../features/client-portal/model';
 import { obligacionesPendientes, proximosSieteDias, useCuentasTienda } from '../../features/cobranzas/cuentas';
 
 interface Props {
   idTienda: number;
+  nombreUsuario?: string;
   revision: number;
   soloConsulta: boolean;
   onGoToClients: () => void;
@@ -14,7 +16,7 @@ interface Props {
   onGoToSales: () => void;
 }
 
-export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToClients, onGoToPayments, onGoToSales }: Props) {
+export function StoreDashboardPage({ idTienda, nombreUsuario, revision, soloConsulta, onGoToClients, onGoToPayments, onGoToSales }: Props) {
   const { cuentas, cargando, error, recargar } = useCuentasTienda(idTienda, revision);
   const hoy = hoyLima();
   const [monedaGrafico, setMonedaGrafico] = useState<Moneda>('PEN');
@@ -22,10 +24,10 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
   const proximos = obligaciones.filter(o => o.fechaVencimiento === hoy || proximosSieteDias(o.fechaVencimiento, hoy));
   const pagos = cuentas.flatMap(cuenta => cuenta.pagos.map(pago => ({ ...pago, cliente: cuenta.nombreCliente })));
   const indicadores = [
-    { titulo: 'Total por cobrar', icono: CreditCard, filas: obligaciones.map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
-    { titulo: 'Cobrado este mes', icono: CheckCircle2, filas: pagos.filter(pago => pago.fechaPago.slice(0, 7) === hoy.slice(0, 7)).map(pago => ({ monto: pago.totalExigible, moneda: pago.moneda })) },
-    { titulo: 'Vence en los próximos 7 días', icono: Clock, filas: proximos.map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
-    { titulo: 'Deuda en mora', icono: AlertTriangle, filas: obligaciones.filter(o => o.estado === 'En mora').map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
+    { titulo: 'Total por cobrar', icono: Wallet, tono: 'verde', descripcion: 'Obligaciones pendientes', filas: obligaciones.map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
+    { titulo: 'Cobrado este mes', icono: CreditCard, tono: 'verde', descripcion: 'Pagos registrados este mes', filas: pagos.filter(pago => pago.fechaPago.slice(0, 7) === hoy.slice(0, 7)).map(pago => ({ monto: pago.totalExigible, moneda: pago.moneda })) },
+    { titulo: 'Pagos por vencer', icono: Clock, tono: 'ambar', descripcion: 'Próximos 7 días', filas: proximos.map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
+    { titulo: 'Deuda en mora', icono: AlertTriangle, tono: 'rojo', descripcion: 'Obligaciones vencidas', filas: obligaciones.filter(o => o.estado === 'En mora').map(o => ({ monto: o.importePendiente, moneda: o.moneda })) },
   ];
   const actividad = [
     ...pagos.map(pago => ({ id: `pago-${pago.idPago}`, etiqueta: 'Pago recibido', dia: pago.fechaPago, cliente: pago.cliente, monto: dinero(pago.totalExigible, pago.moneda) })),
@@ -33,7 +35,7 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
       id: `venta-${compra.idVenta}`, etiqueta: 'Venta registrada', dia: compra.fechaCompra,
       cliente: cuenta.nombreCliente, monto: dinero(compra.total, compra.moneda),
     }))),
-  ].sort((a, b) => b.dia.localeCompare(a.dia)).slice(0, 6);
+  ].sort((a, b) => b.dia.localeCompare(a.dia)).slice(0, 3);
 
   const meses = Array.from({ length: 6 }, (_, indice) => {
     const fechaMes = new Date(hoy.slice(0, 7) + '-01T00:00:00Z');
@@ -50,82 +52,120 @@ export function StoreDashboardPage({ idTienda, revision, soloConsulta, onGoToCli
       .reduce((suma, pago) => suma + pago.totalExigible, 0);
     return { periodo, etiqueta, esperado, recibido };
   });
-  const escala = Math.max(1, ...meses.flatMap(mes => [mes.esperado, mes.recibido]));
+  const maximo = Math.max(1, ...meses.flatMap(mes => [mes.esperado, mes.recibido]));
+  const potencia = 10 ** Math.floor(Math.log10(maximo / 4));
+  const paso = Math.ceil(maximo / (4 * potencia)) * potencia;
+  const escala = paso * 4;
+  const niveles = Array.from({ length: 5 }, (_, indice) => escala - paso * indice);
+  const nombre = nombreUsuario?.trim().split(/\s+/)[0];
+  const hora = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: 'America/Lima' }).format(new Date()));
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  const iniciales = (nombreCliente: string) => nombreCliente.trim().split(/\s+/).slice(0, 2).map(palabra => palabra[0]?.toUpperCase()).join('');
+  const manana = new Date(hoy + 'T00:00:00Z');
+  manana.setUTCDate(manana.getUTCDate() + 1);
+  const fechaManana = manana.toISOString().slice(0, 10);
+  const eje = (valor: number) => `${monedaGrafico === 'PEN' ? 'S/' : 'US
 
-  return <div className="space-y-[18px]">
-    <div className="flex flex-wrap items-center justify-between gap-4">
+} ${new Intl.NumberFormat('es-PE', { notation: 'compact', maximumFractionDigits: 1 }).format(valor)}`;
+
+  return <div className="store-dashboard">
+    <header className="store-dashboard-welcome">
       <div>
-        <h2 className="text-xl font-bold text-jades-ink">Inicio</h2>
-        <p className="text-sm text-jades-muted">{fecha(hoy)}</p>
+        <h2>{nombre ? `${saludo}, ${nombre}` : saludo}</h2>
+        <p>Este es el estado de tus ventas a crédito hoy.</p>
       </div>
-      {!soloConsulta && <button type="button" onClick={onGoToSales} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-jades-primary px-4 text-sm font-semibold text-white hover:bg-jades-hover">
-        <Plus aria-hidden="true" className="size-4" /> Registrar venta
+      {!soloConsulta && <button type="button" onClick={onGoToSales} className="store-dashboard-create">
+        <Plus aria-hidden="true" size={17} /> Registrar venta
       </button>}
-    </div>
-    {cargando && <p role="status" className="text-sm text-jades-muted">Cargando indicadores…</p>}
-    {error && <p role="alert" className="text-sm text-red-700">{error} <button className="font-semibold underline" onClick={recargar}>Reintentar</button></p>}
+    </header>
+    {cargando && <p role="status" className="store-dashboard-panel store-dashboard-message">Cargando indicadores…</p>}
+    {error && <p role="alert" className="store-dashboard-panel store-dashboard-message text-jades-danger">{error} <button className="font-semibold underline" onClick={recargar}>Reintentar</button></p>}
     {!cargando && !error && <>
-      <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 xl:grid-cols-4">
-        {indicadores.map(({ titulo, icono: Icono, filas }) => <div key={titulo} className="jades-dashboard-metric flex min-w-0 items-start gap-3 rounded-xl border border-jades-line bg-white p-5">
-          <div className="rounded-lg bg-emerald-50 p-3 text-jades-primary"><Icono aria-hidden="true" className="size-5" /></div>
-          <div>
-            <p className="text-sm font-medium text-jades-muted">{titulo}</p>
-            {(['PEN', 'USD'] as const).map(moneda => <p key={moneda} className="mt-1 break-words text-lg font-bold tabular-nums text-jades-ink">
-              {dinero(filas.filter(fila => fila.moneda === moneda).reduce((total, fila) => total + fila.monto, 0), moneda)}
-            </p>)}
+      <section className="store-dashboard-metrics" aria-label="Indicadores del negocio">
+        {indicadores.map(({ titulo, icono: Icono, tono, descripcion, filas }) => <div key={titulo} className="store-dashboard-panel store-dashboard-metric">
+          <span className={`store-dashboard-icon ${tono}`}><Icono aria-hidden="true" size={20} strokeWidth={1.8} /></span>
+          <div className="store-dashboard-metric-copy">
+            <p>{titulo}</p>
+            <div className="store-dashboard-amounts">
+              {(['PEN', 'USD'] as const).map((moneda, indice) => <span key={moneda} className={indice === 0 ? 'principal' : 'secundario'}>
+                {dinero(filas.filter(fila => fila.moneda === moneda).reduce((total, fila) => total + fila.monto, 0), moneda)}
+              </span>)}
+            </div>
+            <p>{descripcion}</p>
           </div>
         </div>)}
-      </div>
-      <div className="grid gap-[18px] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <section className="min-w-0 rounded-[13px] border border-jades-line bg-white p-5">
-          <div className="flex flex-wrap justify-between gap-3">
-            <div><h3 className="text-[15px] font-bold">Cobros de los últimos seis meses</h3><p className="text-sm text-jades-muted">Pagos recibidos y esperados</p></div>
-            <select aria-label="Moneda de cobros" value={monedaGrafico} onChange={e => setMonedaGrafico(e.target.value as Moneda)} className="min-h-11 rounded-lg border border-jades-line bg-white px-3 text-sm">
+      </section>
+      <div className="store-dashboard-overview">
+        <section className="store-dashboard-panel store-dashboard-chart">
+          <header className="store-dashboard-panel-header">
+            <div><h3>Cobros de los últimos 6 meses</h3><p>Pagos recibidos vs. pagos esperados</p></div>
+            <select aria-label="Moneda de cobros" value={monedaGrafico} onChange={e => setMonedaGrafico(e.target.value as Moneda)} className="store-dashboard-currency">
               <option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option>
             </select>
+          </header>
+          <div className="store-dashboard-plot">
+            <div className="store-dashboard-axis" aria-hidden="true">
+              {niveles.map(valor => <span key={valor}>{eje(valor)}</span>)}
+            </div>
+            <div className="store-dashboard-chart-area">
+              <div className="store-dashboard-gridlines" aria-hidden="true">{niveles.map(valor => <span key={valor} />)}</div>
+              <ol className="store-dashboard-bars">
+                {meses.map(mes => <li key={mes.periodo}>
+                  <div className="store-dashboard-bar-pair" role="img" aria-label={`${mes.etiqueta}, esperado ${dinero(mes.esperado, monedaGrafico)}, recibido ${dinero(mes.recibido, monedaGrafico)}`}>
+                    <span aria-hidden="true" title={`Esperado ${dinero(mes.esperado, monedaGrafico)}`} className="esperado" style={{ height: `${mes.esperado / escala * 100}%` }} />
+                    <span aria-hidden="true" title={`Recibido ${dinero(mes.recibido, monedaGrafico)}`} className="recibido" style={{ height: `${mes.recibido / escala * 100}%` }} />
+                  </div>
+                  <span className="store-dashboard-month">{mes.etiqueta}</span>
+                </li>)}
+              </ol>
+            </div>
           </div>
-          <ol className="mt-4 grid grid-cols-6 gap-2 border-b border-jades-line text-center text-xs">
-            {meses.map(mes => <li key={mes.periodo}>
-              <div className="flex h-40 items-end justify-center gap-1.5" role="img" aria-label={`${mes.etiqueta}, esperado ${dinero(mes.esperado, monedaGrafico)}, recibido ${dinero(mes.recibido, monedaGrafico)}`}>
-                <span aria-hidden="true" title={`Esperado ${dinero(mes.esperado, monedaGrafico)}`} className="w-3 rounded-t bg-[#c9eadd] sm:w-5" style={{ height: `${mes.esperado / escala * 100}%` }} />
-                <span aria-hidden="true" title={`Recibido ${dinero(mes.recibido, monedaGrafico)}`} className="w-3 rounded-t bg-jades-primary sm:w-5" style={{ height: `${mes.recibido / escala * 100}%` }} />
-              </div>
-              <p className="py-2 capitalize">{mes.etiqueta}</p>
-            </li>)}
-          </ol>
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
-            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-[#c9eadd]" /> Esperado</span>
-            <span className="flex items-center gap-1"><span aria-hidden="true" className="size-3 rounded-sm bg-jades-primary" /> Recibido</span>
+          <div className="store-dashboard-legend">
+            <span><i className="esperado" aria-hidden="true" /> Esperado</span>
+            <span><i className="recibido" aria-hidden="true" /> Recibido</span>
             <AyudaCampo etiqueta="el resumen de cobros" texto="Esperado agrupa las cuotas por vencimiento. Recibido agrupa los pagos registrados por fecha efectiva." />
           </div>
         </section>
-        <section className="rounded-xl border border-jades-line bg-white p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[15px] font-bold">Próximos cobros</h3>
-            <button type="button" onClick={onGoToPayments} className="flex items-center gap-1 text-sm font-semibold text-jades-primary">Ver pagos <ChevronRight className="size-4" aria-hidden="true" /></button>
-          </div>
-          <ul className="mt-2 divide-y divide-jades-line">
-            {proximos.slice(0, 6).map(o => <li className="flex justify-between gap-3 py-3 text-sm" key={o.idCuota}>
-              <span><strong className="block">{o.cliente}</strong>{o.obligacion}</span>
-              <span className="text-right"><strong className="block">{dinero(o.importePendiente, o.moneda)}</strong>{fecha(o.fechaVencimiento)}</span>
+        <section className="store-dashboard-panel store-dashboard-upcoming">
+          <header className="store-dashboard-panel-header">
+            <div><h3>Próximos cobros</h3><p>Pagos de los siguientes 7 días</p></div>
+            <button type="button" onClick={onGoToPayments} className="store-dashboard-link">Ver todos <ChevronRight size={13} aria-hidden="true" /></button>
+          </header>
+          {proximos.length > 0 ? <ul className="store-dashboard-upcoming-list">
+            {proximos.slice(0, 4).map(o => <li key={o.idCuota}>
+              <span className="store-dashboard-avatar" aria-hidden="true">{iniciales(o.cliente)}</span>
+              <div className="store-dashboard-person"><strong title={o.cliente}>{o.cliente}</strong><span title={o.obligacion}>{o.obligacion}</span></div>
+              <div className="store-dashboard-due">
+                <strong>{dinero(o.importePendiente, o.moneda)}</strong>
+                <span className={`store-dashboard-due-badge ${o.fechaVencimiento === hoy ? 'hoy' : o.fechaVencimiento === fechaManana ? 'manana' : 'fecha'}`}><i aria-hidden="true" />{o.fechaVencimiento === hoy ? 'Hoy' : o.fechaVencimiento === fechaManana ? 'Mañana' : fecha(o.fechaVencimiento)}</span>
+              </div>
             </li>)}
-          </ul>
-          {!proximos.length && <p className="py-4 text-sm text-jades-muted">No hay vencimientos próximos.</p>}
-        </section>
-        <section className="rounded-xl border border-jades-line bg-white p-5 xl:col-span-2">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-[15px] font-bold">Actividad reciente</h3>
-            <button type="button" onClick={onGoToClients} className="flex items-center gap-1 text-sm font-semibold text-jades-primary">Ver clientes <ChevronRight className="size-4" aria-hidden="true" /></button>
-          </div>
-          <ul className="mt-2 divide-y divide-jades-line">
-            {actividad.map(item => <li className="flex justify-between gap-3 py-3 text-sm" key={item.id}>
-              <span><strong className="block">{item.etiqueta}</strong>{item.cliente}</span>
-              <span className="text-right"><strong className="block">{item.monto}</strong>{fecha(item.dia)}</span>
-            </li>)}
-          </ul>
-          {!actividad.length && <p className="py-4 text-sm text-jades-muted">No hay movimientos registrados.</p>}
+          </ul> : <div className="store-dashboard-empty">
+            <span className="store-dashboard-icon verde"><CalendarClock size={22} aria-hidden="true" /></span>
+            <strong>No hay vencimientos próximos</strong>
+            <p>No tienes cobros programados para los siguientes 7 días.</p>
+          </div>}
         </section>
       </div>
+      <section className="store-dashboard-panel store-dashboard-activity">
+        <header className="store-dashboard-panel-header">
+          <div><h3>Actividad reciente</h3><p>Últimos movimientos de créditos y pagos</p></div>
+          <button type="button" onClick={onGoToClients} className="store-dashboard-link">Ver clientes <ChevronRight size={13} aria-hidden="true" /></button>
+        </header>
+        {actividad.length ? <ul className="store-dashboard-activity-list">
+          {actividad.map(item => {
+            const Icono = item.id.startsWith('pago-') ? Check : ShoppingCart;
+            return <li key={item.id}>
+              <span className="store-dashboard-icon verde"><Icono size={18} aria-hidden="true" /></span>
+              <div className="store-dashboard-activity-copy">
+                <strong>{item.etiqueta}</strong>
+                <p>{item.cliente}</p>
+                <div><span>{fecha(item.dia)}</span><strong>{item.monto}</strong></div>
+              </div>
+            </li>;
+          })}
+        </ul> : <p className="store-dashboard-message">No hay movimientos registrados.</p>}
+      </section>
     </>}
   </div>;
 }

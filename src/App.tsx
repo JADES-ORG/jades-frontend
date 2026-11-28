@@ -465,6 +465,7 @@ export function App() {
                       <StoreDashboardPage
                           key={idTiendaActiva}
                           idTienda={idTiendaActiva}
+                          nombreUsuario={currentUser?.nombre}
                           soloConsulta={soloConsulta}
                           revision={revisionCobros}
                           onGoToPayments={() => setStoreTab('pagos')}
